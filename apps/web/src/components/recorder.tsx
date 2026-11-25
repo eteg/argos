@@ -84,7 +84,7 @@ export function Recorder() {
         id: entryId.current, siteId, capturedAt: startedAt.current, localDate: localDateNow(timezone), timezone, location: position,
         audio: { ...audio, durationSeconds: seconds }, photos,
       });
-      router.push(`/obra?id=${siteId}`);
+      router.push(`/dia?id=${siteId}`);
     } catch (e) {
       setError(errorMessage(e instanceof ApiError ? e.code : "UNAVAILABLE"));
       setSaving(false);
