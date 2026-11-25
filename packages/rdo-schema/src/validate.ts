@@ -9,6 +9,7 @@ export type StructuralCode =
   | "INVALID_ENUM"
   | "UNKNOWN_FIELD"
   | "INVALID_FORMAT"
+  | "OUT_OF_RANGE"
   | "TOO_MANY_PHOTOS"
   | "NOT_ALLOWED_FOR_SITE_TYPE";
 
@@ -54,6 +55,9 @@ function mapIssue(issue: z.core.$ZodIssue): ValidationItem<StructuralCode>[] {
       return [{ path, code: "INVALID_ENUM" }];
     case "invalid_format":
       return [{ path, code: "INVALID_FORMAT" }];
+    case "too_small":
+    case "too_big":
+      return [{ path, code: "OUT_OF_RANGE" }];
     default:
       return [{ path, code: "INVALID_TYPE" }];
   }
