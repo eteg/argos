@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { and, desc, eq, lt, or } from "drizzle-orm";
 import type { Schemas } from "@argos/contract";
+import { z } from "zod";
 import { ProblemException } from "../common/problem.js";
 import { DB, type Database } from "../database/database.module.js";
 import { reports } from "../database/schema.js";
@@ -17,15 +18,19 @@ interface Cursor {
   id: string;
 }
 
+const cursorSchema = z.object({ d: z.iso.date(), id: z.uuid() });
+
 function decodeCursor(value: string | undefined): Cursor | null {
   if (!value) return null;
+  let decoded: unknown = null;
   try {
-    const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as Partial<Cursor>;
-    if (typeof parsed.d === "string" && typeof parsed.id === "string") return { d: parsed.d, id: parsed.id };
+    decoded = JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
   } catch {
-    // falls through to the validation error
+    decoded = null;
   }
-  throw new ProblemException(400, "VALIDATION", "Invalid cursor.", [{ field: "cursor", code: "INVALID" }]);
+  const parsed = cursorSchema.safeParse(decoded);
+  if (!parsed.success) throw new ProblemException(400, "VALIDATION", "Invalid cursor.", [{ field: "cursor", code: "INVALID" }]);
+  return parsed.data;
 }
 
 @Injectable()
