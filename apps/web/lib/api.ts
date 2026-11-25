@@ -1,11 +1,78 @@
 const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-// Toda chamada leva a chave da API (ADR 0002). Vira cliente openapi-fetch quando o OpenAPI do M1 existir.
-export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${baseUrl}/v1${path}`, {
-    ...init,
-    headers: { "X-Api-Key": process.env.NEXT_PUBLIC_API_KEY ?? "", ...init?.headers },
-  });
-  if (!res.ok) throw new Error(`${res.status} ${path}`);
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    readonly problem: Record<string, unknown>,
+  ) {
+    super(`${status} ${code}`);
+  }
+}
+
+export const timezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+export const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: timezone() }).format(new Date());
+export const mediaUrl = (path: string) => `${baseUrl}${path}`;
+
+// Toda chamada leva a chave da API (ADR 0002) e o fuso do celular. Vira cliente openapi-fetch quando o OpenAPI do M1 existir.
+export async function api<T>(path: string, init?: RequestInit & { location?: { lat: number; lng: number } | null }): Promise<T> {
+  const headers: Record<string, string> = { "X-Api-Key": process.env.NEXT_PUBLIC_API_KEY ?? "", "X-Timezone": timezone() };
+  if (init?.body && typeof init.body === "string") headers["Content-Type"] = "application/json";
+  if (init?.location) headers["X-Device-Location"] = `${init.location.lat},${init.location.lng}`;
+  const res = await fetch(`${baseUrl}/v1${path}`, { ...init, headers: { ...headers, ...init?.headers } });
+  if (!res.ok) {
+    const problem = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, problem.code ?? "UNAVAILABLE", problem);
+  }
   return res.json() as Promise<T>;
+}
+
+export function currentLocation(): Promise<{ lat: number; lng: number; accuracyMeters: number } | null> {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracyMeters: Math.round(p.coords.accuracy) }),
+      () => resolve(null),
+      { timeout: 5000, maximumAge: 60_000 },
+    );
+  });
+}
+
+export type SiteType = "private" | "public" | "financed";
+export type SiteStatus = "not_started" | "in_progress" | "paused" | "completed";
+
+export interface Media {
+  id: string;
+  kind: "audio" | "photo";
+  capturedAt: string;
+  durationSeconds: number | null;
+  url: string;
+}
+
+export interface Entry {
+  id: string;
+  capturedAt: string;
+  audio: Media | null;
+  photos: Media[];
+  status: string;
+  title: string | null;
+}
+
+export interface SiteSummary {
+  id: string;
+  name: string;
+  type: SiteType;
+  status: SiteStatus;
+  statusChangedOn: string;
+  address: string | null;
+  distanceMeters: number | null;
+  today: { localDate: string; state: string; entriesCount: number };
+}
+
+export interface Site extends SiteSummary {
+  client: { name: string; taxId: string | null } | null;
+  contractor: { name: string; taxId: string | null } | null;
+  technicalManager: { name: string; artNumber: string | null } | null;
+  publicContract: { number: string; durationDays: number; elapsedDays: number; remainingDays: number } | null;
+  equipment: { id: string; name: string; identifier: string | null }[];
 }

@@ -11,7 +11,7 @@ As regras de negócio ficam no [guia do time], que é a fonte da verdade. Este r
 | Marco | Entrega | Situação |
 |---|---|---|
 | [M0](#m0-fundação) | Fundação | em andamento |
-| [M1](#m1-obras-e-registro) | Obras e registro | não iniciado |
+| [M1](#m1-obras-e-registro) | Obras e registro | em andamento |
 | [M2](#m2-rdo-preenchido-pela-ia) | RDO preenchido pela IA | não iniciado |
 | [M3](#m3-memória-entre-dias) | Memória entre dias | não iniciado |
 | [M4](#m4-sem-internet) | Sem internet | não iniciado |
@@ -104,6 +104,12 @@ Pronto quando a web abre no celular, fala com a API de staging e uma chamada à 
 - **Decisões antes do marco:** D02, D09, D10, D12, D15, D16.
 
 Pronto quando o engenheiro cadastra uma obra, faz o check-in e grava registros com fotos ao longo do dia, e tudo fica guardado na obra certa.
+
+| Raia | Entrega | Situação | Onde |
+|---|---|---|---|
+| API | Obras, status, registros, mídia, dia, `getMe` e `getConfig` | em revisão | sem planilha de serviços, documentos e CRUD de equipamentos |
+| Web | Início (`2.1`), cadastro (`2.2`, `2.2b`), pasta (`2.3`), status (`2.10`, `2.11`) e registro (`3.2`) | em revisão | check-in (`2.5`) é o próprio início (D12); áudio pelo microfone não testado no navegador do Claude |
+| Contrato | OpenAPI de obras e registro | a fazer | as rotas seguem `operacoes.md` |
 
 ## M2 RDO preenchido pela IA
 

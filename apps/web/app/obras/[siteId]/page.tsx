@@ -1,0 +1,103 @@
+"use client";
+
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { ApiError, api, mediaUrl, today, type Entry, type Site, type SiteStatus } from "@/lib/api";
+import { siteStatusLabel, siteTypeLabel, time } from "@/lib/labels";
+
+// 2.3 Pasta da obra, com os registros de hoje e o status (2.10).
+export default function SiteFolder() {
+  const { siteId } = useParams<{ siteId: string }>();
+  const [site, setSite] = useState<Site | null>(null);
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [error, setError] = useState("");
+
+  const load = useCallback(() => {
+    api<Site>(`/sites/${siteId}`).then(setSite).catch(() => setError("Obra não encontrada."));
+    api<{ entries: Entry[] }>(`/sites/${siteId}/days/${today()}`).then((d) => setEntries(d.entries));
+  }, [siteId]);
+
+  useEffect(load, [load]);
+
+  async function changeStatus(status: SiteStatus) {
+    setError("");
+    try {
+      setSite({ ...site!, ...(await api<Site>(`/sites/${siteId}/status`, { method: "PUT", body: JSON.stringify({ status }) })) });
+    } catch (e) {
+      if (e instanceof ApiError && e.code === "SITE_HAS_OPEN_REPORTS") {
+        const days = (e.problem.days as string[]).length;
+        setError(`Falta finalizar ${days} RDO para concluir a obra.`);
+      } else setError("Não deu pra mudar o status agora.");
+    }
+  }
+
+  if (!site) return <main>{error ? <p className="error">{error}</p> : <p className="muted">Carregando…</p>}</main>;
+
+  return (
+    <main>
+      <Link href="/" className="muted">
+        ← Início
+      </Link>
+      <h1>{site.name}</h1>
+      <div className="muted">
+        {[site.address, siteTypeLabel[site.type], siteStatusLabel[site.status]].filter(Boolean).join(" · ")}
+      </div>
+      {site.publicContract && (
+        <div className="card" style={{ marginTop: 12 }}>
+          Contrato nº {site.publicContract.number} · {site.publicContract.elapsedDays} dias · faltam{" "}
+          {site.publicContract.remainingDays}
+        </div>
+      )}
+
+      <h2>Hoje</h2>
+      {entries.length === 0 && <p className="muted">Nenhum registro hoje.</p>}
+      {entries.map((e) => (
+        <div key={e.id} className="card">
+          <div className="row">
+            <strong>{time(e.capturedAt)}</strong>
+            <span className="muted">
+              {e.audio ? `Áudio${e.audio.durationSeconds ? ` · ${Math.floor(e.audio.durationSeconds / 60)}:${String(e.audio.durationSeconds % 60).padStart(2, "0")}` : ""}` : "Sem áudio"}
+              {e.photos.length > 0 && ` · ${e.photos.length} foto(s)`}
+            </span>
+          </div>
+          {e.audio && <audio controls src={mediaUrl(e.audio.url)} style={{ width: "100%", marginTop: 8 }} />}
+          {e.photos.length > 0 && (
+            <div className="photos" style={{ marginTop: 8 }}>
+              {e.photos.map((p) => (
+                <img key={p.id} src={mediaUrl(p.url)} alt="" />
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {site.equipment.length > 0 && (
+        <>
+          <h2>Equipamentos</h2>
+          <div className="card">{site.equipment.map((eq) => eq.name).join(" · ")}</div>
+        </>
+      )}
+
+      <h2>Status da obra</h2>
+      <select value={site.status} onChange={(e) => changeStatus(e.target.value as SiteStatus)}>
+        {Object.entries(siteStatusLabel).map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </select>
+      {error && <p className="error">{error}</p>}
+
+      {site.status === "in_progress" && (
+        <div className="fixed-bottom">
+          <div>
+            <Link href={`/obras/${site.id}/registro`} className="btn primary block">
+              🎙 Registrar
+            </Link>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}
