@@ -36,6 +36,13 @@
       "when": 1795638045739,
       "tag": "0004_cheerful_iron_monger",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795638711606,
+      "tag": "0005_happy_scarecrow",
+      "breakpoints": true
     }
   ]
 }

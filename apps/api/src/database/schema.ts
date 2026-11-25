@@ -88,6 +88,7 @@ export const entries = pgTable(
     audioMediaId: uuid("audio_media_id").notNull().references(() => media.id),
     photoMediaIds: uuid("photo_media_ids").array().notNull().default([]),
     status: text("status").notNull().default("processed"),
+    openItemIds: uuid("open_item_ids").array().notNull().default([]),
     transcript: text("transcript"),
     title: text("title"),
     tags: jsonb("tags").$type<{ kind: string; label: string }[]>().notNull().default([]),
@@ -132,4 +133,22 @@ export const questions = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("questions_report_idx").on(t.reportId), index("questions_entry_idx").on(t.entryId)],
+);
+
+export const openItems = pgTable(
+  "open_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    siteId: uuid("site_id").notNull().references(() => sites.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    kind: text("kind").notNull(),
+    status: text("status").notNull().default("open"),
+    openedOn: date("opened_on").notNull(),
+    openedInReportId: uuid("opened_in_report_id").notNull().references(() => reports.id, { onDelete: "cascade" }),
+    lastUpdate: jsonb("last_update").$type<{ localDate: string; note: string }>(),
+    closedOn: date("closed_on"),
+    closingNote: text("closing_note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("open_items_site_status_idx").on(t.siteId, t.status)],
 );
