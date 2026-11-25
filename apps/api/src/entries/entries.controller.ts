@@ -1,11 +1,12 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Inject, NotFoundException, Param, ParseUUIDPipe, Post } from "@nestjs/common";
 import { and, desc, eq } from "drizzle-orm";
 import { LIMITS } from "@argos/rdo-schema";
 import { z } from "zod";
 import { db } from "../db/db";
-import { entries } from "../db/schema";
+import { entries, reports } from "../db/schema";
 import { findMedia, toMedia } from "../media/media.controller";
 import { ProblemException } from "../problem.filter";
+import { RdoService } from "../rdo/rdo.service";
 import { findSite } from "../sites/sites.controller";
 import { locationSchema, parse } from "../validation";
 
@@ -38,7 +39,7 @@ async function toEntries(rows: EntryRow[]) {
     status: r.status,
     transcript: r.transcript ?? null,
     title: r.title ?? null,
-    tags: [],
+    tags: r.tags,
     openItemIds: [],
     questions: [],
   }));
@@ -46,8 +47,11 @@ async function toEntries(rows: EntryRow[]) {
 
 @Controller()
 export class EntriesController {
+  constructor(@Inject(RdoService) private readonly rdo: RdoService) {}
+
+  // 202: a IA transcreve e interpreta em segundo plano, e a web consulta getEntry.
   @Post("sites/:siteId/entries")
-  @HttpCode(201)
+  @HttpCode(202)
   async createEntry(@Param("siteId", ParseUUIDPipe) siteId: string, @Body() body: unknown) {
     const input = parse(entryInput, body);
     const [existing] = await db.select().from(entries).where(eq(entries.id, input.id));
@@ -65,6 +69,11 @@ export class EntriesController {
       .select({ photoMediaIds: entries.photoMediaIds })
       .from(entries)
       .where(and(eq(entries.siteId, siteId), eq(entries.localDate, input.localDate)));
+    const [dayReport] = await db
+      .select({ status: reports.status })
+      .from(reports)
+      .where(and(eq(reports.siteId, siteId), eq(reports.localDate, input.localDate)));
+    if (dayReport?.status === "approved") throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The day's report is approved");
     const dayPhotos = day.reduce((n, e) => n + e.photoMediaIds.length, 0);
     if (dayPhotos + input.photoMediaIds.length > LIMITS.maxPhotosPerReport) {
       throw new ProblemException(409, "PHOTO_LIMIT_REPORT", `At most ${LIMITS.maxPhotosPerReport} photos per report`);
@@ -78,7 +87,6 @@ export class EntriesController {
       });
     }
 
-    // Até o M2 não há interpretação da IA: o registro já nasce processado.
     const [row] = await db
       .insert(entries)
       .values({
@@ -91,10 +99,18 @@ export class EntriesController {
         offline: input.offline,
         audioMediaId: input.audioMediaId ?? null,
         photoMediaIds: input.photoMediaIds,
-        status: "processed",
+        status: "processing",
       })
       .returning();
+    void this.rdo.interpretEntry(row!.id);
     return (await toEntries([row!]))[0];
+  }
+
+  @Get("entries/:entryId")
+  async getEntry(@Param("entryId", ParseUUIDPipe) entryId: string) {
+    const [row] = await db.select().from(entries).where(eq(entries.id, entryId));
+    if (!row) throw new NotFoundException("Entry not found");
+    return (await toEntries([row]))[0];
   }
 
   @Get("sites/:siteId/days/:localDate")
@@ -111,7 +127,11 @@ export class EntriesController {
       localDate,
       openItems: [],
       entries: await toEntries(rows),
-      report: null,
+      report: await db
+        .select({ id: reports.id, status: reports.status, number: reports.number })
+        .from(reports)
+        .where(and(eq(reports.siteId, siteId), eq(reports.localDate, localDate)))
+        .then((r) => r[0] ?? null),
     };
   }
 }

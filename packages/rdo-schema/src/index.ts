@@ -144,7 +144,12 @@ const empty = (v: unknown) => v === null || v === undefined || v === "";
 
 // Campos vazios por nível (RG02, RG06, F1RN04). O RDO só é aprovado sem nenhum "universal" e,
 // em obra pública ou financiada, sem nenhum "public". Os "recommended" só aparecem como aviso.
-export function findMissingFields(content: ReportContent, siteType: SiteType): MissingField[] {
+export function findMissingFields(
+  content: ReportContent,
+  siteType: SiteType,
+  // Sem planilha de serviços importada, não há serviço pra escolher.
+  { hasServices = true }: { hasServices?: boolean } = {},
+): MissingField[] {
   const missing: MissingField[] = [];
   const check = (field: string, value: unknown, level: FieldLevel) => {
     if (level === "public" && !isPublic(siteType)) return;
@@ -183,7 +188,7 @@ export function findMissingFields(content: ReportContent, siteType: SiteType): M
 
   if (content.activities.length === 0) missing.push({ field: "activities", level: "universal" });
   content.activities.forEach((a, i) => {
-    check(`activities.${i}.serviceId`, a.serviceId, "universal");
+    if (hasServices) check(`activities.${i}.serviceId`, a.serviceId, "universal");
     check(`activities.${i}.location`, a.location, "universal");
     check(`activities.${i}.status`, a.status, "universal");
     check(`activities.${i}.quantity`, a.quantity, "public");
@@ -213,6 +218,10 @@ export function findMissingFields(content: ReportContent, siteType: SiteType): M
 }
 
 // Só os que impedem a aprovação.
-export function blockingFields(content: ReportContent, siteType: SiteType): MissingField[] {
-  return findMissingFields(content, siteType).filter((f) => f.level !== "recommended");
+export function blockingFields(
+  content: ReportContent,
+  siteType: SiteType,
+  options?: { hasServices?: boolean },
+): MissingField[] {
+  return findMissingFields(content, siteType, options).filter((f) => f.level !== "recommended");
 }

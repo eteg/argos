@@ -11,6 +11,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "1.13.0",
     "@argos/rdo-schema": "workspace:*",
+    "@google/genai": "3.6.1",
     "@langfuse/otel": "6.1.1",
     "@langfuse/tracing": "6.1.1",
     "@nestjs/common": "12.6.0",

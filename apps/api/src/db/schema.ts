@@ -1,4 +1,5 @@
-import { boolean, date, integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import type { ReportContent } from "@argos/rdo-schema";
+import { boolean, date, integer, jsonb, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 
 // Nomes e formatos de docs/contratos/recursos.md. Os objetos da obra ficam em jsonb enquanto o contrato é rascunho.
 export type Location = { lat: number; lng: number; accuracyMeters: number | null };
@@ -56,5 +57,41 @@ export const entries = pgTable("entries", {
   status: text("status").notNull(),
   transcript: text("transcript"),
   title: text("title"),
+  tags: jsonb("tags").$type<EntryTag[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export type EntryTag = { kind: "activity" | "occurrence" | "labor" | "equipment" | "weather" | "safety"; label: string };
+export type Question = {
+  id: string;
+  kind: "missing_field" | "open_item" | "service_match" | "safety";
+  text: string;
+  field: string | null;
+  openItemId: string | null;
+  options: { id: string; label: string }[];
+  status: "open" | "answered";
+  answer: { optionId: string | null; text: string | null; audioMediaId: string | null; answeredAt: string } | null;
+};
+export type HistoryLine = { at: string; actor: "agent" | "engineer"; description: string };
+
+// Um RDO por obra e por dia. O conteúdo segue o schema de @argos/rdo-schema.
+export const reports = pgTable(
+  "reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    siteId: uuid("site_id")
+      .notNull()
+      .references(() => sites.id),
+    localDate: date("local_date").notNull(),
+    number: integer("number").notNull(),
+    status: text("status").notNull(),
+    site: jsonb("site").$type<Record<string, unknown>>().notNull(),
+    content: jsonb("content").$type<ReportContent>(),
+    questions: jsonb("questions").$type<Question[]>().notNull().default([]),
+    history: jsonb("history").$type<HistoryLine[]>().notNull().default([]),
+    approval: jsonb("approval").$type<{ approvedBy: string; approvedAt: string }>(),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique().on(t.siteId, t.localDate)],
+);

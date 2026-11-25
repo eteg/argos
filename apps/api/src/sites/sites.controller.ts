@@ -3,7 +3,7 @@ import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "../db/db";
-import { entries, sites } from "../db/schema";
+import { entries, reports, sites } from "../db/schema";
 import { ProblemException } from "../problem.filter";
 import { locationSchema, parse, todayIn } from "../validation";
 
@@ -213,12 +213,18 @@ export class SitesController {
   ) {
     const { status } = parse(z.object({ status: siteStatus }), body);
     await findSite(siteId);
-    // RG08: a obra não é concluída com RDO em aberto. Até o M2, todo dia com registro conta como RDO em aberto.
+    // RG08: a obra não é concluída com RDO em aberto: todo dia com registro precisa de RDO aprovado.
     if (status === "completed") {
-      const days = await db
-        .selectDistinct({ localDate: entries.localDate })
-        .from(entries)
-        .where(eq(entries.siteId, siteId));
+      const withEntries = await db.selectDistinct({ localDate: entries.localDate }).from(entries).where(eq(entries.siteId, siteId));
+      const approved = new Set(
+        (
+          await db
+            .select({ localDate: reports.localDate })
+            .from(reports)
+            .where(and(eq(reports.siteId, siteId), eq(reports.status, "approved")))
+        ).map((r) => r.localDate),
+      );
+      const days = withEntries.filter((d) => !approved.has(d.localDate));
       if (days.length > 0) {
         throw new ProblemException(409, "SITE_HAS_OPEN_REPORTS", "Site has days without an approved report", {
           days: days.map((d) => d.localDate),
