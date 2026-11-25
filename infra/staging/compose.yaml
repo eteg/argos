@@ -18,6 +18,9 @@ services:
     env_file: .env
     environment:
       GIT_COMMIT: ${GIT_COMMIT:-dev}
+      UPLOAD_DIR: /data/uploads
+    volumes:
+      - argos-uploads:/data/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,3 +57,4 @@ services:
 volumes:
   pg-data:
   caddy-data:
+  argos-uploads:

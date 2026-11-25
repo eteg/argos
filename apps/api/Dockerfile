@@ -17,6 +17,7 @@ FROM node:26-slim AS runner
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=builder --chown=node:node /app .
+RUN mkdir -p /data/uploads && chown node:node /data/uploads
 USER node
 WORKDIR /app/apps/api
 EXPOSE 3001
