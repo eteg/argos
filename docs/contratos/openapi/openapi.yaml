@@ -615,7 +615,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
-          description: "`PREVIOUS_DAY_PENDING` ou `REPORT_ALREADY_APPROVED`."
+          description: "`PREVIOUS_DAY_PENDING`, `REPORT_ALREADY_APPROVED` ou `NO_ENTRIES` (o dia não tem registro)."
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
@@ -1216,7 +1216,21 @@ components:
         localDate: { type: string, format: date }
         status: { $ref: "#/components/schemas/ReportStatus" }
         entriesCount: { type: integer }
-        site: { $ref: "#/components/schemas/Site", description: Cópia dos dados da obra no dia. }
+        site:
+          type: object
+          description: Cópia dos dados da obra no dia.
+          required: [name, type, address, client, contractor, technicalManager, publicContract]
+          properties:
+            name: { type: string }
+            type: { $ref: "#/components/schemas/SiteType" }
+            address: { type: string }
+            client: { $ref: "#/components/schemas/Party" }
+            contractor: { $ref: "#/components/schemas/Party" }
+            technicalManager: { $ref: "#/components/schemas/TechnicalManager" }
+            publicContract:
+              oneOf:
+                - $ref: "#/components/schemas/PublicContract"
+                - type: "null"
         workday: { $ref: "#/components/schemas/Workday" }
         weather:
           type: array

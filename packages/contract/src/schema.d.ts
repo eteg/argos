@@ -905,7 +905,15 @@ export interface components {
             status: components["schemas"]["ReportStatus"];
             entriesCount: number;
             /** @description Cópia dos dados da obra no dia. */
-            site: components["schemas"]["Site"];
+            site: {
+                name: string;
+                type: components["schemas"]["SiteType"];
+                address: string;
+                client: components["schemas"]["Party"];
+                contractor: components["schemas"]["Party"];
+                technicalManager: components["schemas"]["TechnicalManager"];
+                publicContract: components["schemas"]["PublicContract"] | null;
+            };
             workday: components["schemas"]["Workday"];
             weather: {
                 /** @enum {string} */
@@ -1936,7 +1944,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description `PREVIOUS_DAY_PENDING` ou `REPORT_ALREADY_APPROVED`. */
+            /** @description `PREVIOUS_DAY_PENDING`, `REPORT_ALREADY_APPROVED` ou `NO_ENTRIES` (o dia não tem registro). */
             409: {
                 headers: {
                     [name: string]: unknown;

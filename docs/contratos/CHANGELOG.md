@@ -2,7 +2,7 @@
 
 ## 0.3.0, rascunho
 
-- Base do M2 no OpenAPI: `getEntry`, `answerQuestion`, `generateReport` (202), `getReport` e `approveReport` (com `Idempotency-Key`), mais os schemas `Report`, `Workday` e `AnswerQuestionRequest`. Faltam `updateReport`, `correctReportByVoice` e `listServices`.
+- Base do M2 no OpenAPI: `getEntry`, `answerQuestion`, `generateReport` (202), `getReport` e `approveReport` (com `Idempotency-Key`), mais os schemas `Report`, `Workday` e `AnswerQuestionRequest`. `Report.site` ficou igual ao `site` do `@argos/rdo-schema`. `generateReport` responde 409 `NO_ENTRIES` num dia sem registro. Faltam `updateReport`, `correctReportByVoice` e `listServices`.
 
 ## 0.2.0, acordado
 
