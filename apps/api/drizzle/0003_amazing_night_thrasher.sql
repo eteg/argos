@@ -1,0 +1,1 @@
+ALTER TABLE "reports" ADD COLUMN "history" jsonb DEFAULT '[]'::jsonb NOT NULL;
