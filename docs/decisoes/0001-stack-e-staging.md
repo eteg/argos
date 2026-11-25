@@ -54,7 +54,7 @@ Fixadas pelo `npm view` em 25/11/2026. Atualização de versão maior é decisã
 | Banco | `drizzle-orm` | 0.45.4 |
 | Migrations | `drizzle-kit` | 0.31.11 |
 | Schema | `zod` | 4.6.7 |
-| IA | `@anthropic-ai/sdk` | 1.14.0 |
+| IA | `@anthropic-ai/sdk` | 1.13.0 (a 1.14.0 tem menos de um dia e fica barrada pela idade mínima do pnpm) |
 | Observabilidade | `@langfuse/tracing`, `@langfuse/otel` | 6.1.1 |
 | OpenTelemetry | `@opentelemetry/sdk-node` | 0.301.2 |
 | Lint do OpenAPI | `@redocly/cli` | 2.83.0 |

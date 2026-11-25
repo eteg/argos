@@ -91,7 +91,7 @@ Pronto quando a web abre no celular, fala com a API de staging e uma chamada à 
 | Contrato | OpenAPI do M1 e servidor falso | a fazer | |
 | Web | Web PWA base | em andamento | monorepo: manifest e chamada à API; falta o Serwist |
 | API | API base | em andamento | monorepo: health, X-Api-Key e Problem Details; falta Drizzle |
-| IA | Chamada à Claude com Langfuse | a fazer | |
+| IA | Chamada à Claude com Langfuse | em andamento | `POST /v1/ai/diagnostics` local; falta a chave da Anthropic e do Langfuse pra ver no painel |
 | Contrato | Schema do RDO | a fazer | |
 | Dados | Obra fictícia e 5 gabaritos | a fazer | |
 | API | Staging na EC2 | a fazer | |

@@ -8,6 +8,7 @@ const CODES: Record<number, string> = {
   413: "FILE_TOO_LARGE",
   415: "UNSUPPORTED_FILE",
   429: "RATE_LIMITED",
+  503: "UNAVAILABLE",
 };
 
 // Todo erro sai em Problem Details (RFC 9457), como pedem as convenções.
