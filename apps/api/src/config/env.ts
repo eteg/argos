@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const envSchema = z.object({
   PORT: z.coerce.number().int().default(3001),
-  APP_ENV: z.enum(["development", "staging"]).default("development"),
+  APP_ENV: z.enum(["development", "staging", "production"]).default("development"),
   GIT_COMMIT: z.string().min(1).default("dev"),
   DATABASE_URL: z.string().min(1),
   API_KEY: z.string().min(1),
