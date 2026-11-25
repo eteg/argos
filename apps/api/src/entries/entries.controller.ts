@@ -1,0 +1,117 @@
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post } from "@nestjs/common";
+import { and, desc, eq } from "drizzle-orm";
+import { LIMITS } from "@argos/rdo-schema";
+import { z } from "zod";
+import { db } from "../db/db";
+import { entries } from "../db/schema";
+import { findMedia, toMedia } from "../media/media.controller";
+import { ProblemException } from "../problem.filter";
+import { findSite } from "../sites/sites.controller";
+import { locationSchema, parse } from "../validation";
+
+const entryInput = z.object({
+  id: z.uuid(),
+  capturedAt: z.iso.datetime(),
+  localDate: z.iso.date(),
+  timezone: z.string().min(1),
+  location: locationSchema.nullable().optional(),
+  offline: z.boolean().default(false),
+  audioMediaId: z.uuid().nullable().optional(),
+  photoMediaIds: z.array(z.uuid()).default([]),
+});
+
+type EntryRow = typeof entries.$inferSelect;
+
+async function toEntries(rows: EntryRow[]) {
+  const ids = rows.flatMap((r) => [...(r.audioMediaId ? [r.audioMediaId] : []), ...r.photoMediaIds]);
+  const found = await findMedia(ids);
+  return rows.map((r) => ({
+    id: r.id,
+    siteId: r.siteId,
+    capturedAt: r.capturedAt.toISOString(),
+    localDate: r.localDate,
+    timezone: r.timezone,
+    location: r.location ?? null,
+    offline: r.offline,
+    audio: r.audioMediaId && found.get(r.audioMediaId) ? toMedia(found.get(r.audioMediaId)!) : null,
+    photos: r.photoMediaIds.flatMap((id) => (found.get(id) ? [toMedia(found.get(id)!)] : [])),
+    status: r.status,
+    transcript: r.transcript ?? null,
+    title: r.title ?? null,
+    tags: [],
+    openItemIds: [],
+    questions: [],
+  }));
+}
+
+@Controller()
+export class EntriesController {
+  @Post("sites/:siteId/entries")
+  @HttpCode(201)
+  async createEntry(@Param("siteId", ParseUUIDPipe) siteId: string, @Body() body: unknown) {
+    const input = parse(entryInput, body);
+    const [existing] = await db.select().from(entries).where(eq(entries.id, input.id));
+    if (existing) return (await toEntries([existing]))[0];
+
+    const site = await findSite(siteId);
+    if (site.status !== "in_progress") throw new ProblemException(409, "SITE_NOT_IN_PROGRESS", "Site is not in progress");
+    if (!input.audioMediaId && input.photoMediaIds.length === 0) {
+      throw new ProblemException(400, "VALIDATION", "An entry needs audio or photos", { errors: [{ field: "audioMediaId", code: "REQUIRED" }] });
+    }
+    if (input.photoMediaIds.length > LIMITS.photosPerEntry) {
+      throw new ProblemException(409, "PHOTO_LIMIT_ENTRY", `At most ${LIMITS.photosPerEntry} photos per entry`);
+    }
+    const day = await db
+      .select({ photoMediaIds: entries.photoMediaIds })
+      .from(entries)
+      .where(and(eq(entries.siteId, siteId), eq(entries.localDate, input.localDate)));
+    const dayPhotos = day.reduce((n, e) => n + e.photoMediaIds.length, 0);
+    if (dayPhotos + input.photoMediaIds.length > LIMITS.maxPhotosPerReport) {
+      throw new ProblemException(409, "PHOTO_LIMIT_REPORT", `At most ${LIMITS.maxPhotosPerReport} photos per report`);
+    }
+    const mediaIds = [...(input.audioMediaId ? [input.audioMediaId] : []), ...input.photoMediaIds];
+    const found = await findMedia(mediaIds);
+    const missing = mediaIds.filter((id) => !found.has(id));
+    if (missing.length > 0) {
+      throw new ProblemException(400, "VALIDATION", "Media not uploaded", {
+        errors: missing.map((id) => ({ field: id, code: "MEDIA_NOT_FOUND" })),
+      });
+    }
+
+    // Até o M2 não há interpretação da IA: o registro já nasce processado.
+    const [row] = await db
+      .insert(entries)
+      .values({
+        id: input.id,
+        siteId,
+        capturedAt: new Date(input.capturedAt),
+        localDate: input.localDate,
+        timezone: input.timezone,
+        location: input.location ?? null,
+        offline: input.offline,
+        audioMediaId: input.audioMediaId ?? null,
+        photoMediaIds: input.photoMediaIds,
+        status: "processed",
+      })
+      .returning();
+    return (await toEntries([row!]))[0];
+  }
+
+  @Get("sites/:siteId/days/:localDate")
+  async getDay(@Param("siteId", ParseUUIDPipe) siteId: string, @Param("localDate") localDate: string) {
+    parse(z.iso.date(), localDate);
+    const site = await findSite(siteId);
+    const rows = await db
+      .select()
+      .from(entries)
+      .where(and(eq(entries.siteId, siteId), eq(entries.localDate, localDate)))
+      .orderBy(desc(entries.capturedAt));
+    return {
+      site: { id: site.id, name: site.name, type: site.type, status: site.status, address: site.address ?? null },
+      localDate,
+      openItems: [],
+      entries: await toEntries(rows),
+      report: null,
+    };
+  }
+}
