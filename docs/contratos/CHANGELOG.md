@@ -2,6 +2,8 @@
 
 ## 0.3.0, rascunho
 
+- M5: `getReportPdf` (`GET /v1/reports/{reportId}/pdf`, `application/pdf`, 409 `REPORT_NOT_APPROVED` fora do aprovado, nome sugerido em `Content-Disposition`) e `listReports` (`GET /v1/sites/{siteId}/reports`, só `status=approved`, `limit` padrão 20 e máximo 50, cursor, schema `ReportListItem`). `Report.pdfUrl` vem preenchido no aprovado.
+
 - `updateReport` (`PATCH /v1/reports/{reportId}`): corrige campos do rascunho, grava no `history` e responde 409 `REPORT_ALREADY_APPROVED` no aprovado. `generateReport` de novo mantém as correções.
 - `answerQuestion` responde 200 com opção ou texto e 202 com áudio (sem IA ainda, só guarda a resposta). `getEntry` implementado.
 - `approveReport` responde 400 sem `Idempotency-Key` e 409 `REPORT_ALREADY_APPROVED` com outra chave.

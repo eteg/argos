@@ -693,6 +693,76 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
         "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/reports/{reportId}/pdf:
+    parameters:
+      - name: reportId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - $ref: "#/components/parameters/XTimezone"
+    get:
+      operationId: getReportPdf
+      tags: [Reports]
+      summary: Baixa o PDF do RDO aprovado
+      description: >-
+        Só do RDO aprovado. O nome sugerido vem em `Content-Disposition`, como
+        `RDO-088_VilaVerde_25-11.pdf`. Leva `X-Api-Key` como as outras rotas, então a web
+        baixa por `fetch` e não por link direto.
+      responses:
+        "200":
+          description: O PDF.
+          headers:
+            Content-Disposition: { schema: { type: string } }
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`REPORT_NOT_APPROVED`: o RDO ainda não foi aprovado."
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/sites/{siteId}/reports:
+    parameters:
+      - $ref: "#/components/parameters/SiteId"
+      - $ref: "#/components/parameters/XTimezone"
+    get:
+      operationId: listReports
+      tags: [Reports]
+      summary: Lista os RDOs aprovados da obra
+      description: Do mais novo pro mais antigo, com cursor.
+      parameters:
+        - name: status
+          in: query
+          description: Só `approved` por enquanto.
+          schema: { type: string, enum: [approved] }
+        - name: limit
+          in: query
+          description: Padrão 20, máximo 50.
+          schema: { type: integer, minimum: 1, maximum: 50 }
+        - name: cursor
+          in: query
+          description: O `nextCursor` da página anterior.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Uma página de RDOs.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/ReportListItem" }
+                  nextCursor: { type: [string, "null"] }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/reports/{reportId}/approve:
     parameters:
       - name: reportId
@@ -1289,6 +1359,16 @@ components:
                 properties:
                   type: { type: string, enum: [activity, occurrence] }
                   id: { type: string }
+    ReportListItem:
+      type: object
+      required: [id, number, localDate, status, approvedAt, occurrencesCount]
+      properties:
+        id: { type: string, format: uuid }
+        number: { type: integer }
+        localDate: { type: string, format: date }
+        status: { $ref: "#/components/schemas/ReportStatus" }
+        approvedAt: { type: string, format: date-time }
+        occurrencesCount: { type: integer }
     Workday:
       type: object
       required: [startTime, endTime, breakMinutes]
@@ -1483,7 +1563,7 @@ components:
               at: { type: string, format: date-time }
               actor: { type: string, enum: [agent, engineer] }
               description: { type: string }
-        pdfUrl: { type: [string, "null"] }
+        pdfUrl: { type: [string, "null"], description: "Só no aprovado: a rota `getReportPdf`, que pede `X-Api-Key`." }
   examples:
     HealthOk:
       value: { status: ok, environment: staging, version: 90303ab, database: up }
