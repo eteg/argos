@@ -4,7 +4,7 @@ Atualizado em 25/11/2026.
 
 Cada marco termina com uma versão no ar, em staging, que alguém de fora do time consegue usar no celular. Os marcos andam em cinco raias: web (o app no navegador do celular), API, contrato, IA (o agente que preenche o RDO e lembra das pendências) e dados (a obra fictícia, os gabaritos e os áudios do eval). A web e a API andam separadas e se encontram no [contrato](../contratos/README.md): a web nunca espera a API, porque desenvolve contra um servidor falso gerado do contrato. Responsáveis: [❓A definir quem fica em cada raia].
 
-As regras de negócio ficam no [guia do time], que é a fonte da verdade. Este roadmap cita as regras pelo ID, como `F1RN08` (cobrança de pendências), e as telas pelo número do frame no [protótipo], como `3.2` (registro por voz). A ordem dos marcos pode mudar num PR, e os IDs continuam os mesmos.
+As regras de negócio ficam no [guia do time], que é a fonte da verdade. Este roadmap cita as regras pelo ID, como `F1RN08` (cobrança de pendências), e as telas pelo número do frame no [protótipo], como `3.2` (registro por voz). A ordem dos marcos pode mudar, e os IDs continuam os mesmos.
 
 ## Visão geral
 
@@ -76,7 +76,7 @@ Cada uma tem uma recomendação, que vale até o time decidir diferente. A colun
 
 ## M0 Fundação
 
-- **Monorepo:** estrutura das pastas da web, da API e do que é compartilhado; CI com tipos, lint, testes e build; deploy de staging.
+- **Monorepo:** estrutura das pastas da web, da API e do que é compartilhado; CI com tipos, lint e build, sem teste unitário ([ADR 0001](../decisoes/0001-stack-e-staging.md)); deploy de staging.
 - **Schema do RDO:** os campos da matriz do guia num schema só, usado pela API pra validar a saída da IA e pela web pra montar a revisão (`RG06`). Já separa os campos universais, os de obra pública ou financiada e os recomendados.
 - **IA:** chave da API da Anthropic, uma chamada de ponta a ponta em staging e a observabilidade ligada, guardando prompt, saída e tokens de cada execução.
 - **Contrato:** [convenções](../contratos/convencoes.md) acordadas; OpenAPI do M1 escrito a partir das [telas](../contratos/telas/README.md) e das [operações](../contratos/operacoes.md); servidor falso pra web.
@@ -167,10 +167,10 @@ A tabela de entregas de um marco nasce quando o marco começa, logo abaixo da de
 | Web | Cadastro de obra (`2.2`, `2.2b`) | em andamento | #12 |
 
 - **Entrega** é um item que o marco lista. A linha resume, e o detalhe fica na issue.
-- **Onde** aponta pra issue ou pro PR, neste repositório.
-- **Situação** é `a fazer`, `em andamento`, `em revisão` (PR aberto), `pronto` (PR mergeado e critério do marco passando) ou `bloqueado: <motivo>`.
+- **Onde** aponta pra issue ou pro commit, neste repositório.
+- **Situação** é `a fazer`, `em andamento`, `em revisão` (na `main`, esperando a revisão), `pronto` (revisado e critério do marco passando) ou `bloqueado: <motivo>`.
 - A situação do marco, na visão geral, é `não iniciado`, `em andamento` a partir da primeira entrega que começa e `pronto` quando todas as entregas estão prontas e o critério de pronto passa.
-- Mudança que só altera a situação entra direto na `main`, num commit como `docs: atualiza a situação do M1`. Qualquer outra mudança no roadmap segue por PR.
+- Toda mudança no roadmap entra direto na `main`, como o código. Mudança que só altera a situação vai num commit como `docs: atualiza a situação do M1`.
 
 [guia do time]: https://claude.ai/artifact/9VhpdMpFe4kdAbJKgfADDQ
 [protótipo]: https://claude.ai/artifact/KQMparWerCU2mP2s7fQBjs
