@@ -10,7 +10,7 @@ As regras de negócio ficam no [guia do time], que é a fonte da verdade. Este r
 
 | Marco | Entrega | Situação |
 |---|---|---|
-| [M0](#m0-fundação) | Fundação | não iniciado |
+| [M0](#m0-fundação) | Fundação | em andamento |
 | [M1](#m1-obras-e-registro) | Obras e registro | não iniciado |
 | [M2](#m2-rdo-preenchido-pela-ia) | RDO preenchido pela IA | não iniciado |
 | [M3](#m3-memória-entre-dias) | Memória entre dias | não iniciado |
@@ -50,6 +50,8 @@ Decisões registradas no [guia do time], na tabela de decisões. Aqui fica só o
 | Campo que a IA não sabe (`RG05`) | A IA pergunta. Vale também pro código da planilha ou EAP da atividade. | M2 |
 | Aprovação (`F1RN05`) | Registra o responsável, a data e a hora. Assinatura digital fica no backlog. | M2 |
 | Painel do gestor | Fica no backlog. A tela `4.1` saiu do protótipo. | |
+| Stack (D01) | Monorepo TypeScript com Next.js como PWA, NestJS, Postgres e Drizzle, staging numa EC2 com Docker Compose e fluxo trunk-based. Ver o [ADR 0001](../decisoes/0001-stack-e-staging.md). | M0 |
+| Proteção da API (`RG01`, D07) | Uma chave por ambiente no cabeçalho `X-Api-Key`, que protege só de acesso casual. Login fica pra uma versão futura. Ver o [ADR 0002](../decisoes/0002-chave-da-api-sem-login.md). | M0 |
 
 ## Decisões em aberto
 
@@ -57,13 +59,11 @@ Cada uma tem uma recomendação, que vale até o time decidir diferente. A colun
 
 | ID | Tema | Recomendação | Bloqueia |
 |---|---|---|---|
-| D01 | Stack do monorepo: framework da web, da API, banco e hospedagem | Registrar num ADR em `docs/decisoes/` antes do M0. | M0 |
 | D02 | Status de uma obra recém-cadastrada (`RG08`) | Nasce em andamento, pra não exigir um passo a mais antes do primeiro registro. | M1 |
 | D03 | Dias até destacar um item antigo (`F1RN10`) | 4 dias, como no protótipo (`2.8`). | M3 |
 | D04 | Ordem de vários dias capturados sem internet (`RG07`) | Em ordem cronológica, pela data da captura, liberando cada RDO só depois da aprovação do anterior, como no protótipo (`2.6`). | M4 |
 | D05 | Formato e destinatários do compartilhamento (`F1RN12`) | PDF pelo compartilhamento nativo do celular, como no protótipo (`3.5`). | M5 |
 | D06 | IA perguntar sobre o que aparece na foto e não foi falado | Fica fora. A conferência entre foto e relato fica só no pitch. | M2 |
-| D07 | Proteger a API sem login (`RG01`) | Uma chave por ambiente num cabeçalho, sabendo que não protege de verdade, porque fica na web. Login fica pra uma versão futura. | M0 |
 | D08 | Status do RDO: o guia fala em rascunho, enviado e aprovado | Só rascunho e aprovado. O protótipo não tem passo de envio, e "RDO enviado" no início (`2.1`) vira "RDO aprovado". | M2 |
 | D09 | Localização da obra, pra distância e reconhecimento no canteiro | "Usar minha localização atual" manda a do celular. Sem ela, a API busca pelo endereço. | M1 |
 | D10 | Foto da galeria, que pode vir sem data e local (`F1RN02`) | Só câmera, com e sem internet. A `3.6` deixa de oferecer a galeria. | M1 |
@@ -81,9 +81,20 @@ Cada uma tem uma recomendação, que vale até o time decidir diferente. A colun
 - **IA:** chave da API da Anthropic, uma chamada de ponta a ponta em staging e a observabilidade ligada, guardando prompt, saída e tokens de cada execução.
 - **Contrato:** [convenções](../contratos/convencoes.md) acordadas; OpenAPI do M1 escrito a partir das [telas](../contratos/telas/README.md) e das [operações](../contratos/operacoes.md); servidor falso pra web.
 - **Dados:** a obra fictícia e os primeiros gabaritos de RDO, em dias seguidos, com pendências que passam de um dia pro outro.
-- **Decisões antes do marco:** D01, D07.
+- **Decisões antes do marco:** tomadas nos ADRs [0001](../decisoes/0001-stack-e-staging.md) (D01) e [0002](../decisoes/0002-chave-da-api-sem-login.md) (D07).
 
 Pronto quando a web abre no celular, fala com a API de staging e uma chamada à IA aparece na observabilidade.
+
+| Raia | Entrega | Situação | Onde |
+|---|---|---|---|
+| Contrato | Convenções e decisões do M1 | a fazer | |
+| Contrato | OpenAPI do M1 e servidor falso | a fazer | |
+| Web | Web PWA base | a fazer | |
+| API | API base | a fazer | |
+| IA | Chamada à Claude com Langfuse | a fazer | |
+| Contrato | Schema do RDO | a fazer | |
+| Dados | Obra fictícia e 5 gabaritos | a fazer | |
+| API | Staging na EC2 | a fazer | |
 
 ## M1 Obras e registro
 
