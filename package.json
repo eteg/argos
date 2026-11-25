@@ -14,7 +14,8 @@
     "contract:lint": "redocly lint --config docs/contratos/openapi/redocly.yaml docs/contratos/openapi/openapi.yaml",
     "contract:types": "openapi-typescript docs/contratos/openapi/openapi.yaml -o packages/contract/src/schema.d.ts",
     "mock": "prism mock -h 0.0.0.0 -p 4010 docs/contratos/openapi/openapi.yaml",
-    "data:validate": "tsx scripts/validate-data.mts"
+    "data:validate": "tsx scripts/validate-data.mts",
+    "eval:agent": "tsx --env-file=apps/api/.env scripts/eval-agent.mts"
   },
   "devDependencies": {
     "@argos/rdo-schema": "workspace:*",
