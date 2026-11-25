@@ -1,0 +1,14 @@
+packages:
+  - apps/*
+  - packages/*
+
+allowBuilds:
+  sharp: false
+  unrs-resolver: false
+
+minimumReleaseAgeExclude:
+  - '@nestjs/common@12.6.2'
+  - '@nestjs/core@12.6.2'
+  - '@nestjs/platform-express@12.6.2'
+  - '@types/node@26.6.10'
+  - '@types/react@19.3.3'
