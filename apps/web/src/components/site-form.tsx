@@ -104,7 +104,7 @@ export function SiteForm() {
         <G title="Obra">
           <L id="nome" label="Nome da obra"><input id="nome" className={field} value={f.name} onChange={(e) => set("name", e.target.value)} /></L>
           <fieldset className="flex gap-1 rounded-[14px] border-[1.5px] border-[#CDD1DD] bg-white p-1">
-            <legend className="sr-only">Tipo da obra</legend>
+            <legend className="mb-1.5 text-[13px] text-[#5B5F6B]">Tipo da obra</legend>
             {([["private", "Privada"], ["public", "Pública"], ["financed", "Financiada"]] as const).map(([v, l]) => (
               <label key={v} className={`flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-[10px] text-[15px] ${f.type === v ? "bg-[#2D2D2B] font-semibold text-white" : ""}`}>
                 <input type="radio" name="tipo" className="sr-only" checked={f.type === v} onChange={() => setF((p) => ({ ...p, type: v }))} />{l}

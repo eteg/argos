@@ -25,6 +25,29 @@ const Block = ({ title, children }: { title: string; children: React.ReactNode }
   <section className="flex flex-col gap-2.5 rounded-2xl bg-white p-3.5"><h2 className="m-0 text-[15px] font-semibold">{title}</h2>{children}</section>
 );
 
+const period = (i: string | undefined) => (i === "0" ? "da manhã" : "da tarde");
+
+function fieldLabel(path: string) {
+  const [head, index, leaf] = path.split(".");
+  if (path === "workday.startTime") return "início da jornada";
+  if (path === "workday.endTime") return "fim da jornada";
+  if (path === "workday.breakMinutes") return "intervalo";
+  if (head === "weather" && leaf === "weather") return `tempo ${period(index)}`;
+  if (head === "weather" && leaf === "condition") return `condição ${period(index)}`;
+  if (head === "weather") return "clima";
+  if (head === "weatherStoppage") return "horas paradas por clima";
+  if (head === "labor" && leaf === "employment") return "vínculo do efetivo";
+  if (head === "labor" && leaf === "company") return "empresa terceirizada";
+  if (head === "labor") return "efetivo";
+  if (head === "equipment") return leaf === "operatingHours" ? "horas do equipamento" : "situação do equipamento";
+  if (head === "activities" && index !== undefined && leaf === undefined) return "foto da atividade";
+  if (head === "activities") return leaf === "service" ? "serviço da atividade" : leaf === "quantity" ? "quantidade da atividade" : "atividades";
+  if (head === "occurrences" && index !== undefined && leaf === undefined) return "foto da ocorrência";
+  if (head === "occurrences") return leaf === "safety" ? "registro de segurança" : leaf === "endTime" ? "fim da ocorrência" : "ocorrências";
+  if (head === "photos") return "fotos (mínimo 3)";
+  return path;
+}
+
 export function ReportReview() {
   const router = useRouter();
   const online = useOnline();
@@ -34,6 +57,7 @@ export function ReportReview() {
   const [error, setError] = useState<ApiError | null>(null);
   const [busy, setBusy] = useState(false);
   const [services, setServices] = useState<Schemas["Service"][] | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const current = report ?? (state.status === "ok" ? state.data : null);
   const generating = current?.status === "generating";
   const [dayState] = useLoad(async () => (current ? unwrap(api.GET("/v1/sites/{siteId}/days/{localDate}", { params: { path: { siteId: current.siteId, localDate: current.localDate }, ...tz } })) : null), [current?.siteId, current?.localDate]);
@@ -103,12 +127,12 @@ export function ReportReview() {
     <Page>
       <div className="flex items-center gap-3 px-5 pb-3 pt-5"><Back href={`/obra?id=${r.siteId}`} /><Title>{approved ? "RDO aprovado" : "Revise o RDO"}</Title></div>
       <div className="flex flex-col gap-3 px-4 pb-8">
-        <div className="flex items-center gap-2 px-1"><Pill tone={approved ? "blue" : "purple"}>{approved ? "Aprovado" : "Rascunho"}</Pill><span className="text-[13px] text-[#5B5F6B]">Nº {String(r.number).padStart(3, "0")} · {fullDate(r.localDate)} · {r.entriesCount} registros</span></div>
+        <div className="flex items-center gap-2 px-1"><Pill tone={approved ? "blue" : "purple"}>{approved ? "Aprovado" : "Rascunho"}</Pill><span className="text-[13px] text-[#5B5F6B]">Nº {String(r.number).padStart(3, "0")} · {fullDate(r.localDate)} · {r.entriesCount} {r.entriesCount === 1 ? "registro" : "registros"}</span></div>
         {!online && <div role="status" className="rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">Sem internet: dá para ler o último RDO carregado, mas editar, corrigir falando e aprovar precisam de internet.</div>}
         {busyAi && <div role="status" className="rounded-xl bg-[#E3ECFF] p-3 text-sm text-[#0B3699]">O Argos está montando o RDO com o que você falou. Isso leva alguns segundos…</div>}
         {!approved && !busyAi && r.questions.some((q) => q.status === "open") && (
           <Block title="O Argos perguntou">
-            {r.questions.filter((q) => q.status === "open").map((q) => (
+            {r.questions.filter((q) => q.status === "open").slice(0, showAll ? undefined : 3).map((q) => (
               <div key={q.id} className="flex flex-col gap-2 border-b border-[#E3E5EE] pb-3 last:border-b-0">
                 <span className="text-[15px] leading-[1.4]">{q.text}</span>
                 <div className="flex flex-wrap gap-2">
@@ -118,15 +142,18 @@ export function ReportReview() {
                 </div>
               </div>
             ))}
+            {!showAll && r.questions.filter((q) => q.status === "open").length > 3 && (
+              <button type="button" onClick={() => setShowAll(true)} className="min-h-11 text-left text-[13px] font-semibold text-[#1563FF]">Ver as outras {r.questions.filter((q) => q.status === "open").length - 3} perguntas</button>
+            )}
           </Block>
         )}
         {!approved && r.missingFields.some((m) => m.field.endsWith(".safety")) && (
           <Link href={`/rdo/seguranca?id=${id}`} className="flex items-center gap-2.5 rounded-xl bg-[#EFE3FA] p-3 text-[13px] font-semibold text-[#4A2470]">Registro de segurança pendente: toque para preencher antes de aprovar →</Link>
         )}
-        {!approved && r.missingFields.length > 0 && <div role="alert" className="rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">Faltam {r.missingFields.length} campos obrigatórios: {r.missingFields.map((m) => m.field).join(", ")}</div>}
+        {!approved && r.missingFields.length > 0 && <div role="alert" className="rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">Faltam {r.missingFields.length} {r.missingFields.length === 1 ? "campo obrigatório" : "campos obrigatórios"}: {[...new Set(r.missingFields.map((m) => fieldLabel(m.field)))].join(", ")}.</div>}
         {approved && r.approval && <div className="rounded-xl bg-[#E3ECFF] p-3 text-sm text-[#0B3699]">Aprovado por {r.approval.approvedBy} em {new Date(r.approval.approvedAt).toLocaleString("pt-BR")} e salvo na obra.</div>}
         {error && <div role="alert" className="rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">{errorMessage(error.code)}{error.errors.length > 0 && ` (${error.errors.map((e) => e.field).join(", ")})`}</div>}
-        {isPublic && !approved && <div className="rounded-xl bg-[#EFE3FA] p-3 text-[13px] leading-[1.45] text-[#4A2470]">Obra pública: mais campos são obrigatórios e ficam marcados abaixo.{r.missingFields.length > 0 && ` Faltam ${r.missingFields.length}.`}</div>}
+        {isPublic && !approved && <div className="rounded-xl bg-[#EFE3FA] p-3 text-[13px] leading-[1.45] text-[#4A2470]">Obra pública: mais campos são obrigatórios e ficam marcados abaixo.</div>}
         <Block title="Identificação">
           <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
             <Info k="RDO" v={`Nº ${String(r.number).padStart(3, "0")} · ${fullDate(r.localDate)}`} /><Info k="Obra" v={r.site.name} />
@@ -145,8 +172,12 @@ export function ReportReview() {
           <span className="text-[13px] text-[#5B5F6B]">Vem do cadastro da obra. Decorrido e a vencer são calculados.</span>
         </Block>
         <Block title="Jornada">
-          <div className="grid grid-cols-3 gap-2">{wd("startTime")}{wd("endTime")}
-            <input aria-label="Intervalo em minutos" type="number" placeholder="Intervalo (min)" disabled={approved} className={field} value={w.breakMinutes ?? ""} onChange={(e) => void patch({ workday: { ...w, breakMinutes: e.target.value === "" ? null : Number(e.target.value) } })} /></div>
+          <div className="grid grid-cols-3 gap-2.5">
+            <label className="flex min-w-0 flex-col gap-1 text-[13px] text-[#5B5F6B]">Entrada{wd("startTime")}</label>
+            <label className="flex min-w-0 flex-col gap-1 text-[13px] text-[#5B5F6B]">Saída{wd("endTime")}</label>
+            <label className="flex min-w-0 flex-col gap-1 text-[13px] text-[#5B5F6B]">Intervalo (min)
+              <input aria-label="Intervalo em minutos" type="number" disabled={approved} className={field} value={w.breakMinutes ?? ""} onChange={(e) => void patch({ workday: { ...w, breakMinutes: e.target.value === "" ? null : Number(e.target.value) } })} /></label>
+          </div>
           {miss("workday") && <span className="text-xs text-[#6B3A00]">Preencha a jornada.</span>}
         </Block>
         <Block title="Clima">
