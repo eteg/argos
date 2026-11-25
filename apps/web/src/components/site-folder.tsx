@@ -53,9 +53,31 @@ export function SiteFolder() {
         {s.pendingDays.length > 0 && <Pill tone="amber">{s.pendingDays.length} dia(s) capturado(s) sem internet</Pill>}
         <section className="flex flex-col gap-2.5">
           <div className="flex items-baseline justify-between px-0.5"><h2 className="m-0 text-[15px] font-semibold">RDOs aprovados</h2><span className="text-[13px] text-[#5B5F6B]">{s.approvedReportsCount} no total</span></div>
-          <ul className="m-0 list-none rounded-2xl bg-white p-3.5 text-[13px] text-[#5B5F6B]">
-            {s.recentReports.length === 0 ? <li>Nenhum RDO aprovado ainda.</li> : s.recentReports.map((r) => <li key={r.id}>Nº {String(r.number).padStart(3, "0")} · {r.localDate}</li>)}
-          </ul>
+          {s.recentReports.length === 0 ? (
+            <p className="m-0 rounded-2xl bg-white p-3.5 text-[13px] text-[#5B5F6B]">Nenhum RDO aprovado ainda.</p>
+          ) : (
+            <ul className="m-0 list-none rounded-2xl bg-white px-3.5 py-0.5">
+              {s.recentReports.map((r) => {
+                const [y = 0, m = 1, d = 1] = r.localDate.split("-").map(Number);
+                const day = new Date(Date.UTC(y, m - 1, d));
+                const weekday = new Intl.DateTimeFormat("pt-BR", { weekday: "long", timeZone: "UTC" }).format(day);
+                const short = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "UTC" }).format(day);
+                const time = new Date(r.approvedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                return (
+                  <li key={r.id} className="border-b border-[#E3E5EE] last:border-b-0">
+                    <Link href={`/rdo/consulta?id=${r.id}`} className="flex min-h-14 items-center gap-3">
+                      <div className="flex flex-1 flex-col gap-0.5 py-2.5">
+                        <span className="text-[15px] font-medium">Nº {String(r.number).padStart(3, "0")} · {weekday}, {short}</span>
+                        <span className="text-[13px] text-[#5B5F6B]">Aprovado às {time} · {r.occurrencesCount === 0 ? "sem ocorrências" : `${r.occurrencesCount} ${r.occurrencesCount === 1 ? "ocorrência" : "ocorrências"}`}</span>
+                      </div>
+                      <span aria-hidden="true" className="text-[#9AA3B8]">›</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {s.approvedReportsCount > 0 && <Link href={`/obra/rdos?id=${s.id}`} className="py-1 text-[13px] font-semibold text-[#1563FF]">Ver todos os RDOs aprovados</Link>}
         </section>
         <section className="flex flex-col gap-2.5">
           <div className="flex items-baseline justify-between px-0.5"><h2 className="m-0 text-[15px] font-semibold">Dados da obra</h2>
