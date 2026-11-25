@@ -8,7 +8,7 @@ import { timezoneOf } from "../common/locale.js";
 import { ProblemException } from "../common/problem.js";
 import { parse } from "../common/validate.js";
 import { DB, type Database } from "../database/database.module.js";
-import { entries, media } from "../database/schema.js";
+import { entries, media, reports } from "../database/schema.js";
 import { SitesService } from "../sites/sites.service.js";
 import { uuid } from "../sites/sites.schemas.js";
 import { StorageService } from "../storage/storage.service.js";
@@ -149,6 +149,8 @@ export class EntriesController {
       res.status(200);
       return (await this.toEntries([existing]))[0]!;
     }
+    const [approved] = await this.db.select({ id: reports.id }).from(reports).where(and(eq(reports.siteId, siteId), eq(reports.localDate, input.localDate), eq(reports.status, "approved")));
+    if (approved) throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report of the day is already approved.");
     if (site.status !== "in_progress") throw new ProblemException(409, "SITE_NOT_IN_PROGRESS", "Only sites in progress accept entries.");
     const photoIds = [...new Set(input.photoMediaIds ?? [])];
     if (photoIds.length > MAX_PHOTOS_PER_ENTRY) throw new ProblemException(409, "PHOTO_LIMIT_ENTRY", `An entry takes at most ${MAX_PHOTOS_PER_ENTRY} photos.`);
@@ -203,12 +205,13 @@ export class EntriesController {
       .from(entries)
       .where(and(eq(entries.siteId, siteId), eq(entries.localDate, localDate)))
       .orderBy(desc(entries.capturedAt));
+    const [report] = await this.db.select({ id: reports.id, status: reports.status }).from(reports).where(and(eq(reports.siteId, siteId), eq(reports.localDate, localDate)));
     return {
       site: await this.sites.summaryOf(site, timezoneOf(tz)),
       localDate,
       openItems: [],
       entries: await this.toEntries(rows),
-      report: null,
+      report: report ? { id: report.id, status: report.status as Schemas["ReportStatus"] } : null,
     };
   }
 }

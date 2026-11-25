@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { Inject, Injectable, Logger } from "@nestjs/common";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Schemas } from "@argos/contract";
 import { daysBetween, distanceMeters, localDateOf } from "../common/locale.js";
 import { ProblemException } from "../common/problem.js";
 import { parse } from "../common/validate.js";
 import { DB, type Database } from "../database/database.module.js";
-import { documents, entries, equipment, sites, type PublicContractRow } from "../database/schema.js";
+import { documents, entries, equipment, reports, sites, type PublicContractRow } from "../database/schema.js";
 import { StorageService } from "../storage/storage.service.js";
 import { createSiteSchema, siteStatus, updateSiteSchema, uuid } from "./sites.schemas.js";
 import type { z } from "zod";
@@ -89,7 +89,14 @@ export class SitesService {
           .where(inArray(entries.siteId, siteIds))
           .groupBy(entries.siteId, entries.localDate)
       : [];
-    return { today, rows };
+    const reportRows = siteIds.length
+      ? await this.db
+          .select({ siteId: reports.siteId, localDate: reports.localDate, id: reports.id, status: reports.status })
+          .from(reports)
+          .where(inArray(reports.siteId, siteIds))
+      : [];
+    const approved = new Set(reportRows.filter((r) => r.status === "approved").map((r) => `${r.siteId}|${r.localDate}`));
+    return { today, rows, openRows: rows.filter((r) => !approved.has(`${r.siteId}|${r.localDate}`)), reports: reportRows };
   }
 
   summarize(
@@ -100,7 +107,10 @@ export class SitesService {
   ): Schemas["SiteSummary"] {
     const mine = stats.rows.filter((r) => r.siteId === row.id);
     const todayRow = mine.find((r) => r.localDate === stats.today);
+    const todayReport = stats.reports.find((r) => r.siteId === row.id && r.localDate === stats.today);
     const entriesCount = todayRow?.count ?? 0;
+    const dayState: Schemas["DayState"] =
+      todayReport?.status === "approved" ? "approved" : todayReport?.status === "draft" ? "draft" : entriesCount > 0 ? "in_progress" : "no_entries";
     const location = this.location(row);
     return {
       id: row.id,
@@ -114,11 +124,12 @@ export class SitesService {
       distanceMeters: device && location ? distanceMeters(device, location) : null,
       today: {
         localDate: stats.today,
-        state: entriesCount > 0 ? "in_progress" : "no_entries",
+        state: dayState,
         entriesCount,
-        reportId: null,
+        reportId: todayReport?.id ?? null,
       },
-      pendingDays: mine
+      pendingDays: stats.openRows
+        .filter((r) => r.siteId === row.id)
         .filter((r) => r.offline && r.localDate < stats.today)
         .sort((a, b) => a.localDate.localeCompare(b.localDate))
         .map((r) => ({ localDate: r.localDate, entriesCount: r.count })),
@@ -153,6 +164,22 @@ export class SitesService {
     return this.summarize(row, stats, await this.servicesCount(row.id), device);
   }
 
+  private async approvedReports(siteId: string): Promise<Pick<Schemas["SiteDetail"], "recentReports" | "approvedReportsCount">> {
+    const approved = and(eq(reports.siteId, siteId), eq(reports.status, "approved"));
+    const recent = await this.db.select().from(reports).where(approved).orderBy(desc(reports.localDate)).limit(3);
+    const [{ count }] = (await this.db.execute<{ count: number }>(sql`select count(*)::int as count from reports where site_id = ${siteId} and status = 'approved'`)).rows as [{ count: number }];
+    return {
+      recentReports: recent.map((r) => ({
+        id: r.id,
+        number: r.number ?? 0,
+        localDate: r.localDate,
+        approvedAt: (r.approvedAt ?? r.updatedAt).toISOString(),
+        occurrencesCount: Array.isArray(r.content.occurrences) ? r.content.occurrences.length : 0,
+      })),
+      approvedReportsCount: count,
+    };
+  }
+
   async detail(row: SiteRow, timezone: string): Promise<Schemas["SiteDetail"]> {
     const summary = await this.summaryOf(row, timezone);
     return {
@@ -160,8 +187,7 @@ export class SitesService {
       today: summary.today,
       pendingDays: summary.pendingDays,
       openItems: [],
-      recentReports: [],
-      approvedReportsCount: 0,
+      ...(await this.approvedReports(row.id)),
     };
   }
 
@@ -254,8 +280,8 @@ export class SitesService {
     const current = await this.requireSite(siteId);
     if (status === "completed") {
       const stats = await this.dayStats([siteId], timezone);
-      if (stats.rows.length > 0) {
-        const days = stats.rows.map((r) => r.localDate).sort();
+      if (stats.openRows.length > 0) {
+        const days = stats.openRows.map((r) => r.localDate).sort();
         throw new ProblemException(
           409,
           "SITE_HAS_OPEN_REPORTS",
