@@ -295,7 +295,7 @@ export class ReportsService {
       }),
       approval: row.approvedAt && row.approvedBy ? { approvedBy: row.approvedBy, approvedAt: row.approvedAt.toISOString() } : null,
       history,
-      pdfUrl: null,
+      pdfUrl: row.status === "approved" ? `${env.API_PUBLIC_URL}/v1/reports/${row.id}/pdf` : null,
     };
   }
 }
