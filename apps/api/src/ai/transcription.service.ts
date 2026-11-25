@@ -20,13 +20,15 @@ export class TranscriptionService {
       contents: [{ parts: [{ inline_data: { mime_type: mimeType, data: audio.toString("base64") } }, { text: PROMPT }] }],
       generationConfig: { temperature: 0 },
     });
+    const models = [env.GEMINI_MODEL, ...env.GEMINI_FALLBACK_MODELS.split(",").map((m) => m.trim()).filter(Boolean)];
     let lastError = "";
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.GEMINI_MODEL}:generateContent`, {
+    for (let attempt = 0; attempt < models.length + 1; attempt++) {
+      const model = models[attempt % models.length];
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: "POST",
         headers: { "x-goog-api-key": env.GEMINI_API_KEY, "content-type": "application/json" },
         body,
-        signal: AbortSignal.timeout(60_000),
+        signal: AbortSignal.timeout(45_000),
       }).catch((error: unknown) => error);
       if (response instanceof Response && response.ok) {
         const data = (await response.json()) as GeminiResponse;
@@ -34,8 +36,8 @@ export class TranscriptionService {
         return /^\[?\s*sem fala\s*\]?\.?$/i.test(text) ? "" : text;
       }
       lastError = response instanceof Response ? `${response.status} ${(await response.text()).slice(0, 200)}` : String(response);
-      this.logger.warn(`Transcription attempt ${attempt + 1} failed: ${lastError}`);
-      await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)));
+      this.logger.warn(`Transcription attempt ${attempt + 1} (${model}) failed: ${lastError}`);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
     throw new Error(`Transcription failed: ${lastError}`);
   }

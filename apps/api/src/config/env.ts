@@ -16,6 +16,7 @@ const envSchema = z.object({
   AI_ENABLED: z.enum(["true", "false"]).default("true"),
   GEMINI_API_KEY: z.string().min(1).optional(),
   GEMINI_MODEL: z.string().min(1).default("gemini-3.6-flash"),
+  GEMINI_FALLBACK_MODELS: z.string().default("gemini-3.8-flash,gemini-flash-latest"),
   ANTHROPIC_MODEL: z.string().min(1),
   LANGFUSE_PUBLIC_KEY: z.string().min(1),
   LANGFUSE_SECRET_KEY: z.string().min(1),
