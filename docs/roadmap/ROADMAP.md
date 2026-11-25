@@ -103,7 +103,7 @@ Cada uma tem uma recomendação, que vale até o time decidir diferente. A colun
 | D14 | Aviso de internet de volta (`2.7`) | Notificação local da web depois do envio, sem push pela API. | M4 |
 | D17 | Transcrição do áudio do registro | A frente C testa no M0 se a API da Claude recebe o áudio. Se não receber, escolhe um serviço de transcrição que lide bem com português e ruído de obra, e a escolha vira ADR. | M2 |
 | D18 | Como o contrato fica `acordado` sem PR | O [README do contrato](../contratos/README.md) pede PR aprovado pela web e pela API, mas o fluxo é commit direto na `main`. A frente D sobe o contrato na `main`, as frentes A e B leem, e um commit muda a situação pra `acordado`. O README do contrato muda junto. | M1 |
-| D19 | Onde fica o código da IA | Num pacote `packages/agent`, fora do NestJS, com funções puras que a API chama. A pasta não está no [ADR 0001](../decisoes/0001-stack-e-staging.md), então pede um ADR. | M1 |
+| D19 | Onde fica o código da IA | Num pacote `packages/agent`, fora do NestJS, com funções puras que a API chama. Decidida no [ADR 0003](../decisoes/0003-codigo-da-ia-em-packages-agent.md). | M1 |
 
 ## M0 Fundação
 

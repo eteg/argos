@@ -368,6 +368,25 @@ importers:
         specifier: 6.0.3
         version: 6.0.3
 
+  packages/agent:
+    dependencies:
+      '@argos/rdo-schema':
+        specifier: workspace:*
+        version: link:../rdo-schema
+    devDependencies:
+      '@types/node':
+        specifier: 26.6.10
+        version: 26.6.10
+      eslint:
+        specifier: 9.39.5
+        version: 9.39.5(jiti@2.7.0)(supports-color@7.2.0)
+      globals:
+        specifier: 17.14.0
+        version: 17.14.0
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+
   packages/contract:
     devDependencies:
       eslint:
