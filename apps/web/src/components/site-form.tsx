@@ -14,10 +14,18 @@ const tz = timezoneParams();
 const L = ({ id, label, children }: { id: string; label: string; children: React.ReactNode }) => (
   <div className="flex min-w-0 flex-col gap-1"><label htmlFor={id} className="text-[13px] text-[#5B5F6B]">{label}</label>{children}</div>
 );
-const G = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <section className="flex flex-col gap-3"><h2 className="m-0 text-[15px] font-semibold">{title}</h2>{children}</section>
+const G = ({ title, sub, children }: { title?: string; sub?: string; children: React.ReactNode }) => (
+  <section className="flex flex-col gap-3">
+    {title && sub && <div className="flex flex-col gap-0.5"><h2 className="m-0 text-[15px] font-semibold">{title}</h2><span className="text-[13px] text-[#5B5F6B]">{sub}</span></div>}
+    {title && !sub && <h2 className="m-0 text-[15px] font-semibold">{title}</h2>}
+    {children}
+  </section>
 );
-const dashed = "flex min-h-12 items-center justify-center rounded-[14px] border-[1.5px] border-dashed border-[#9AA3B8] text-[15px] font-semibold text-[#0B3699]";
+const Plus = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0B3699" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+);
+const dashed = "flex min-h-12 items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-dashed border-[#9AA3B8] text-[15px] font-semibold text-[#0B3699]";
+const dashedSmall = "flex min-h-11 items-center justify-center rounded-[10px] border-[1.5px] border-dashed border-[#9AA3B8] text-[15px] font-semibold text-[#0B3699]";
 
 export function SiteForm() {
   const router = useRouter();
@@ -31,6 +39,7 @@ export function SiteForm() {
   const [amendments, setAmendments] = useState<{ description: string; addedDays: string; signedOn: string }[]>([]);
   const [sheet, setSheet] = useState<File | null>(null);
   const [sheetName, setSheetName] = useState<string | null>(null);
+  const [servicesCount, setServicesCount] = useState(0);
   const [equipment, setEquipment] = useState<{ id?: string; name: string; identifier: string }[]>([]);
   const [removedEquipment, setRemovedEquipment] = useState<string[]>([]);
   const [docs, setDocs] = useState<{ id?: string; file?: File; name: string; type: Schemas["DocumentType"]; changed?: boolean }[]>([]);
@@ -51,6 +60,7 @@ export function SiteForm() {
       });
       setAmendments(c?.amendments.map((a) => ({ description: a.description, addedDays: String(a.addedDays), signedOn: a.signedOn })) ?? []);
       setSheetName(s.servicesFileName);
+      setServicesCount(s.servicesCount);
       setEquipment(s.equipment.map((e) => ({ id: e.id, name: e.name, identifier: e.identifier ?? "" })));
       setDocs(s.documents.map((d) => ({ id: d.id, name: d.fileName, type: d.type })));
     });
@@ -101,19 +111,26 @@ export function SiteForm() {
     <Page>
       <div className="flex items-center gap-3 px-5 pb-3 pt-5"><Back href={id ? `/obra?id=${id}` : "/"} /><Title>{id ? "Editar obra" : "Cadastrar obra"}</Title></div>
       <div className="flex flex-1 flex-col gap-6 px-4 pb-4 pt-1">
-        <G title="Obra">
+        <G>
           <L id="nome" label="Nome da obra"><input id="nome" className={field} value={f.name} onChange={(e) => set("name", e.target.value)} /></L>
-          <fieldset className="flex gap-1 rounded-[14px] border-[1.5px] border-[#CDD1DD] bg-white p-1">
-            <legend className="mb-1.5 text-[13px] text-[#5B5F6B]">Tipo da obra</legend>
-            {([["private", "Privada"], ["public", "Pública"], ["financed", "Financiada"]] as const).map(([v, l]) => (
-              <label key={v} className={`flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-[10px] text-[15px] ${f.type === v ? "bg-[#2D2D2B] font-semibold text-white" : ""}`}>
-                <input type="radio" name="tipo" className="sr-only" checked={f.type === v} onChange={() => setF((p) => ({ ...p, type: v }))} />{l}
-              </label>
-            ))}
+          <fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0">
+            <legend className="mb-1.5 p-0 text-[13px] text-[#5B5F6B]">Tipo da obra</legend>
+            <div className="flex gap-1 rounded-[14px] border-[1.5px] border-[#CDD1DD] bg-white p-1">
+              {([["private", "Privada"], ["public", "Pública"], ["financed", "Financiada"]] as const).map(([v, l]) => (
+                <label key={v} className={`relative flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-[10px] text-[15px] ${f.type === v ? "bg-[#2D2D2B] font-semibold text-white" : ""}`}>
+                  <input type="radio" name="tipo" className="sr-only" checked={f.type === v} onChange={() => setF((p) => ({ ...p, type: v }))} />{l}
+                </label>
+              ))}
+            </div>
           </fieldset>
         </G>
         <G title="Local do canteiro">
           <div className="flex flex-col gap-2.5 rounded-[14px] bg-white p-3">
+            <div aria-hidden="true" className="flex h-[88px] items-center justify-center rounded-[10px] bg-[#DCE3F0]">
+              <div className="flex size-[68px] items-center justify-center rounded-full border-2 border-dashed border-[#1563FF] bg-[#E3ECFF]">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2D2D2B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg>
+              </div>
+            </div>
             <L id="end" label="Endereço"><input id="end" className={field} value={f.address} onChange={(e) => set("address", e.target.value)} /></L>
             <span className="text-[13px] text-[#5B5F6B]">O app reconhece a obra quando você está a até 150 m daqui.</span>
             <button type="button" onClick={() => void getPosition(true).then(setLocation)} className="min-h-11 rounded-[10px] border-[1.5px] border-[#2D2D2B] text-[15px] font-semibold">
@@ -126,44 +143,59 @@ export function SiteForm() {
           <L id="ct" label="CNPJ do cliente ou contratante"><input id="ct" inputMode="numeric" className={field} value={f.clientTaxId} onChange={(e) => set("clientTaxId", e.target.value)} /></L>
           <L id="xn" label="Contratada"><input id="xn" className={field} value={f.contractorName} onChange={(e) => set("contractorName", e.target.value)} /></L>
           <L id="xt" label="CNPJ da contratada"><input id="xt" inputMode="numeric" className={field} value={f.contractorTaxId} onChange={(e) => set("contractorTaxId", e.target.value)} /></L>
+          {!isPublic && (
+            <div className="flex flex-col gap-1 rounded-[14px] border-[1.5px] border-dashed border-[#CDD1DD] px-3.5 py-3">
+              <span className="text-[15px] font-medium">Obra pública ou financiada</span>
+              <span className="text-[13px] leading-[1.45] text-[#5B5F6B]">Com esse tipo marcado, aparecem aqui: contrato, empenho ou convênio; fiscal do contrato; data da ordem de serviço; prazo contratual e aditivos.</span>
+            </div>
+          )}
         </G>
         {isPublic && (
-          <G title="Contrato público">
+          <G title="Contrato público" sub="Aparece porque a obra é pública ou financiada.">
             <L id="nc" label="Número do contrato"><input id="nc" className={field} value={f.number} onChange={(e) => set("number", e.target.value)} /></L>
             <L id="em" label="Empenho ou convênio"><input id="em" className={field} value={f.commitment} onChange={(e) => set("commitment", e.target.value)} /></L>
             <L id="fi" label="Fiscal do contrato"><input id="fi" className={field} value={f.inspector} onChange={(e) => set("inspector", e.target.value)} /></L>
             <div className="grid grid-cols-2 gap-3">
               <L id="os" label="Data da ordem de serviço"><input id="os" type="date" className={field} value={f.orderDate} onChange={(e) => set("orderDate", e.target.value)} /></L>
-              <L id="pz" label="Prazo (dias)"><input id="pz" type="number" className={field} value={f.durationDays} onChange={(e) => set("durationDays", e.target.value)} /></L>
+              <L id="pz" label="Prazo contratual"><input id="pz" type="number" placeholder="dias" className={field} value={f.durationDays} onChange={(e) => set("durationDays", e.target.value)} /></L>
             </div>
-            {amendments.map((a, i) => (
-              <div key={i} className="grid gap-2 rounded-[14px] bg-white p-3">
-                <input aria-label="Descrição do aditivo" placeholder="Descrição" className={field} value={a.description} onChange={(e) => setAmendments((l) => l.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))} />
-                <div className="grid grid-cols-2 gap-2">
-                  <input aria-label="Dias acrescentados" type="number" placeholder="Dias" className={field} value={a.addedDays} onChange={(e) => setAmendments((l) => l.map((x, j) => (j === i ? { ...x, addedDays: e.target.value } : x)))} />
-                  <input aria-label="Data da assinatura" type="date" className={field} value={a.signedOn} onChange={(e) => setAmendments((l) => l.map((x, j) => (j === i ? { ...x, signedOn: e.target.value } : x)))} />
+            <div className="flex flex-col gap-2 rounded-[14px] bg-white p-3">
+              <span className="text-[13px] text-[#5B5F6B]">Aditivos</span>
+              {amendments.length === 0 && <span className="text-[15px]">Nenhum aditivo</span>}
+              {amendments.map((a, i) => (
+                <div key={i} className="grid gap-2">
+                  <input aria-label="Descrição do aditivo" placeholder="Descrição" className={field} value={a.description} onChange={(e) => setAmendments((l) => l.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input aria-label="Dias acrescentados" type="number" placeholder="Dias" className={field} value={a.addedDays} onChange={(e) => setAmendments((l) => l.map((x, j) => (j === i ? { ...x, addedDays: e.target.value } : x)))} />
+                    <input aria-label="Data da assinatura" type="date" className={field} value={a.signedOn} onChange={(e) => setAmendments((l) => l.map((x, j) => (j === i ? { ...x, signedOn: e.target.value } : x)))} />
+                  </div>
                 </div>
-              </div>
-            ))}
-            <button type="button" className={dashed} onClick={() => setAmendments((l) => [...l, { description: "", addedDays: "", signedOn: "" }])}>Adicionar aditivo</button>
+              ))}
+              <button type="button" className={dashedSmall} onClick={() => setAmendments((l) => [...l, { description: "", addedDays: "", signedOn: "" }])}>Adicionar aditivo</button>
+            </div>
+            <span className="text-[13px] text-[#5B5F6B]">O tempo decorrido e o que falta do prazo são calculados a partir da ordem de serviço.</span>
           </G>
         )}
         <G title="Responsável técnico">
           <L id="rn" label="Nome"><input id="rn" className={field} value={f.techName} onChange={(e) => set("techName", e.target.value)} /></L>
           <L id="art" label="Número da ART"><input id="art" className={field} value={f.artNumber} onChange={(e) => set("artNumber", e.target.value)} /></L>
         </G>
-        <G title="Serviços da obra">
-          <span className="text-[13px] text-[#5B5F6B]">Obrigatório. Planilha .xlsx ou .csv com código e descrição de cada serviço.</span>
-          {(sheet?.name ?? sheetName) && <div className="rounded-[14px] bg-white p-3 text-[15px]">{sheet?.name ?? sheetName}</div>}
-          <label className={`${dashed} cursor-pointer`}>{sheet || sheetName ? "Trocar planilha" : "Enviar planilha"}
+        <G title="Serviços da obra" sub="Obrigatório. A planilha orçamentária ou a EAP, com o código e a descrição de cada serviço. A IA liga cada atividade do RDO a um serviço desta lista.">
+          {(sheet?.name ?? sheetName) && (
+            <div className="flex flex-col gap-2 rounded-[14px] bg-white p-3">
+              <span className="text-[15px]">{sheet?.name ?? sheetName}</span>
+              <span className="text-[13px] text-[#5B5F6B]">{sheet ? "Planilha escolhida, importa ao salvar" : `${servicesCount} serviços importados`}</span>
+            </div>
+          )}
+          <label className={`${dashed} cursor-pointer`}><Plus />{sheet || sheetName ? "Trocar planilha" : "Enviar planilha"}
             <input type="file" accept=".xlsx,.csv" className="sr-only" onChange={(e) => setSheet(e.target.files?.[0] ?? null)} />
           </label>
         </G>
-        <G title="Equipamentos da obra">
-          <span className="text-[13px] text-[#5B5F6B]">{isPublic ? "Obrigatório em obra pública ou financiada." : "Opcional em obra privada."}</span>
+        <G title="Equipamentos da obra" sub={`${isPublic ? "Obrigatório em obra pública ou financiada." : "Opcional em obra privada."} Entra o que é medido ou pode parar a obra. No RDO, você só informa a situação do dia.`}>
+          {equipment.length > 0 && <div className="flex flex-col rounded-[14px] bg-white p-3">
           {equipment.map((e, i) => (
-            <div key={e.id ?? i} className="flex items-center gap-2 rounded-[14px] bg-white p-3">
-              {e.id ? <span className="flex-1 text-[15px]">{e.name}{e.identifier && ` · ${e.identifier}`}</span> : (
+            <div key={e.id ?? i} className="flex items-center gap-2 py-1">
+              {e.id ? <span className="flex min-w-0 flex-1 flex-col gap-0.5"><span className="text-[15px]">{e.name}</span>{e.identifier && <span className="text-[13px] text-[#5B5F6B]">Identificação: {e.identifier}</span>}</span> : (
                 <div className="grid flex-1 grid-cols-2 gap-2">
                   <input aria-label="Nome do equipamento" placeholder="Nome" className={field} value={e.name} onChange={(ev) => setEquipment((l) => l.map((x, j) => (j === i ? { ...x, name: ev.target.value } : x)))} />
                   <input aria-label="Identificação" placeholder="Placa ou prefixo" className={field} value={e.identifier} onChange={(ev) => setEquipment((l) => l.map((x, j) => (j === i ? { ...x, identifier: ev.target.value } : x)))} />
@@ -172,20 +204,22 @@ export function SiteForm() {
               <button type="button" aria-label="Remover equipamento" className="size-11 text-[#5B5F6B]" onClick={() => { if (e.id) setRemovedEquipment((r) => [...r, e.id!]); setEquipment((l) => l.filter((_, j) => j !== i)); }}>✕</button>
             </div>
           ))}
-          <button type="button" className={dashed} onClick={() => setEquipment((l) => [...l, { name: "", identifier: "" }])}>Adicionar equipamento</button>
+          </div>}
+          <button type="button" className={dashed} onClick={() => setEquipment((l) => [...l, { name: "", identifier: "" }])}><Plus />Adicionar equipamento</button>
         </G>
-        <G title="Documentos da obra">
-          <span className="text-[13px] text-[#5B5F6B]">Opcional. Anexe e diga o que é cada documento.</span>
+        <G title="Documentos da obra" sub="Opcional. Anexe e diga o que é cada documento.">
           {docs.map((d, i) => (
             <div key={d.id ?? i} className="flex flex-col gap-2 rounded-[14px] bg-white p-3">
               <div className="flex items-center"><span className="flex-1 text-[15px]">{d.name}</span>
                 <button type="button" aria-label="Remover documento" className="size-11 text-[#5B5F6B]" onClick={() => { if (d.id) setRemovedDocs((r) => [...r, d.id!]); setDocs((l) => l.filter((_, j) => j !== i)); }}>✕</button></div>
-              <select aria-label="Tipo do documento" className={field} value={d.type} onChange={(e) => setDocs((l) => l.map((x, j) => (j === i ? { ...x, type: e.target.value as Schemas["DocumentType"], changed: true } : x)))}>
-                {Object.entries(documentTypeLabel).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
+              <label className="flex min-w-0 flex-col gap-1 text-[13px] text-[#5B5F6B]">Tipo do documento
+                <select className={field} value={d.type} onChange={(e) => setDocs((l) => l.map((x, j) => (j === i ? { ...x, type: e.target.value as Schemas["DocumentType"], changed: true } : x)))}>
+                  {Object.entries(documentTypeLabel).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </label>
             </div>
           ))}
-          <label className={`${dashed} cursor-pointer`}>Anexar documento
+          <label className={`${dashed} cursor-pointer`}><Plus />Anexar documento
             <input type="file" accept="application/pdf,image/*" className="sr-only" onChange={(e) => { const file = e.target.files?.[0]; if (file) setDocs((l) => [...l, { file, name: file.name, type: "architectural" }]); e.target.value = ""; }} />
           </label>
         </G>

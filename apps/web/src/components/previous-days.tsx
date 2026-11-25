@@ -13,6 +13,13 @@ import { retryFailed } from "@/lib/send-entry";
 import { Page, Pill, Status } from "@/components/ui";
 
 const tz = timezoneParams();
+const CalendarIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2.5" /><path d="M4 10h16M9 3v4M15 3v4" /></svg>
+);
+const LockIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5B5F6B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
+);
+const yesterdayIso = () => new Intl.DateTimeFormat("en-CA", { timeZone: tz.header["X-Timezone"] }).format(new Date(Date.now() - 86_400_000));
 const weekday = (iso: string) => {
   const [y = 0, m = 1, d = 1] = iso.split("-").map(Number);
   const day = new Intl.DateTimeFormat("pt-BR", { weekday: "short", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d))).replace(".", "");
@@ -94,15 +101,16 @@ export function PreviousDays() {
             <p className="m-0 rounded-2xl bg-white p-3.5 text-sm text-[#5B5F6B]">Nenhum dia anterior ficou sem RDO.</p>
           ) : (
             state.data.items.map((group) => (
-              <section key={group.site.id} className="flex flex-col gap-2.5" aria-label={group.site.name}>
+              <section key={group.site.id} className="flex flex-col gap-3" aria-label={group.site.name}>
                 <span className="px-1 pt-1 text-xs font-semibold text-[#5B5F6B]">{group.site.name} · {group.days.length} {group.days.length === 1 ? "dia" : "dias"} na fila</span>
                 {group.days.map((d, i) => {
                   const detail = [d.offline ? "Capturado sem internet" : null, `${d.audiosCount} ${d.audiosCount === 1 ? "áudio" : "áudios"}`, `${d.photosCount} ${d.photosCount === 1 ? "foto" : "fotos"}`].filter(Boolean).join(" · ");
-                  const label = `${weekday(d.localDate)}, ${shortDate(d.localDate)}`;
+                  const label = d.localDate === yesterdayIso() ? `Ontem · ${weekday(d.localDate).toLowerCase()}, ${shortDate(d.localDate)}` : `${weekday(d.localDate)}, ${shortDate(d.localDate)}`;
                   if (!d.isNext) {
                     const before = group.days[i - 1];
                     return (
                       <div key={d.localDate} aria-disabled="true" className="flex items-center gap-3 rounded-2xl border border-dashed border-[#CDD1DD] bg-[#EEF0F5] p-3.5 text-[#5B5F6B]">
+                        <span className="flex size-[42px] flex-none items-center justify-center rounded-xl bg-[#E3E5EE]"><LockIcon /></span>
                         <div className="flex flex-1 flex-col gap-0.5"><span className="text-[15px] font-semibold text-[#2D2D2B]">{label}</span><span className="text-xs">Libera depois de aprovar o RDO de {before ? shortDate(before.localDate) : "dia anterior"}</span></div>
                         <Pill tone="gray">Na fila</Pill>
                       </div>
@@ -111,6 +119,7 @@ export function PreviousDays() {
                   const key = `${group.site.id}|${d.localDate}`;
                   return (
                     <button key={d.localDate} type="button" disabled={!online || busy !== null} onClick={() => void open(group.site.id, d.localDate)} className="flex items-center gap-3 rounded-2xl border-2 border-[#1563FF] bg-white p-3.5 text-left disabled:opacity-60">
+                      <span className="flex size-[42px] flex-none items-center justify-center rounded-xl bg-[#1563FF]"><CalendarIcon /></span>
                       <div className="flex flex-1 flex-col gap-0.5"><span className="text-[15px] font-semibold">{label}</span><span className="text-xs text-[#5B5F6B]">{detail}</span></div>
                       <Pill tone="blue">{busy === key ? "Montando…" : "Próximo"}</Pill>
                     </button>
@@ -120,7 +129,10 @@ export function PreviousDays() {
             ))
           )}
           {error && <div role="alert" className="rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">{error}</div>}
-          <div className="flex items-center gap-2.5 rounded-[14px] bg-[#E3E5EE] px-3.5 py-2.5 text-[13px] text-[#45484F]">O RDO sai com a data da captura, e as pendências passam para o dia seguinte da fila.</div>
+          <div className="flex items-center gap-2.5 rounded-[14px] bg-[#E3E5EE] px-3.5 py-2.5 text-[13px] text-[#45484F]">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#45484F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="flex-none"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>
+            <span className="flex-1">O RDO sai com a data da captura, e as pendências passam para o dia seguinte da fila.</span>
+          </div>
           <Link href="/" className="mt-1 rounded-[14px] border-2 border-[#2D2D2B] p-3.5 text-center text-[15px] font-semibold">Cancelar</Link>
         </div>
       </div>

@@ -67,7 +67,8 @@ export function OfflineSync() {
     return (
       <Link href="/dias-anteriores" onClick={() => setNotice(null)} className="fixed inset-x-3 top-3 z-50 mx-auto flex max-w-[406px] gap-3 rounded-[22px] bg-[#F4F5F9] p-3.5 text-[#2D2D2B] shadow-lg">
         <span className="flex size-10 flex-none items-center justify-center rounded-[10px] bg-[#1563FF] font-[family-name:var(--font-anybody)] text-lg font-extrabold text-white">A</span>
-        <span className="flex flex-1 flex-col gap-0.5">
+        <span className="flex flex-1 flex-col gap-[3px]">
+          <span className="flex items-baseline justify-between"><span className="text-[13px] font-semibold text-[#45484F]">Argos</span><span className="text-xs text-[#5B5F6B]">agora</span></span>
           <span className="text-[15px] font-semibold">Internet de volta</span>
           <span className="text-sm leading-[1.4]">{notice}</span>
         </span>
