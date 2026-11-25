@@ -28,7 +28,7 @@ export class TranscriptionService {
         method: "POST",
         headers: { "x-goog-api-key": env.GEMINI_API_KEY, "content-type": "application/json" },
         body,
-        signal: AbortSignal.timeout(45_000),
+        signal: AbortSignal.timeout(20_000),
       }).catch((error: unknown) => error);
       if (response instanceof Response && response.ok) {
         const data = (await response.json()) as GeminiResponse;
