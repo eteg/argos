@@ -171,6 +171,18 @@ export function ReportReview() {
   useEffect(() => {
     if (isApproved) router.replace(`/rdo/aprovado?id=${id}`);
   }, [isApproved, id, router]);
+  const siteForServices = current?.siteId;
+  useEffect(() => {
+    if (!siteForServices) return;
+    let alive = true;
+    void unwrap(api.GET("/v1/sites/{siteId}/services", { params: { path: { siteId: siteForServices }, ...tz } })).then(
+      (result) => alive && setServices(result.items),
+      () => undefined,
+    );
+    return () => {
+      alive = false;
+    };
+  }, [siteForServices]);
   if (!current) return <Page><Status state={state.status === "ok" ? { status: "loading" } : state} retry={retry} /></Page>;
   const r = current;
   const approved = r.status === "approved";
