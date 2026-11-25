@@ -9,6 +9,7 @@
 - D12: o check-in (`2.5`) não grava nada na API.
 - D15 e D16: saíram da `2.1` o aviso de renovação da ART e o tempo de carro. `distanceMeters` fica só com a distância.
 - OpenAPI 3.1 do M1 em `openapi/openapi.yaml`, mais `getHealth` e `runAiDiagnostic`, com lint, tipos gerados em `packages/contract` e servidor falso (`pnpm mock`).
+- `uploadMedia` aceita `durationSeconds` opcional (o áudio mostra "0:48" e a API não decodifica o arquivo).
 - `createEntry` responde 201 no M1. A partir do M2 vira operação demorada e responde 202.
 - Processo: o contrato entra na `main` depois da revisão do outro lado, sem PR.
 

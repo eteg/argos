@@ -1426,6 +1426,8 @@ export interface operations {
                     /** Format: date-time */
                     capturedAt: string;
                     location?: components["schemas"]["Location"];
+                    /** @description Duração do áudio, medida na web. */
+                    durationSeconds?: number;
                 };
             };
         };
