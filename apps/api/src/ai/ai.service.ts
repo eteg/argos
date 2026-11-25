@@ -41,24 +41,31 @@ export class AiService {
 
   // Saída em JSON validada pelo schema Zod (RG06). O schema do RDO tem campos null demais pra saída estruturada
   // da API (limite de 16), então ele vai no prompt, a resposta é validada aqui e, se falhar, a IA corrige uma vez.
+  // Prompt caching: a instrução e o JSON Schema são fixos por schema e ficam no system, com o ponto de cache no fim;
+  // a mensagem leva só o que muda (obra, memória, relatos). Assim montar, remontar e responder perguntas reaproveitam o prefixo.
   parse<T extends z.ZodType>({ name, system, prompt, effort = "medium", schema }: CompleteParams & { schema: T }) {
     return this.traced(name, { system, prompt }, effort, async (): Promise<z.infer<T>> => {
-      const messages: Anthropic.Beta.BetaMessageParam[] = [
+      const cachedSystem: Anthropic.Beta.BetaTextBlockParam[] = [
+        { type: "text", text: system },
         {
-          role: "user",
-          content: `${prompt}\n\nResponda só com um objeto JSON válido neste JSON Schema, sem texto antes ou depois:\n${JSON.stringify(toJSONSchema(schema))}`,
+          type: "text",
+          text: `Responda só com um objeto JSON válido neste JSON Schema, sem texto antes ou depois:\n${JSON.stringify(toJSONSchema(schema))}`,
+          cache_control: { type: "ephemeral" },
         },
       ];
+      const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: prompt }];
       for (let attempt = 0; attempt < 2; attempt++) {
         const response = await this.anthropic().beta.messages.create({
           model: this.model,
           max_tokens: 16000,
-          system,
+          system: cachedSystem,
           messages,
           output_config: { effort },
           betas: ["server-side-fallback-2026-07-01"],
           fallbacks: "default",
         });
+        const u = response.usage;
+        console.log(`[ia] ${name}: entrada ${u.input_tokens}, cache lido ${u.cache_read_input_tokens ?? 0}, cache gravado ${u.cache_creation_input_tokens ?? 0}`);
         if (response.stop_reason === "refusal") throw new Error("AI refused");
         if (response.stop_reason === "max_tokens") throw new Error("AI output truncated");
         const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
