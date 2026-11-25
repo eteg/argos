@@ -14,7 +14,7 @@ O script zera o banco local, cadastra a obra, grava os três registros de ontem 
 
 Rode o script de novo antes de cada ensaio: ele apaga o dia 2 do ensaio anterior.
 
-**Onde mostrar:** no navegador do notebook em `http://localhost:3000`, com o modo celular do DevTools (375 px). O microfone só funciona em `localhost` ou HTTPS, então pelo celular na rede local ele não grava: pro celular, só com o staging.
+**Onde mostrar:** no celular, pelo túnel do Cloudflare (`https://vitor.eteg.me`), ou no navegador do notebook em `http://localhost:3000` com o modo celular do DevTools (375 px). O microfone só funciona em HTTPS ou `localhost`: pelo IP da rede local ele não grava. Com `NEXT_PUBLIC_API_URL` vazio, a web repassa `/v1` pra API, então o túnel só precisa expor a web.
 
 **Arquivos pra ter à mão:** `data/demo/dia2.wav` (áudio do dia 2, se o microfone falhar) e as fotos `foto-alvenaria.jpg`, `foto-betoneira.jpg` e `foto-geral.jpg`.
 
