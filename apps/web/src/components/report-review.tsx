@@ -1,6 +1,7 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import type { Schemas } from "@argos/contract";
 import { api, timezoneParams } from "@/lib/api";
@@ -22,6 +23,7 @@ const Block = ({ title, children }: { title: string; children: React.ReactNode }
 );
 
 export function ReportReview() {
+  const router = useRouter();
   const id = useSearchParams().get("id") ?? "";
   const [state, retry] = useLoad(() => unwrap(api.GET("/v1/reports/{reportId}", { params: { path: { reportId: id }, ...tz } })), [id]);
   const [report, setReport] = useState<Report | null>(null);
@@ -48,7 +50,9 @@ export function ReportReview() {
     try {
       setReport(await unwrap(api.POST("/v1/reports/{reportId}/approve", { params: { path: { reportId: id }, header: { ...tz.header, "Idempotency-Key": crypto.randomUUID() } } })));
     } catch (e) {
-      setError(e instanceof ApiError ? e : new ApiError("UNAVAILABLE"));
+      const err = e instanceof ApiError ? e : new ApiError("UNAVAILABLE");
+      if (err.code === "REPORT_INCOMPLETE" && err.errors.some((x) => x.field.endsWith(".safety"))) return router.push(`/rdo/seguranca?id=${id}`);
+      setError(err);
     }
     setBusy(false);
   }
@@ -67,6 +71,9 @@ export function ReportReview() {
       <div className="flex items-center gap-3 px-5 pb-3 pt-5"><Back href={`/obra?id=${r.siteId}`} /><Title>{approved ? "RDO aprovado" : "Revise o RDO"}</Title></div>
       <div className="flex flex-col gap-3 px-4 pb-8">
         <div className="flex items-center gap-2 px-1"><Pill tone={approved ? "blue" : "purple"}>{approved ? "Aprovado" : "Rascunho"}</Pill><span className="text-[13px] text-[#5B5F6B]">Nº {String(r.number).padStart(3, "0")} · {fullDate(r.localDate)} · {r.entriesCount} registros</span></div>
+        {!approved && r.missingFields.some((m) => m.field.endsWith(".safety")) && (
+          <Link href={`/rdo/seguranca?id=${id}`} className="flex items-center gap-2.5 rounded-xl bg-[#EFE3FA] p-3 text-[13px] font-semibold text-[#4A2470]">Registro de segurança pendente: toque para preencher antes de aprovar →</Link>
+        )}
         {!approved && r.missingFields.length > 0 && <div role="alert" className="rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">Faltam {r.missingFields.length} campos obrigatórios: {r.missingFields.map((m) => m.field).join(", ")}</div>}
         {approved && r.approval && <div className="rounded-xl bg-[#E3ECFF] p-3 text-sm text-[#0B3699]">Aprovado por {r.approval.approvedBy} em {new Date(r.approval.approvedAt).toLocaleString("pt-BR")} e salvo na obra.</div>}
         {error && <div role="alert" className="rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">{errorMessage(error.code)}{error.errors.length > 0 && ` (${error.errors.map((e) => e.field).join(", ")})`}</div>}
@@ -147,6 +154,7 @@ export function ReportReview() {
           {r.occurrences.map((o) => (
             <div key={o.id} className="flex flex-col gap-0.5 border-b border-[#E3E5EE] pb-2.5 last:border-b-0">
               <span className="text-[15px]">{o.description}</span>
+              {o.type === "accident" && !approved && <Link href={`/rdo/seguranca?id=${id}&occ=${o.id}`} className="py-1 text-[13px] font-semibold text-[#1563FF]">{o.safety ? "Editar segurança" : "Registrar segurança"}</Link>}
               <span className="text-[13px] text-[#5B5F6B]">{occurrenceLabel[o.type]} · {o.startTime ?? "sem hora"}{o.endTime ? ` às ${o.endTime}` : ""} · {o.status === "closed" ? "encerrada" : "aberta"}</span>
               {isPublic && <span className="text-[13px] text-[#5B5F6B]">Serviços afetados: {o.affectedServiceIds.length}{o.source ? ` · Origem: ${o.source.origin}${o.source.document ? ` · ${o.source.document}` : ""}` : ""}</span>}
             </div>
