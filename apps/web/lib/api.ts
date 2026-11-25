@@ -54,8 +54,39 @@ export interface Entry {
   capturedAt: string;
   audio: Media | null;
   photos: Media[];
-  status: string;
+  status: "processing" | "processed" | "failed";
   title: string | null;
+  transcript: string | null;
+  tags: { kind: string; label: string }[];
+}
+
+export interface Question {
+  id: string;
+  kind: string;
+  text: string;
+  field: string | null;
+}
+
+export interface Report {
+  id: string;
+  siteId: string;
+  number: number;
+  localDate: string;
+  status: "generating" | "draft" | "approved" | "failed";
+  entriesCount: number;
+  site: { name: string; type: SiteType; address: string | null };
+  workday?: { startTime: string | null; endTime: string | null; breakMinutes: number | null };
+  weather?: { shift: "morning" | "afternoon"; weather: string | null; condition: string | null }[];
+  weatherStoppage?: { hours: number | null; serviceIds: string[] } | null;
+  labor?: { role: string; count: number | null; employment: string | null; company: string | null }[];
+  equipment?: { name: string; status: string | null }[];
+  activities?: { id: string; description: string; location: string | null; status: string | null; quantity: number | null; unit: string | null }[];
+  occurrences?: { id: string; type: string; description: string; startTime: string | null; endTime: string | null; status: string | null }[];
+  photos: { id: string; url: string }[];
+  questions: Question[];
+  missingFields: { field: string; questionId: string | null }[];
+  approval: { approvedBy: string; approvedAt: string } | null;
+  history: { at: string; actor: string; description: string }[];
 }
 
 export interface SiteSummary {

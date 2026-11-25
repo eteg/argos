@@ -12,7 +12,7 @@ As regras de negócio ficam no [guia do time], que é a fonte da verdade. Este r
 |---|---|---|
 | [M0](#m0-fundação) | Fundação | em andamento |
 | [M1](#m1-obras-e-registro) | Obras e registro | em andamento |
-| [M2](#m2-rdo-preenchido-pela-ia) | RDO preenchido pela IA | não iniciado |
+| [M2](#m2-rdo-preenchido-pela-ia) | RDO preenchido pela IA | em andamento |
 | [M3](#m3-memória-entre-dias) | Memória entre dias | não iniciado |
 | [M4](#m4-sem-internet) | Sem internet | não iniciado |
 | [M5](#m5-compartilhar-e-consultar) | Compartilhar e consultar | não iniciado |
@@ -122,6 +122,13 @@ Pronto quando o engenheiro cadastra uma obra, faz o check-in e grava registros c
 - **Decisões antes do marco:** D06, D08, D11, D13.
 
 Pronto quando um dia de registros vira um RDO aprovado que passa no schema, e o eval roda sobre pelo menos 10 áudios.
+
+| Raia | Entrega | Situação | Onde |
+|---|---|---|---|
+| IA | Transcrição pelo Gemini, interpretação do registro e preenchimento do RDO pela Claude | em revisão | transcrição sem teste real: falta a `GEMINI_API_KEY` |
+| API | `generateReport`, `getReport`, `updateReport`, `answerQuestion`, `approveReport`, `getEntry` | em revisão | sem `correctReportByVoice` e sem segurança (`3.7`) própria |
+| Web | Pasta com o que o agente entendeu, revisão com perguntas (`3.3`) e aprovado (`3.4`) | em revisão | sem correção à mão nem falando |
+| Dados e eval | Áudios gravados e eval | a fazer | |
 
 ## M3 Memória entre dias
 

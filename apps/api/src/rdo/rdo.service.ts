@@ -179,7 +179,7 @@ function toQuestions(asked: { field: string; text: string }[], content: ReportCo
   return missing.map((f) => ({
     id: randomUUID(),
     kind: f.field.includes("safety") ? "safety" : "missing_field",
-    text: byField.get(f.field) ?? `Falta preencher ${f.field}. Pode me dizer?`,
+    text: byField.get(f.field) ?? `Você não falou ${describeField(f.field, content)}. Pode me dizer?`,
     field: f.field,
     openItemId: null,
     options: [],
@@ -202,3 +202,36 @@ function snapshot(site: SiteRow) {
 
 const hhmm = (d: Date, timezone: string) =>
   d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: timezone });
+
+const FIELD_LABELS: Record<string, string> = {
+  startTime: "o horário de início",
+  endTime: "o horário de fim",
+  breakMinutes: "o tempo de intervalo",
+  weather: "o tempo",
+  condition: "se deu pra trabalhar",
+  status: "a situação",
+  location: "o local",
+  count: "a quantidade de pessoas",
+  employment: "se é equipe própria ou terceirizada",
+  company: "a empresa terceirizada",
+  quantity: "a quantidade executada",
+  unit: "a unidade",
+  source: "o documento de origem",
+  affectedServiceIds: "os serviços afetados",
+  hours: "as horas paradas por clima",
+  dds: "se teve DDS hoje",
+  ppeInUse: "se o EPI estava em uso",
+};
+
+// "occurrences.1.startTime" vira "o horário de início da ocorrência \"Falta de aço\"".
+function describeField(field: string, content: ReportContent) {
+  const parts = field.split(".");
+  const what = FIELD_LABELS[parts[parts.length - 1]!] ?? field;
+  const i = Number(parts[1]);
+  if (parts[0] === "weather" && Number.isInteger(i)) return `${what} da ${content.weather[i]?.shift === "morning" ? "manhã" : "tarde"}`;
+  if (parts[0] === "occurrences" && content.occurrences[i]) return `${what} da ocorrência "${content.occurrences[i].description}"`;
+  if (parts[0] === "activities" && content.activities[i]) return `${what} da atividade "${content.activities[i].description}"`;
+  if (parts[0] === "labor" && content.labor[i]) return `${what} de ${content.labor[i].role}`;
+  if (parts[0] === "equipment" && content.equipment[i]) return `${what} de ${content.equipment[i].name}`;
+  return what;
+}

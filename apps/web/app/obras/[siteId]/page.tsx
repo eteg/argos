@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, api, mediaUrl, today, type Entry, type Site, type SiteStatus } from "@/lib/api";
 import { siteStatusLabel, siteTypeLabel, time } from "@/lib/labels";
@@ -10,15 +10,39 @@ import { siteStatusLabel, siteTypeLabel, time } from "@/lib/labels";
 export default function SiteFolder() {
   const { siteId } = useParams<{ siteId: string }>();
   const [site, setSite] = useState<Site | null>(null);
+  const router = useRouter();
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [report, setReport] = useState<{ id: string; status: string; number: number } | null>(null);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(() => {
     api<Site>(`/sites/${siteId}`).then(setSite).catch(() => setError("Obra não encontrada."));
-    api<{ entries: Entry[] }>(`/sites/${siteId}/days/${today()}`).then((d) => setEntries(d.entries));
+    api<{ entries: Entry[]; report: typeof report }>(`/sites/${siteId}/days/${today()}`).then((d) => {
+      setEntries(d.entries);
+      setReport(d.report);
+    });
   }, [siteId]);
 
   useEffect(load, [load]);
+
+  // Enquanto a IA interpreta algum registro, a tela consulta de novo.
+  useEffect(() => {
+    if (!entries.some((e) => e.status === "processing")) return;
+    const t = setTimeout(load, 3000);
+    return () => clearTimeout(t);
+  }, [entries, load]);
+
+  async function generate() {
+    setGenerating(true);
+    try {
+      const r = await api<{ id: string }>(`/sites/${siteId}/days/${today()}/report`, { method: "POST" });
+      router.push(`/rdo/${r.id}`);
+    } catch {
+      setError("Não deu pra gerar o RDO agora.");
+      setGenerating(false);
+    }
+  }
 
   async function changeStatus(status: SiteStatus) {
     setError("");
@@ -61,6 +85,23 @@ export default function SiteFolder() {
               {e.photos.length > 0 && ` · ${e.photos.length} foto(s)`}
             </span>
           </div>
+          {e.status === "processing" && <p className="muted">O Argos está entendendo o registro…</p>}
+          {e.title && <p style={{ margin: "8px 0 4px", fontWeight: 600 }}>{e.title}</p>}
+          {e.tags.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+              {e.tags.map((t, i) => (
+                <span key={i} className="tag">
+                  {t.label}
+                </span>
+              ))}
+            </div>
+          )}
+          {e.transcript && (
+            <details style={{ marginTop: 6 }}>
+              <summary className="muted">O que o Argos ouviu</summary>
+              <p className="muted">{e.transcript}</p>
+            </details>
+          )}
           {e.audio && <audio controls src={mediaUrl(e.audio.url)} style={{ width: "100%", marginTop: 8 }} />}
           {e.photos.length > 0 && (
             <div className="photos" style={{ marginTop: 8 }}>
@@ -91,10 +132,23 @@ export default function SiteFolder() {
 
       {site.status === "in_progress" && (
         <div className="fixed-bottom">
-          <div>
-            <Link href={`/obras/${site.id}/registro`} className="btn primary block">
-              🎙 Registrar
-            </Link>
+          <div style={{ display: "flex", gap: 8 }}>
+            {report?.status === "approved" ? (
+              <Link href={`/rdo/${report.id}`} className="btn block">
+                RDO nº {report.number} aprovado
+              </Link>
+            ) : (
+              <>
+                <Link href={`/obras/${site.id}/registro`} className="btn primary" style={{ flex: 1 }}>
+                  🎙 Registrar
+                </Link>
+                {entries.length > 0 && (
+                  <button className="btn" style={{ flex: 1 }} onClick={generate} disabled={generating}>
+                    {generating ? "Gerando…" : report ? "Atualizar RDO" : "Gerar RDO"}
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}
