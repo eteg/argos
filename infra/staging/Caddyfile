@@ -1,0 +1,8 @@
+{$STAGING_DOMAIN} {
+	handle /v1/* {
+		reverse_proxy api:3001
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+}
