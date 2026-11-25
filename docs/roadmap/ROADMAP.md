@@ -119,14 +119,14 @@ Pronto quando a web abre no celular, fala com a API de staging e uma chamada à 
 | Raia | Entrega | Situação | Onde |
 |---|---|---|---|
 | Contrato | Convenções e decisões do M1 | pronto | |
-| Contrato | OpenAPI do M1 e servidor falso | a fazer | |
-| Web | Web PWA base | a fazer | |
-| API | API base | a fazer | |
-| IA | Chamada à Claude com Langfuse | a fazer | |
+| Contrato | OpenAPI do M1 e servidor falso | pronto | |
+| Web | Web PWA base | em revisão | |
+| API | API base | em revisão | |
+| IA | Chamada à Claude com Langfuse | bloqueado: faltam as chaves da Anthropic e do Langfuse | |
 | IA | Teste da transcrição do áudio (D17) | a fazer | |
-| Contrato | Schema do RDO | a fazer | |
+| Contrato | Schema do RDO | pronto | |
 | Dados | Obra fictícia e 5 gabaritos | pronto | |
-| API | Staging na EC2 | a fazer | |
+| API | Staging na EC2 | bloqueado: falta a EC2, o DNS e o `.env` | |
 
 ## M1 Obras e registro
 
