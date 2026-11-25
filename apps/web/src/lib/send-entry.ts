@@ -23,7 +23,9 @@ export interface EntryDraft {
   photos: CapturedFile[];
 }
 
-export type SendResult = { kind: "sent"; entry: Schemas["Entry"] } | { kind: "queued" };
+export type SendResult = { kind: "sent"; entry: Schemas["Entry"] } | { kind: "queued"; reason: "offline" | "failed" };
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function uploadFile(file: CapturedFile, kind: "audio" | "photo", location: Position | null) {
   const form = new FormData();
@@ -62,18 +64,24 @@ async function post(draft: EntryDraft, offline: boolean) {
   );
 }
 
-// Único ponto de envio do registro. Com internet manda direto; sem internet (ou se a rede cair no meio)
-// guarda no celular e a fila sobe quando a internet volta, com os mesmos ids (envio idempotente).
+// Único ponto de envio do registro. Com internet manda direto, tentando de novo se a rede oscilar; sem internet
+// (ou se continuar falhando) guarda no celular e a fila sobe depois, com os mesmos ids (envio idempotente).
+// O registro só conta como "capturado sem internet" se de fato não havia internet na captura.
 export async function sendEntry(draft: EntryDraft): Promise<SendResult> {
-  if (navigator.onLine) {
-    try {
-      return { kind: "sent", entry: await post(draft, false) };
-    } catch (error) {
-      if (!(error instanceof ApiError) || error.code !== "NETWORK") throw error;
+  const wasOnline = navigator.onLine;
+  if (wasOnline) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return { kind: "sent", entry: await post(draft, false) };
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.code !== "NETWORK") throw error;
+        console.warn(`Envio do registro falhou (tentativa ${attempt + 1}/3)`);
+        await wait(1000 * (attempt + 1));
+      }
     }
   }
-  await enqueueEntry({ ...draft, queuedAt: new Date().toISOString() });
-  return { kind: "queued" };
+  await enqueueEntry({ ...draft, queuedAt: new Date().toISOString(), offline: !wasOnline });
+  return { kind: "queued", reason: wasOnline ? "failed" : "offline" };
 }
 
 export interface FlushResult {
@@ -88,7 +96,7 @@ async function flush(): Promise<FlushResult> {
   for (const item of await listQueue()) {
     if (item.error) continue;
     try {
-      await post(item, true);
+      await post(item, item.offline ?? true);
       await removeQueued(item.id);
       result.sent.push({ siteId: item.siteId, siteName: item.siteName, localDate: item.localDate });
     } catch (error) {

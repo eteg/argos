@@ -8,6 +8,7 @@ import { clock, errorMessage } from "@/lib/format";
 import { getPosition, type Position } from "@/lib/geo";
 import { ApiError, unwrap, useLoad } from "@/lib/hooks";
 import { useOnline } from "@/lib/online";
+import { shrinkImage } from "@/lib/image";
 import { sendEntry, type CapturedFile } from "@/lib/send-entry";
 import { Understood } from "@/components/understood";
 
@@ -49,7 +50,7 @@ export function Recorder() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
-  const [queued, setQueued] = useState(false);
+  const [queued, setQueued] = useState<"offline" | "failed" | null>(null);
   const recorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
   const startedAt = useRef("");
@@ -90,9 +91,11 @@ export function Recorder() {
     recorder.current?.stop();
   }
 
-  function addPhoto(file: File | undefined, max: number) {
+  async function addPhoto(file: File | undefined, max: number) {
     if (!file || photos.length >= max) return;
-    setPhotos((l) => [...l, { id: crypto.randomUUID(), blob: file, capturedAt: new Date().toISOString(), preview: URL.createObjectURL(file) }]);
+    const capturedAt = new Date().toISOString();
+    const blob = await shrinkImage(file);
+    setPhotos((l) => (l.length >= max ? l : [...l, { id: crypto.randomUUID(), blob, capturedAt, preview: URL.createObjectURL(blob) }]));
   }
 
   const resolved =
@@ -115,7 +118,7 @@ export function Recorder() {
         const report = await unwrap(api.POST("/v1/sites/{siteId}/days/{localDate}/report", { params: { path: { siteId, localDate: localDateNow(timezone) }, ...timezoneParams() } }));
         router.push(`/rdo?id=${report.id}`);
       } else if (result.kind === "sent") setSavedId(result.entry.id);
-      else setQueued(true);
+      else setQueued(result.reason);
     } catch (e) {
       setError(errorMessage(e instanceof ApiError ? e.code : "UNAVAILABLE"));
       setSaving(false);
@@ -129,7 +132,7 @@ export function Recorder() {
     void save(mode === "close");
   });
 
-  if (queued) return <SavedOffline siteId={siteId} number={(resolved?.count ?? 0) + 1} />;
+  if (queued) return <SavedOffline siteId={siteId} number={(resolved?.count ?? 0) + 1} reason={queued} />;
   if (savedId) return <Understood entryId={savedId} siteId={siteId} number={(resolved?.count ?? 0) + 1} />;
   if (!resolved) {
     return <main className="mx-auto min-h-dvh max-w-[430px] bg-[#2D2D2B] p-6 text-white">Carregando…</main>;
@@ -139,7 +142,7 @@ export function Recorder() {
   const offline = !online;
   const label = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   const photoInput = (
-    <input type="file" accept="image/*" capture="environment" disabled={photos.length >= maxPhotos} className="sr-only" onChange={(e) => { addPhoto(e.target.files?.[0], maxPhotos); e.target.value = ""; }} />
+    <input type="file" accept="image/*" capture="environment" disabled={photos.length >= maxPhotos} className="sr-only" onChange={(e) => { void addPhoto(e.target.files?.[0], maxPhotos); e.target.value = ""; }} />
   );
   const blocked = saving || phase === "idle";
 
@@ -260,7 +263,7 @@ export function Recorder() {
   );
 }
 
-function SavedOffline({ siteId, number }: { siteId: string; number: number }) {
+function SavedOffline({ siteId, number, reason }: { siteId: string; number: number; reason: "offline" | "failed" }) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col bg-[#2D2D2B] font-[family-name:var(--font-inter)] text-white">
       <div className="flex flex-col gap-4 px-4 pb-3 pt-6">
@@ -269,8 +272,8 @@ function SavedOffline({ siteId, number }: { siteId: string; number: number }) {
           <span className="text-[13px] text-[#CFCFCB]">Hora e local carimbados</span>
         </div>
         <div className="flex flex-col gap-2.5 rounded-[18px] bg-[#3A3A37] px-4 py-3.5">
-          <span className="text-[15px] font-semibold">Salvando só no celular</span>
-          <p className="m-0 text-sm leading-[1.5] text-[#E8E8E4]">Quando a internet voltar, o Argos envia o áudio e as fotos, preenche o RDO e faz as perguntas do que faltou. Você recebe um aviso.</p>
+          <span className="text-[15px] font-semibold">{reason === "failed" ? "Não deu pra enviar agora" : "Salvando só no celular"}</span>
+          <p className="m-0 text-sm leading-[1.5] text-[#E8E8E4]">{reason === "failed" ? "A conexão com o Argos falhou, mas o áudio e as fotos estão guardados no celular. O app tenta de novo sozinho. " : null}{reason === "failed" ? "Assim que o envio funcionar," : "Quando a internet voltar,"} o Argos envia o áudio e as fotos, preenche o RDO e faz as perguntas do que faltou. Você recebe um aviso.</p>
         </div>
       </div>
       <div className="mt-auto flex gap-2.5 px-4 pb-6 pt-3">

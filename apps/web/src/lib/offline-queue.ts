@@ -18,6 +18,7 @@ export interface QueuedEntry {
   audio: QueuedFile;
   photos: QueuedFile[];
   queuedAt: string;
+  offline?: boolean;
   error?: string;
 }
 
