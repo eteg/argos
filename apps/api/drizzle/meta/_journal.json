@@ -8,6 +8,13 @@
       "when": 1795635071636,
       "tag": "0000_first_goliath",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795635819879,
+      "tag": "0001_fantastic_snowbird",
+      "breakpoints": true
     }
   ]
 }
