@@ -1,4 +1,4 @@
-import { date, doublePrecision, integer, jsonb, pgTable, text, timestamp, uuid, boolean, index } from "drizzle-orm/pg-core";
+import { date, doublePrecision, integer, jsonb, pgTable, text, timestamp, uuid, boolean, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const appMeta = pgTable("app_meta", {
   key: text("key").primaryKey(),
@@ -91,4 +91,41 @@ export const entries = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("entries_site_day_idx").on(t.siteId, t.localDate)],
+);
+
+export const reports = pgTable(
+  "reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    siteId: uuid("site_id").notNull().references(() => sites.id, { onDelete: "cascade" }),
+    localDate: date("local_date").notNull(),
+    number: integer("number"),
+    status: text("status").notNull().default("generating"),
+    content: jsonb("content").$type<Record<string, unknown>>().notNull().default({}),
+    siteSnapshot: jsonb("site_snapshot").$type<Record<string, unknown>>(),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    approvalKey: uuid("approval_key"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("reports_site_day_idx").on(t.siteId, t.localDate), uniqueIndex("reports_site_number_idx").on(t.siteId, t.number)],
+);
+
+export const questions = pgTable(
+  "questions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    entryId: uuid("entry_id").references(() => entries.id, { onDelete: "cascade" }),
+    reportId: uuid("report_id").references(() => reports.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    text: text("text").notNull(),
+    field: text("field"),
+    openItemId: uuid("open_item_id"),
+    options: jsonb("options").$type<{ id: string; label: string }[]>().notNull().default([]),
+    status: text("status").notNull().default("open"),
+    answer: jsonb("answer").$type<{ optionId: string | null; text: string | null; audioMediaId: string | null; answeredAt: string }>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("questions_report_idx").on(t.reportId), index("questions_entry_idx").on(t.entryId)],
 );

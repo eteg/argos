@@ -15,6 +15,13 @@
       "when": 1795635819879,
       "tag": "0001_fantastic_snowbird",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795636652117,
+      "tag": "0002_uneven_excalibur",
+      "breakpoints": true
     }
   ]
 }
