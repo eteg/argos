@@ -1,10 +1,10 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, desc, eq, lt, or } from "drizzle-orm";
+import { and, asc, desc, eq, lt, or } from "drizzle-orm";
 import type { Schemas } from "@argos/contract";
 import { z } from "zod";
 import { ProblemException } from "../common/problem.js";
 import { DB, type Database } from "../database/database.module.js";
-import { reports } from "../database/schema.js";
+import { entries, reports } from "../database/schema.js";
 import { SitesService } from "../sites/sites.service.js";
 import { StorageService } from "../storage/storage.service.js";
 import { buildReportPdf, reportFileName } from "./report-pdf.js";
@@ -12,6 +12,7 @@ import { ReportsService } from "./reports.service.js";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
+const DEFAULT_TIMEZONE = "America/Sao_Paulo";
 
 interface Cursor {
   d: string;
@@ -84,7 +85,13 @@ export class ReportExportService {
     const row = await this.reportsService.find(reportId);
     if (row.status !== "approved") throw new ProblemException(409, "REPORT_NOT_APPROVED", "Only approved reports have a PDF.");
     const report = await this.reportsService.view(row);
-    const bytes = await buildReportPdf(report, async (mediaId) => {
+    const [first] = await this.db
+      .select({ timezone: entries.timezone })
+      .from(entries)
+      .where(and(eq(entries.siteId, row.siteId), eq(entries.localDate, row.localDate)))
+      .orderBy(asc(entries.capturedAt))
+      .limit(1);
+    const bytes = await buildReportPdf(report, first?.timezone ?? DEFAULT_TIMEZONE, async (mediaId) => {
       const data = await this.storage.read("media", mediaId).catch(() => null);
       return data ? { bytes: data } : null;
     });

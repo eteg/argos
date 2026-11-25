@@ -30,8 +30,6 @@ export interface PdfImage {
 
 const winAnsi = (text: string) => text.replaceAll(/[^ -~\u00a0-\u00ff\u2013\u2014\u2018\u2019\u201c\u201d\u2022\u2026]/g, "?");
 const dateBr = (iso: string) => iso.split("-").reverse().join("/");
-const clockBr = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
-const dateTimeBr = (iso: string) => `${new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })} às ${clockBr(iso)}`;
 
 export function reportFileName(report: Pick<Report, "number" | "localDate"> & { site: { name: string } }) {
   const name = report.site.name
@@ -45,7 +43,9 @@ export function reportFileName(report: Pick<Report, "number" | "localDate"> & { 
   return `RDO-${String(report.number).padStart(3, "0")}_${name || "Obra"}_${day}-${month}.pdf`;
 }
 
-export async function buildReportPdf(report: Report, loadImage: (mediaId: string) => Promise<PdfImage | null>): Promise<Uint8Array> {
+export async function buildReportPdf(report: Report, timeZone: string, loadImage: (mediaId: string) => Promise<PdfImage | null>): Promise<Uint8Array> {
+  const clockBr = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone });
+  const dateTimeBr = (iso: string) => `${new Date(iso).toLocaleDateString("pt-BR", { timeZone })} às ${clockBr(iso)}`;
   const doc = await PDFDocument.create();
   const regular = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);

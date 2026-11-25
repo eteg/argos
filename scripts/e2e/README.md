@@ -28,6 +28,7 @@ E2E_AI=fake pnpm exec tsx scripts/e2e/<script>.mts    # API com AI_FAKE=true
 | `e2e-report`, `e2e-update`, `e2e-approve`, `e2e-safety`, `e2e-pub` | desligada | RDO: montagem, correção, aprovação, segurança e obra pública |
 | `e2e-m2`, `e2e-m3` | desligada | Perguntas do agente e itens em aberto |
 | `r1-pdf-list` | desligada | PDF e lista de RDOs com cursor |
+| `fuso-pdf` | desligada | Horários do PDF no fuso dos registros |
 | `r2-pending-services` | desligada | Dias pendentes e planilha de serviços |
 | `r3-answer-voice` | as duas | Respostas às perguntas e correção falada |
 | `r4-concorrencia`, `r4b-sonda-fotos` | desligada | Chamadas em paralelo, limite de fotos e ordem dos dias |

@@ -2,6 +2,7 @@
 
 ## 0.3.0, rascunho
 
+- `getReportPdf` mostra horários e datas no fuso dos registros do dia (`timezone` do primeiro registro), não mais sempre em `America/Sao_Paulo`.
 - `listReports` confere o conteúdo do `cursor` (data `YYYY-MM-DD` e `id` UUID) e responde 400 `VALIDATION` no campo `cursor` em vez de 500.
 - O RDO é validado pelo tipo da cópia da obra guardada nele (`site.type`), não pelo cadastro atual: trocar o tipo da obra com `updateSite` não quebra `getReport` nem o PDF dos RDOs já montados. O rascunho segue a cópia até `generateReport` ser chamado de novo, que refaz a cópia com o cadastro atual. `validateReport` do `@argos/rdo-schema` aceita `siteType` opcional e, sem ele, usa o `site.type` do RDO.
 - `approveReport` responde 409 `PREVIOUS_DAY_PENDING` (com `errors[].field` nas datas) quando um dia anterior da obra tem registro e não tem RDO aprovado, para o número seguir a ordem das datas (D04, D11). A mesma `Idempotency-Key` repetida em paralelo devolve 200 em todas as chamadas, e a web reaproveita a chave do RDO até a aprovação dar certo. `generateReport`, `createEntry` e `uploadMedia` repetidos em paralelo devolvem o recurso já gravado em vez de erro, e o limite de 20 fotos por dia vale também com envios em paralelo. Um RDO montado num dia com mais de 20 fotos leva as 20 primeiras e o histórico diz quantas ficaram de fora.
