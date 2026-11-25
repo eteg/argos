@@ -58,6 +58,7 @@ export interface Entry {
   title: string | null;
   transcript: string | null;
   tags: { kind: string; label: string }[];
+  openItemIds: string[];
 }
 
 export interface Question {

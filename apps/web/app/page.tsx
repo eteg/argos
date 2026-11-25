@@ -2,8 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { BottomNav } from "@/components/BottomNav";
 import { api, currentLocation, type SiteSummary } from "@/lib/api";
 import { distance, siteTypeLabel } from "@/lib/labels";
+
+const greeting = () => {
+  const h = new Date().getHours();
+  return h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
+};
 
 // 2.1 Início: as obras em andamento, da mais perto pra mais longe.
 export default function Home() {
@@ -19,44 +25,66 @@ export default function Home() {
       .catch(() => setError("Não deu pra carregar as obras agora."));
   }, []);
 
+  const toDo = (sites ?? []).filter((s) => s.today.entriesCount > 0 || s.openItemsCount > 0);
+
   return (
     <main>
-      <h1>Olá{me ? `, ${me.name.split(" ")[0]}` : ""}</h1>
-      <Link href="/pendencias" className="card">
-        📌 Pendências das obras
-      </Link>
       <div className="row">
-        <h2>Obras em andamento</h2>
-        <Link href="/obras/todas" className="muted">
+        <span className="wordmark">Argos</span>
+        <Link href="/obras/nova" className="btn soft small">
+          + Nova obra
+        </Link>
+      </div>
+      <p className="eyebrow">
+        {greeting()}
+        {me ? `, ${me.name.split(" ")[0]}` : ""}
+      </p>
+      <h1 className="page-title">suas obras hoje</h1>
+
+      <div className="chips">
+        <span className="chip on">Perto de mim</span>
+        <Link href="/pendencias" className="chip">
+          Pendências
+        </Link>
+        <Link href="/obras/todas" className="chip">
           Todas
         </Link>
       </div>
+
       {error && <p className="error">{error}</p>}
       {sites?.length === 0 && <p className="muted">Nenhuma obra em andamento. Cadastre a primeira.</p>}
       {sites?.map((s) => (
-        <Link key={s.id} href={`/obras/${s.id}`} className="card">
-          <strong>{s.name}</strong>
+        <Link key={s.id} href={`/obras/${s.id}`} className="card dark">
+          <span className="tag lilac">
+            {s.today.entriesCount === 0 ? "RDO não começou" : `RDO em andamento · ${s.today.entriesCount} registro(s)`}
+          </span>
+          <div style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: "1.3rem", marginTop: 10 }}>{s.name}</div>
           <div className="muted">
-            {[siteTypeLabel[s.type], distance(s.distanceMeters)].filter(Boolean).join(" · ")}
-          </div>
-          <div className="row" style={{ marginTop: 8 }}>
-            <span className="tag">
-              {s.today.entriesCount === 0 ? "Sem registros hoje" : `${s.today.entriesCount} registro(s) hoje`}
-              {s.openItemsCount > 0 && ` · ${s.openItemsCount} em aberto`}
-            </span>
-            <span className="btn primary" style={{ padding: "6px 12px" }}>
-              Registrar
-            </span>
+            {[distance(s.distanceMeters), siteTypeLabel[s.type]].filter(Boolean).join(" · ")}
           </div>
         </Link>
       ))}
-      <div className="fixed-bottom">
-        <div>
-          <Link href="/obras/nova" className="btn block">
-            + Nova obra
-          </Link>
-        </div>
-      </div>
+
+      {toDo.length > 0 && (
+        <>
+          <h2>RDOs a fazer</h2>
+          <div className="list">
+            {toDo.map((s) => (
+              <Link key={s.id} href={`/obras/${s.id}`}>
+                <div>
+                  <div style={{ fontWeight: 600 }}>{s.name}</div>
+                  <div className="muted">
+                    {s.today.entriesCount > 0 ? "RDO de hoje falta revisar e aprovar" : "RDO de hoje ainda não começou"}
+                    {s.openItemsCount > 0 && ` · ${s.openItemsCount} em aberto`}
+                  </div>
+                </div>
+                <span className="tag lilac">Hoje</span>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
+      <BottomNav current="home" />
     </main>
   );
 }

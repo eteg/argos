@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { MicIcon, StopIcon } from "@/components/Icons";
 import { ApiError, api, currentLocation, timezone, today } from "@/lib/api";
 
 const MAX_PHOTOS = 3;
@@ -127,19 +128,31 @@ export default function NewEntry() {
 
   return (
     <main>
-      <Link href={`/obras/${siteId}`} className="muted">
-        ← Cancelar
-      </Link>
-      <h1>Novo registro</h1>
+      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <Link href={`/obras/${siteId}`} className="icon-btn" aria-label="Cancelar">
+          ✕
+        </Link>
+        <h1 style={{ margin: 0 }}>Registro por voz</h1>
+      </div>
       <p className="muted">
         {location ? `Local carimbado (±${location.accuracyMeters} m)` : "Sem localização"} ·{" "}
         {new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
       </p>
 
-      <h2>Áudio</h2>
-      <button className={`btn block ${recording ? "" : "primary"}`} onClick={toggleRecording} disabled={saving}>
-        {recording ? `■ Parar · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}` : audio ? "🎙 Gravar de novo" : "🎙 Gravar"}
-      </button>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, margin: "28px 0 12px" }}>
+        <button
+          className="fab"
+          style={{ border: "none", cursor: "pointer", width: 96, height: 96, marginTop: 0, fontSize: "2.2rem", background: recording ? "var(--lilac)" : "var(--blue)" }}
+          onClick={toggleRecording}
+          disabled={saving}
+          aria-label={recording ? "Parar a gravação" : "Gravar"}
+        >
+          {recording ? <StopIcon size={36} /> : <MicIcon size={40} />}
+        </button>
+        <div style={{ fontWeight: 700 }}>
+          {recording ? `Gravando · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}` : audio ? "Toque pra gravar de novo" : "Toque pra gravar"}
+        </div>
+      </div>
       {audio && !recording && <audio controls src={audio.preview} style={{ width: "100%", marginTop: 8 }} />}
       {/* Saída de emergência da demo, quando o microfone não funciona. */}
       {!audio && !recording && (

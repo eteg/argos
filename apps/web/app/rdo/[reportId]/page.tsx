@@ -17,16 +17,39 @@ import {
   weatherLabel,
 } from "@/lib/labels";
 
-const EMPTY = <span className="error">falta</span>;
+const EMPTY = <span className="tag lilac">falta</span>;
 const show = (v: string | number | null | undefined, label?: Record<string, string>) =>
   v === null || v === undefined || v === "" ? EMPTY : label ? (label[String(v)] ?? v) : v;
 
 function Block({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <>
-      <h2>{title}</h2>
-      <div className="card">{children}</div>
-    </>
+    <section className="card">
+      <div className="card-title">{title}</div>
+      {children}
+    </section>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <div className="label">{label}</div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+function Header({ siteId, title, subtitle }: { siteId: string; title: string; subtitle: string }) {
+  return (
+    <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 8 }}>
+      <Link href={`/obras/${siteId}`} className="icon-btn" aria-label="Voltar pra obra">
+        ‹
+      </Link>
+      <div>
+        <h1 style={{ margin: 0 }}>{title}</h1>
+        <div className="muted">{subtitle}</div>
+      </div>
+    </div>
   );
 }
 
@@ -64,18 +87,11 @@ export default function ReportReview() {
 
   if (!report) return <main>{error ? <p className="error">{error}</p> : <p className="muted">Carregando…</p>}</main>;
 
-  const back = (
-    <Link href={`/obras/${report.siteId}`} className="muted">
-      ← Obra
-    </Link>
-  );
-
   if (report.status === "generating") {
     return (
       <main>
-        {back}
-        <h1>Montando o RDO…</h1>
-        <p className="muted">O Argos está lendo os {report.entriesCount} registro(s) de hoje. Leva uns segundos.</p>
+        <Header siteId={report.siteId} title="Montando o RDO…" subtitle={`Lendo os ${report.entriesCount} registro(s) de hoje`} />
+        <div className="notice blue">O Argos está juntando os áudios e as fotos do dia. Leva uns segundos.</div>
       </main>
     );
   }
@@ -83,9 +99,7 @@ export default function ReportReview() {
   if (report.status === "failed") {
     return (
       <main>
-        {back}
-        <h1>Não deu pra montar o RDO</h1>
-        <p className="muted">Volte pra obra e tente gerar de novo.</p>
+        <Header siteId={report.siteId} title="Não deu pra montar" subtitle="Volte pra obra e tente gerar de novo" />
       </main>
     );
   }
@@ -102,42 +116,55 @@ export default function ReportReview() {
 
   return (
     <main>
-      {back}
-      <h1>
-        RDO nº {String(report.number).padStart(3, "0")} · {date(report.localDate)}
-      </h1>
-      <div className="muted">
-        {report.site.name} · {siteTypeLabel[report.site.type]} · {approved ? "Aprovado" : "Rascunho"}
-      </div>
+      <Header
+        siteId={report.siteId}
+        title={approved ? "RDO aprovado" : "Revise o RDO"}
+        subtitle={approved ? `Nº ${String(report.number).padStart(3, "0")} · ${date(report.localDate)}` : `Montado a partir dos ${report.entriesCount} registro(s) do dia`}
+      />
 
       {approved && report.approval && (
-        <div className="card" style={{ marginTop: 12, borderColor: "var(--accent)" }}>
+        <div className="notice blue">
           ✓ Aprovado por {report.approval.approvedBy} às {time(report.approval.approvedAt)} e salvo na obra.
         </div>
       )}
 
       {!approved && report.missingFields.length > 0 && (
-        <div className="card" style={{ marginTop: 12, borderColor: "var(--danger)" }}>
-          <strong>
-            Faltam {report.missingFields.length} campo(s) obrigatório(s).
-          </strong>
-          {photosMissing && <p className="muted">O RDO precisa de pelo menos 3 fotos do dia. Faça um registro com fotos.</p>}
-          {unanswered.length > 0 && <p className="muted">Sem pergunta: {unanswered.map((f) => f.field).join(", ")}</p>}
+        <div className="notice">
+          <span>ⓘ</span>
+          <div>
+            Faltam {report.missingFields.length} campo(s) obrigatório(s). Nada é salvo antes da sua aprovação.
+            {photosMissing && <div>O RDO precisa de pelo menos 3 fotos do dia: faça um registro com fotos.</div>}
+            {unanswered.length > 0 && <div>Sem pergunta: {unanswered.map((f) => f.field).join(", ")}</div>}
+          </div>
         </div>
       )}
 
       {!approved && report.questions.map((q) => <QuestionCard key={q.id} question={q} onAnswered={setReport} />)}
 
+      <Block title="Identificação">
+        <div className="grid-2">
+          <Field label="RDO">
+            Nº {String(report.number).padStart(3, "0")} · {date(report.localDate)}
+          </Field>
+          <Field label="Obra">{report.site.name}</Field>
+          <Field label="Tipo">{siteTypeLabel[report.site.type]}</Field>
+          <Field label="Situação">{approved ? "Aprovado" : "Rascunho"}</Field>
+        </div>
+      </Block>
+
       {report.workday && (
         <Block title="Jornada e clima">
-          {show(report.workday.startTime)} às {show(report.workday.endTime)} · intervalo de{" "}
-          {report.workday.breakMinutes === null ? EMPTY : `${report.workday.breakMinutes} min`}
-          {report.weather?.map((w) => (
-            <div key={w.shift} style={{ marginTop: 6 }}>
-              {w.shift === "morning" ? "Manhã" : "Tarde"}: {show(w.weather, weatherLabel)}, {show(w.condition, conditionLabel)}
-            </div>
-          ))}
-          {report.weatherStoppage && <div style={{ marginTop: 6 }}>Horas paradas por clima: {show(report.weatherStoppage.hours)}</div>}
+          <div className="grid-2">
+            <Field label="Entrada">{show(report.workday.startTime)}</Field>
+            <Field label="Saída">{show(report.workday.endTime)}</Field>
+            <Field label="Intervalo">{report.workday.breakMinutes === null ? EMPTY : `${report.workday.breakMinutes} min`}</Field>
+            {report.weatherStoppage && <Field label="Horas paradas por clima">{show(report.weatherStoppage.hours)}</Field>}
+            {report.weather?.map((w) => (
+              <Field key={w.shift} label={w.shift === "morning" ? "Manhã" : "Tarde"}>
+                {show(w.weather, weatherLabel)} · {show(w.condition, conditionLabel)}
+              </Field>
+            ))}
+          </div>
         </Block>
       )}
 
@@ -196,7 +223,7 @@ export default function ReportReview() {
             <div key={r.openItemId} style={{ marginBottom: 8 }}>
               <div>{titleOf(r.openItemId)}</div>
               <div className="muted">
-                <span className="tag">{outcomeLabel[r.outcome]}</span> {r.note}
+                <span className={`tag ${r.outcome === "close" ? "" : "lilac"}`}>{outcomeLabel[r.outcome]}</span> {r.note}
               </div>
             </div>
           ))}
@@ -205,11 +232,11 @@ export default function ReportReview() {
               <div>
                 <div>{n.title}</div>
                 <div className="muted">
-                  <span className="tag">novo</span> {openItemKindLabel[n.kind]}
+                  <span className="tag lilac">novo</span> {openItemKindLabel[n.kind]}
                 </div>
               </div>
               {!approved && (
-                <button className="btn" style={{ padding: "6px 10px" }} onClick={() => toggleTrack(n.id)}>
+                <button className="btn small" onClick={() => toggleTrack(n.id)}>
                   {n.track ? "Não acompanhar" : "Acompanhar"}
                 </button>
               )}
@@ -229,23 +256,27 @@ export default function ReportReview() {
         </Block>
       )}
 
-      <h2>Fotos · {report.photos.length} de 20</h2>
-      {report.photos.length > 0 && (
-        <div className="photos">
-          {report.photos.map((p) => (
-            <img key={p.id} src={mediaUrl(p.url)} alt="" />
+      <Block title={`Fotos · ${report.photos.length} de 20`}>
+        {report.photos.length === 0 ? (
+          EMPTY
+        ) : (
+          <div className="photos">
+            {report.photos.map((p) => (
+              <img key={p.id} src={mediaUrl(p.url)} alt="" />
+            ))}
+          </div>
+        )}
+      </Block>
+
+      <Block title="Validação">
+        <div className="muted">
+          {report.history.map((h, i) => (
+            <div key={i} style={{ marginBottom: 4 }}>
+              {time(h.at)} · {h.actor === "agent" ? "Argos" : "Você"}: {h.description}
+            </div>
           ))}
         </div>
-      )}
-
-      <h2>Histórico</h2>
-      <div className="card muted">
-        {report.history.map((h, i) => (
-          <div key={i}>
-            {time(h.at)} · {h.actor === "agent" ? "Argos" : "Você"}: {h.description}
-          </div>
-        ))}
-      </div>
+      </Block>
 
       {error && <p className="error">{error}</p>}
       {!approved && (
@@ -280,12 +311,13 @@ function QuestionCard({ question, onAnswered }: { question: Question; onAnswered
   }
 
   return (
-    <div className="card" style={{ marginTop: 10 }}>
-      <div>{question.kind === "open_item" ? "📌" : "💬"} {question.text}</div>
+    <div className={`card ${question.kind === "open_item" ? "memory" : ""}`}>
+      <div className="label">{question.kind === "open_item" ? "Ficou dos dias anteriores" : "O Argos perguntou"}</div>
+      <div style={{ fontWeight: 600 }}>{question.text}</div>
       {question.options.length > 0 && (
-        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+        <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
           {question.options.map((o) => (
-            <button key={o.id} className="btn" style={{ flex: 1, padding: "8px 10px" }} onClick={() => send(o.id)} disabled={sending}>
+            <button key={o.id} className="btn small" style={{ flex: 1 }} onClick={() => send(o.id)} disabled={sending}>
               {o.label}
             </button>
           ))}
@@ -293,7 +325,7 @@ function QuestionCard({ question, onAnswered }: { question: Question; onAnswered
       )}
       <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
         <input value={text} onChange={(e) => setText(e.target.value)} placeholder={question.options.length > 0 ? "Ou conte o que mudou" : "Sua resposta"} onKeyDown={(e) => e.key === "Enter" && send()} />
-        <button className="btn primary" onClick={() => send()} disabled={sending}>
+        <button className="btn primary small" onClick={() => send()} disabled={sending}>
           {sending ? "…" : "Enviar"}
         </button>
       </div>
