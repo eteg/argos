@@ -8,6 +8,7 @@ O diferencial é a memória entre dias: o agente lembra das pendências e ocorr�
 
 - [Guia do time](https://claude.ai/artifact/9VhpdMpFe4kdAbJKgfADDQ): fonte da verdade com as regras (RG e F1RN), os campos do RDO e a tabela de decisões.
 - [Protótipo no Claude Design](https://claude.ai/artifact/KQMparWerCU2mP2s7fQBjs): as telas do app e o mapa do fluxo (prancheta 1.1).
+- [Roadmap](docs/roadmap/ROADMAP.md): marcos de construção, decisões e a situação de cada entrega.
 
 ## Escopo da primeira versão
 
