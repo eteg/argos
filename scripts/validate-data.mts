@@ -64,6 +64,7 @@ const opened = new Map<string, number>();
 const closed = new Set<string>();
 const kinds = new Set<string>();
 const outcomes = new Set<string>();
+const knownServiceIds = new Set<string>();
 let accident = false;
 let longestOpen = 0;
 
@@ -72,6 +73,11 @@ function getPath(root: unknown, path: string): unknown {
     if (value === undefined || value === null) return undefined;
     return (value as Record<string, unknown>)[key];
   }, root);
+}
+
+for (let day = 1; day <= 5; day++) {
+  const raw = read(`data/golden-reports/day-0${day}.json`) as { expectedReport?: { activities?: { service?: { id: string } | null }[] } };
+  raw.expectedReport?.activities?.forEach((a) => a.service && knownServiceIds.add(a.service.id));
 }
 
 for (let day = 1; day <= 5; day += 1) {
@@ -112,7 +118,7 @@ for (let day = 1; day <= 5; day += 1) {
   report.occurrences.forEach((o) => {
     if (o.type === "accident" && o.safety) accident = true;
     o.affectedServiceIds.forEach((id) => {
-      if (!report.activities.some((a) => a.service?.id === id) && !id) fail(file, `serviceId ${id} inválido`);
+      if (!knownServiceIds.has(id)) fail(file, `serviceId ${id} não é de nenhuma atividade dos gabaritos`);
     });
   });
 
