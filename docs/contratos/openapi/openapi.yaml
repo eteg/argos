@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Argos API
-  version: 0.2.0
+  version: 0.3.0
   summary: Contrato entre a web e a API do Argos, M1 mais health e diagnóstico da IA.
   description: >-
     Fonte da verdade do contrato. As camadas de texto estão em docs/contratos:
@@ -23,6 +23,8 @@ tags:
     description: Obras, equipamentos, documentos e serviços.
   - name: Entries
     description: Mídia e registros do dia.
+  - name: Reports
+    description: RDO, perguntas do agente e aprovação.
   - name: AI
     description: Diagnóstico da IA.
 paths:
@@ -533,6 +535,140 @@ paths:
                 today: { $ref: "#/components/examples/Day" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/entries/{entryId}:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - $ref: "#/components/parameters/XTimezone"
+    get:
+      operationId: getEntry
+      tags: [Entries]
+      summary: Um registro, com o que a IA entendeu
+      responses:
+        "200":
+          description: O registro.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Entry" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/questions/{questionId}/answer:
+    parameters:
+      - name: questionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - $ref: "#/components/parameters/XTimezone"
+    post:
+      operationId: answerQuestion
+      tags: [Reports]
+      summary: Responde uma pergunta do agente
+      description: Com `optionId` ou `text` responde 200. Com `audioMediaId` responde 202 e a IA interpreta a resposta.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnswerQuestionRequest" }
+      responses:
+        "200":
+          description: A pergunta respondida.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Question" }
+        "202":
+          description: A resposta falada está sendo interpretada.
+          headers:
+            Retry-After: { schema: { type: integer } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Question" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/sites/{siteId}/days/{localDate}/report:
+    parameters:
+      - $ref: "#/components/parameters/SiteId"
+      - name: localDate
+        in: path
+        required: true
+        schema: { type: string, format: date }
+      - $ref: "#/components/parameters/XTimezone"
+    post:
+      operationId: generateReport
+      tags: [Reports]
+      summary: Monta ou remonta o rascunho do RDO do dia
+      description: Chamar de novo remonta o rascunho com os registros novos.
+      responses:
+        "202":
+          description: O RDO em `generating`.
+          headers:
+            Location: { schema: { type: string } }
+            Retry-After: { schema: { type: integer } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Report" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`PREVIOUS_DAY_PENDING` ou `REPORT_ALREADY_APPROVED`."
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/reports/{reportId}:
+    parameters:
+      - name: reportId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - $ref: "#/components/parameters/XTimezone"
+    get:
+      operationId: getReport
+      tags: [Reports]
+      summary: Um RDO
+      responses:
+        "200":
+          description: O RDO.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Report" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/reports/{reportId}/approve:
+    parameters:
+      - name: reportId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - $ref: "#/components/parameters/XTimezone"
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: approveReport
+      tags: [Reports]
+      summary: Aprova o RDO
+      description: Grava o responsável e o instante (`F1RN05`) e aplica o desfecho dos itens em aberto (`F1RN11`). Repetir a chamada com a mesma chave devolve o RDO já aprovado.
+      responses:
+        "200":
+          description: O RDO aprovado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Report" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`REPORT_INCOMPLETE`, com `errors` apontando cada campo que falta (`RG06`)."
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
         "503": { $ref: "#/components/responses/Unavailable" }
 components:
   securitySchemes:
@@ -1056,6 +1192,194 @@ components:
           properties:
             id: { type: string }
             status: { $ref: "#/components/schemas/ReportStatus" }
+    AnswerQuestionRequest:
+      type: object
+      description: Um dos três campos.
+      properties:
+        optionId: { type: string }
+        text: { type: string }
+        audioMediaId: { type: string, format: uuid }
+    Workday:
+      type: object
+      required: [startTime, endTime, breakMinutes]
+      properties:
+        startTime: { type: [string, "null"] }
+        endTime: { type: [string, "null"] }
+        breakMinutes: { type: [integer, "null"] }
+    Report:
+      type: object
+      required: [id, siteId, number, localDate, status, entriesCount, site, workday, weather, weatherStoppage, rainfallMm, labor, laborNotes, equipment, activities, occurrences, openItemReviews, newOpenItems, photos, photoRequirements, questions, missingFields, approval, history, pdfUrl]
+      properties:
+        id: { type: string, format: uuid }
+        siteId: { type: string, format: uuid }
+        number: { type: integer, description: "Sequencial por obra, sem saltos (D11)." }
+        localDate: { type: string, format: date }
+        status: { $ref: "#/components/schemas/ReportStatus" }
+        entriesCount: { type: integer }
+        site: { $ref: "#/components/schemas/Site", description: Cópia dos dados da obra no dia. }
+        workday: { $ref: "#/components/schemas/Workday" }
+        weather:
+          type: array
+          items:
+            type: object
+            required: [shift, weather, condition]
+            properties:
+              shift: { type: string, enum: [morning, afternoon] }
+              weather: { type: [string, "null"], enum: [good, cloudy, light_rain, heavy_rain, null] }
+              condition: { type: [string, "null"], enum: [workable, partially_workable, unworkable, null] }
+        weatherStoppage:
+          type: [object, "null"]
+          required: [hours, serviceIds]
+          properties:
+            hours: { type: number }
+            serviceIds: { type: array, items: { type: string } }
+        rainfallMm: { type: [number, "null"] }
+        labor:
+          type: array
+          items:
+            type: object
+            required: [role, count, employment, company, category]
+            properties:
+              role: { type: string }
+              count: { type: integer }
+              employment: { type: string, enum: [own, third_party] }
+              company: { type: [string, "null"] }
+              category: { type: [string, "null"], enum: [direct, indirect, null] }
+        laborNotes: { type: [string, "null"] }
+        equipment:
+          type: array
+          items:
+            type: object
+            required: [equipmentId, name, identifier, status, operatingHours]
+            properties:
+              equipmentId: { type: string, format: uuid }
+              name: { type: string }
+              identifier: { type: [string, "null"] }
+              status: { type: [string, "null"], enum: [operating, stopped, under_maintenance, null] }
+              operatingHours: { type: [number, "null"] }
+        activities:
+          type: array
+          items:
+            type: object
+            required: [id, description, service, location, status, quantity, unit, cumulativeProgressPercent, executor]
+            properties:
+              id: { type: string }
+              description: { type: string }
+              service:
+                type: [object, "null"]
+                required: [id, code, description, unit]
+                properties:
+                  id: { type: string }
+                  code: { type: string }
+                  description: { type: string }
+                  unit: { type: [string, "null"] }
+              location: { type: [string, "null"] }
+              status: { type: string, enum: [started, in_progress, completed, stopped] }
+              quantity: { type: [number, "null"] }
+              unit: { type: [string, "null"] }
+              cumulativeProgressPercent: { type: [number, "null"] }
+              executor: { type: [string, "null"] }
+        occurrences:
+          type: array
+          items:
+            type: object
+            required: [id, type, description, startTime, endTime, status, affectedServiceIds, source, materials, safety]
+            properties:
+              id: { type: string }
+              type: { type: string, enum: [stoppage, accident, material_shortage, equipment_failure, inspection_order, visit, external_interference, other] }
+              description: { type: string }
+              startTime: { type: [string, "null"] }
+              endTime: { type: [string, "null"] }
+              status: { type: string, enum: [open, closed] }
+              affectedServiceIds: { type: array, items: { type: string } }
+              source:
+                type: [object, "null"]
+                required: [origin, document]
+                properties:
+                  origin: { type: string }
+                  document: { type: [string, "null"] }
+              materials: { type: [string, "null"] }
+              safety:
+                type: [object, "null"]
+                required: [type, dds, ppeInUse]
+                properties:
+                  type: { type: string, enum: [accident, incident] }
+                  dds: { type: [boolean, "null"] }
+                  ppeInUse: { type: [boolean, "null"] }
+        openItemReviews:
+          type: array
+          items:
+            type: object
+            required: [openItemId, outcome, note]
+            properties:
+              openItemId: { type: string }
+              outcome: { type: string, enum: [close, keep, update] }
+              note: { type: [string, "null"] }
+        newOpenItems:
+          type: array
+          items:
+            type: object
+            required: [id, title, kind, track]
+            properties:
+              id: { type: string }
+              title: { type: string }
+              kind: { $ref: "#/components/schemas/OpenItemKind" }
+              track: { type: boolean }
+        photos:
+          type: array
+          items:
+            allOf:
+              - $ref: "#/components/schemas/Media"
+              - type: object
+                required: [caption, linkedTo]
+                properties:
+                  caption: { type: [string, "null"] }
+                  linkedTo:
+                    type: [object, "null"]
+                    required: [type, id]
+                    properties:
+                      type: { type: string, enum: [activity, occurrence] }
+                      id: { type: string }
+        photoRequirements:
+          type: array
+          items:
+            type: object
+            required: [linkedTo, label]
+            properties:
+              linkedTo:
+                type: object
+                required: [type, id]
+                properties:
+                  type: { type: string, enum: [activity, occurrence] }
+                  id: { type: string }
+              label: { type: string }
+        questions:
+          type: array
+          items: { $ref: "#/components/schemas/Question" }
+        missingFields:
+          type: array
+          items:
+            type: object
+            required: [field, questionId]
+            properties:
+              field: { type: string }
+              questionId: { type: [string, "null"] }
+        approval:
+          type: [object, "null"]
+          required: [approvedBy, approvedAt]
+          properties:
+            approvedBy: { type: string }
+            approvedAt: { type: string, format: date-time }
+        history:
+          type: array
+          items:
+            type: object
+            required: [at, actor, description]
+            properties:
+              at: { type: string, format: date-time }
+              actor: { type: string, enum: [agent, engineer] }
+              description: { type: string }
+        pdfUrl: { type: [string, "null"] }
   examples:
     HealthOk:
       value: { status: ok, environment: staging, version: 90303ab, database: up }

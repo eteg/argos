@@ -1,5 +1,9 @@
 # Changelog do contrato
 
+## 0.3.0, rascunho
+
+- Base do M2 no OpenAPI: `getEntry`, `answerQuestion`, `generateReport` (202), `getReport` e `approveReport` (com `Idempotency-Key`), mais os schemas `Report`, `Workday` e `AnswerQuestionRequest`. Faltam `updateReport`, `correctReportByVoice` e `listServices`.
+
 ## 0.2.0, acordado
 
 Acordado em 25/11/2026 por decisão de Jeferson Augusto de Melo Gomes (D18), valendo pra web e pra API, sem revisão em PR. Cobre as convenções, as obras e o que o registro do dia usa no M1. A revisão final do M0 e do M1 fica pro time todo.

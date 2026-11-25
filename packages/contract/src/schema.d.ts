@@ -383,6 +383,143 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/entries/{entryId}": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+            };
+            path: {
+                entryId: string;
+            };
+            cookie?: never;
+        };
+        /** Um registro, com o que a IA entendeu */
+        get: operations["getEntry"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/questions/{questionId}/answer": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+            };
+            path: {
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Responde uma pergunta do agente
+         * @description Com `optionId` ou `text` responde 200. Com `audioMediaId` responde 202 e a IA interpreta a resposta.
+         */
+        post: operations["answerQuestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sites/{siteId}/days/{localDate}/report": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+            };
+            path: {
+                /** @example 5b1f0a52-6d0e-4a55-9a0b-1d4c2f6e8a01 */
+                siteId: components["parameters"]["SiteId"];
+                localDate: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Monta ou remonta o rascunho do RDO do dia
+         * @description Chamar de novo remonta o rascunho com os registros novos.
+         */
+        post: operations["generateReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/reports/{reportId}": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+            };
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        /** Um RDO */
+        get: operations["getReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/reports/{reportId}/approve": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+                "Idempotency-Key": string;
+            };
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aprova o RDO
+         * @description Grava o responsável e o instante (`F1RN05`) e aplica o desfecho dos itens em aberto (`F1RN11`). Repetir a chamada com a mesma chave devolve o RDO já aprovado.
+         */
+        post: operations["approveReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -743,6 +880,150 @@ export interface components {
                 id: string;
                 status: components["schemas"]["ReportStatus"];
             } | null;
+        };
+        /** @description Um dos três campos. */
+        AnswerQuestionRequest: {
+            optionId?: string;
+            text?: string;
+            /** Format: uuid */
+            audioMediaId?: string;
+        };
+        Workday: {
+            startTime: string | null;
+            endTime: string | null;
+            breakMinutes: number | null;
+        };
+        Report: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            siteId: string;
+            /** @description Sequencial por obra, sem saltos (D11). */
+            number: number;
+            /** Format: date */
+            localDate: string;
+            status: components["schemas"]["ReportStatus"];
+            entriesCount: number;
+            /** @description Cópia dos dados da obra no dia. */
+            site: components["schemas"]["Site"];
+            workday: components["schemas"]["Workday"];
+            weather: {
+                /** @enum {string} */
+                shift: "morning" | "afternoon";
+                /** @enum {string|null} */
+                weather: "good" | "cloudy" | "light_rain" | "heavy_rain" | null;
+                /** @enum {string|null} */
+                condition: "workable" | "partially_workable" | "unworkable" | null;
+            }[];
+            weatherStoppage: {
+                hours: number;
+                serviceIds: string[];
+            } | null;
+            rainfallMm: number | null;
+            labor: {
+                role: string;
+                count: number;
+                /** @enum {string} */
+                employment: "own" | "third_party";
+                company: string | null;
+                /** @enum {string|null} */
+                category: "direct" | "indirect" | null;
+            }[];
+            laborNotes: string | null;
+            equipment: {
+                /** Format: uuid */
+                equipmentId: string;
+                name: string;
+                identifier: string | null;
+                /** @enum {string|null} */
+                status: "operating" | "stopped" | "under_maintenance" | null;
+                operatingHours: number | null;
+            }[];
+            activities: {
+                id: string;
+                description: string;
+                service: {
+                    id: string;
+                    code: string;
+                    description: string;
+                    unit: string | null;
+                } | null;
+                location: string | null;
+                /** @enum {string} */
+                status: "started" | "in_progress" | "completed" | "stopped";
+                quantity: number | null;
+                unit: string | null;
+                cumulativeProgressPercent: number | null;
+                executor: string | null;
+            }[];
+            occurrences: {
+                id: string;
+                /** @enum {string} */
+                type: "stoppage" | "accident" | "material_shortage" | "equipment_failure" | "inspection_order" | "visit" | "external_interference" | "other";
+                description: string;
+                startTime: string | null;
+                endTime: string | null;
+                /** @enum {string} */
+                status: "open" | "closed";
+                affectedServiceIds: string[];
+                source: {
+                    origin: string;
+                    document: string | null;
+                } | null;
+                materials: string | null;
+                safety: {
+                    /** @enum {string} */
+                    type: "accident" | "incident";
+                    dds: boolean | null;
+                    ppeInUse: boolean | null;
+                } | null;
+            }[];
+            openItemReviews: {
+                openItemId: string;
+                /** @enum {string} */
+                outcome: "close" | "keep" | "update";
+                note: string | null;
+            }[];
+            newOpenItems: {
+                id: string;
+                title: string;
+                kind: components["schemas"]["OpenItemKind"];
+                track: boolean;
+            }[];
+            photos: (components["schemas"]["Media"] & {
+                caption: string | null;
+                linkedTo: {
+                    /** @enum {string} */
+                    type: "activity" | "occurrence";
+                    id: string;
+                } | null;
+            })[];
+            photoRequirements: {
+                linkedTo: {
+                    /** @enum {string} */
+                    type: "activity" | "occurrence";
+                    id: string;
+                };
+                label: string;
+            }[];
+            questions: components["schemas"]["Question"][];
+            missingFields: {
+                field: string;
+                questionId: string | null;
+            }[];
+            approval: {
+                approvedBy: string;
+                /** Format: date-time */
+                approvedAt: string;
+            } | null;
+            history: {
+                /** Format: date-time */
+                at: string;
+                /** @enum {string} */
+                actor: "agent" | "engineer";
+                description: string;
+            }[];
+            pdfUrl: string | null;
         };
     };
     responses: {
@@ -1543,6 +1824,199 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getEntry: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+            };
+            path: {
+                entryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O registro. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Entry"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    answerQuestion: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+            };
+            path: {
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerQuestionRequest"];
+            };
+        };
+        responses: {
+            /** @description A pergunta respondida. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Question"];
+                };
+            };
+            /** @description A resposta falada está sendo interpretada. */
+            202: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Question"];
+                };
+            };
+            400: components["responses"]["Validation"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    generateReport: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+            };
+            path: {
+                /** @example 5b1f0a52-6d0e-4a55-9a0b-1d4c2f6e8a01 */
+                siteId: components["parameters"]["SiteId"];
+                localDate: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O RDO em `generating`. */
+            202: {
+                headers: {
+                    Location?: string;
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Report"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description `PREVIOUS_DAY_PENDING` ou `REPORT_ALREADY_APPROVED`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getReport: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+            };
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O RDO. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Report"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    approveReport: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+                "Idempotency-Key": string;
+            };
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O RDO aprovado. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Report"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description `REPORT_INCOMPLETE`, com `errors` apontando cada campo que falta (`RG06`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             503: components["responses"]["Unavailable"];
         };
     };
