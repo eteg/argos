@@ -10,9 +10,14 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@argos/contract": "workspace:*",
+    "@serwist/turbopack": "9.6.0",
+    "esbuild": "0.28.2",
     "next": "16.4.6",
+    "openapi-fetch": "0.17.0",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "serwist": "9.6.0"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "4.3.3",

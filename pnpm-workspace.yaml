@@ -4,6 +4,7 @@ packages:
 
 allowBuilds:
   "@scarf/scarf": false
+  "@swc/core": false
   esbuild: false
   protobufjs: false
   sharp: false
@@ -16,6 +17,11 @@ minimumReleaseAgeExclude:
   - '@types/node@26.6.10'
   - '@types/react@19.3.3'
   - '@anthropic-ai/sdk@1.14.0'
+  - '@serwist/build@9.6.0'
+  - '@serwist/turbopack@9.6.0'
+  - '@serwist/utils@9.6.0'
+  - '@serwist/window@9.6.0'
+  - serwist@9.6.0
 
 overrides:
   supports-color: 7.2.0
