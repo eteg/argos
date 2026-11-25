@@ -7,6 +7,7 @@ import type { Schemas } from "@argos/contract";
 import { ProblemException } from "../common/problem.js";
 import { DB, type Database } from "../database/database.module.js";
 import { aiEnabled, env } from "../config/env.js";
+import { OpenItemsService } from "../open-items/open-items.service.js";
 import { ProcessingService, setPath } from "../processing/processing.service.js";
 import { entries, equipment, media, questions, reports, services, sites } from "../database/schema.js";
 import { SitesService } from "../sites/sites.service.js";
@@ -63,6 +64,7 @@ export class ReportsService {
     private readonly sitesService: SitesService,
     private readonly storage: StorageService,
     private readonly processing: ProcessingService,
+    private readonly openItemsService: OpenItemsService,
   ) {}
 
   private async assemble(site: typeof sites.$inferSelect, localDate: string, dayEntries: (typeof entries.$inferSelect)[]): Promise<Content> {
@@ -235,6 +237,14 @@ export class ReportsService {
     return { content, validation };
   }
 
+  private async reportOfQuestion(q: typeof questions.$inferSelect) {
+    if (q.reportId) return (await this.db.select().from(reports).where(eq(reports.id, q.reportId)))[0];
+    if (!q.entryId) return undefined;
+    const [entry] = await this.db.select({ siteId: entries.siteId, localDate: entries.localDate }).from(entries).where(eq(entries.id, q.entryId));
+    if (!entry) return undefined;
+    return (await this.db.select().from(reports).where(and(eq(reports.siteId, entry.siteId), eq(reports.localDate, entry.localDate))))[0];
+  }
+
   async answer(questionId: string, body: unknown) {
     const [row] = uuid.safeParse(questionId).success ? await this.db.select().from(questions).where(eq(questions.id, questionId)) : [];
     if (!row) throw new ProblemException(404, "NOT_FOUND", "Question not found.");
@@ -248,7 +258,17 @@ export class ReportsService {
     const answer = { optionId: input.optionId ?? null, text: input.text ?? null, audioMediaId: input.audioMediaId ?? null, answeredAt: new Date().toISOString() };
     let applied: { reportId: string; content: Record<string, unknown>; description: string } | null = null;
     const typed = input.optionId ?? input.text;
-    if (row.reportId && row.field && typed !== undefined && row.kind !== "safety") {
+    if (row.kind === "open_item" && row.openItemId && typed !== undefined) {
+      const target = await this.reportOfQuestion(row);
+      if (target && target.status === "draft") {
+        const outcome = input.optionId ? (input.optionId as "close" | "keep" | "update") : "update";
+        const content = structuredClone(target.content);
+        const reviews = ((content.openItemReviews as { openItemId: string; outcome: string; note: string | null }[] | undefined) ?? []).filter((r) => r.openItemId !== row.openItemId);
+        reviews.push({ openItemId: row.openItemId, outcome, note: input.text ?? null });
+        content.openItemReviews = reviews;
+        applied = { reportId: target.id, content, description: `Respondeu sobre um item em aberto: ${row.text}` };
+      }
+    } else if (row.reportId && row.field && typed !== undefined && row.kind !== "safety") {
       const [report] = await this.db.select().from(reports).where(eq(reports.id, row.reportId));
       if (report && report.status !== "approved") {
         const content = structuredClone(report.content);
@@ -310,6 +330,8 @@ export class ReportsService {
         .where(and(eq(reports.id, row.id), sql`${reports.status} <> 'approved'`))
         .returning();
       if (!approved) throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report is already approved.");
+      const content = approved.content as { openItemReviews?: { openItemId: string; outcome: "close" | "keep" | "update" | null; note: string | null }[]; newOpenItems?: { title: string | null; kind: string | null; track: boolean | null }[] };
+      await this.openItemsService.applyApproval(tx, { siteId: row.siteId, reportId: row.id, localDate: row.localDate, reviews: content.openItemReviews ?? [], newItems: content.newOpenItems ?? [] });
       return approved;
     });
   }

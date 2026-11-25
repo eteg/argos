@@ -8,6 +8,7 @@ import { AiClientService } from "../ai/ai-client.service.js";
 import { TranscriptionService } from "../ai/transcription.service.js";
 import { DB, type Database } from "../database/database.module.js";
 import { entries, equipment, media, questions, reports, services, sites } from "../database/schema.js";
+import { OpenItemsService } from "../open-items/open-items.service.js";
 import { StorageService } from "../storage/storage.service.js";
 
 type Content = Record<string, unknown> & {
@@ -65,6 +66,7 @@ export class ProcessingService {
     ai: AiClientService,
     private readonly transcription: TranscriptionService,
     private readonly storage: StorageService,
+    private readonly openItemsService: OpenItemsService,
   ) {
     this.model = {
       complete: async (request) =>
@@ -90,18 +92,54 @@ export class ProcessingService {
       }
       let title: string | null = null;
       let tags: { kind: string; label: string }[] = [];
+      let openItemIds: string[] = [];
       try {
-        const result = await interpretEntry(this.model, { transcript, services: [] });
+        const open = await this.openItemsService.openForSite(entry.siteId, entry.localDate);
+        const result = await interpretEntry(this.model, {
+          transcript,
+          services: [],
+          openItems: open.map((o) => ({ id: o.id, title: o.title, kind: o.kind, openedOn: o.openedOn })),
+        });
         title = result.title;
         tags = result.tags;
+        const valid = new Set(open.map((o) => o.id));
+        openItemIds = result.openItemIds.filter((id) => valid.has(id));
       } catch (error) {
         this.logger.warn(`interpretEntry failed for ${entryId}: ${String(error)}`);
       }
-      await this.db.update(entries).set({ status: "processed", transcript, title, tags }).where(eq(entries.id, entryId));
+      await this.db.update(entries).set({ status: "processed", transcript, title, tags, openItemIds }).where(eq(entries.id, entryId));
+      await this.askAboutOpenItem(entry.id, entry.siteId, entry.localDate).catch((error: unknown) => this.logger.warn(`askAboutOpenItem failed for ${entryId}: ${String(error)}`));
     } catch (error) {
       this.logger.error(`processEntry failed for ${entryId}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
       await this.db.update(entries).set({ status: "failed" }).where(eq(entries.id, entryId));
     }
+  }
+
+  private readonly closeOrKeep = [
+    { id: "close", label: "Já resolveu, pode fechar" },
+    { id: "keep", label: "Continua em aberto" },
+  ];
+
+  private async askAboutOpenItem(entryId: string, siteId: string, localDate: string) {
+    const open = await this.openItemsService.openForSite(siteId, localDate);
+    if (open.length === 0) return;
+    const dayEntries = await this.db.select({ id: entries.id, openItemIds: entries.openItemIds }).from(entries).where(and(eq(entries.siteId, siteId), eq(entries.localDate, localDate)));
+    const cited = new Set(dayEntries.flatMap((e) => e.openItemIds));
+    const asked = await this.db
+      .select({ openItemId: questions.openItemId })
+      .from(questions)
+      .where(and(inArray(questions.entryId, dayEntries.map((e) => e.id)), eq(questions.kind, "open_item")));
+    const askedIds = new Set(asked.map((q) => q.openItemId));
+    const next = open.find((o) => !cited.has(o.id) && !askedIds.has(o.id));
+    if (!next) return;
+    const [, month, day] = next.openedOn.split("-");
+    await this.db.insert(questions).values({
+      entryId,
+      kind: "open_item",
+      openItemId: next.id,
+      text: `Ficou em aberto desde ${day}/${month}: ${next.title}. Como está?`,
+      options: this.closeOrKeep,
+    });
   }
 
   async answerSpoken(questionId: string, mediaId: string) {
@@ -115,7 +153,7 @@ export class ProcessingService {
     }
   }
 
-  private fill(base: Content, fields: ReportFields, serviceIds: Set<string>, equipmentIds: Set<string>): Content {
+  private fill(base: Content, fields: ReportFields, serviceIds: Set<string>, equipmentIds: Set<string>, openIds: Set<string>, openTitles: Set<string>): Content {
     const next: Content = { ...base };
     const incoming = fields as Record<string, unknown> & ReportFields;
     if (incoming.workday) next.workday = { startTime: base.workday.startTime ?? incoming.workday.startTime ?? null, endTime: base.workday.endTime ?? incoming.workday.endTime ?? null, breakMinutes: base.workday.breakMinutes ?? incoming.workday.breakMinutes ?? null };
@@ -142,8 +180,10 @@ export class ProcessingService {
     if (base.occurrences.length === 0 && incoming.occurrences) {
       next.occurrences = incoming.occurrences.map((o) => ({ ...o, id: randomUUID(), affectedServiceIds: cleanServices(o.affectedServiceIds) })) as unknown as Content["occurrences"];
     }
-    if (base.openItemReviews.length === 0 && incoming.openItemReviews) next.openItemReviews = incoming.openItemReviews;
-    if (base.newOpenItems.length === 0 && incoming.newOpenItems) next.newOpenItems = incoming.newOpenItems.map((n) => ({ ...n, id: randomUUID() }));
+    if (base.openItemReviews.length === 0 && incoming.openItemReviews) next.openItemReviews = incoming.openItemReviews.filter((r) => openIds.has(r.openItemId ?? ""));
+    if (base.newOpenItems.length === 0 && incoming.newOpenItems) {
+      next.newOpenItems = incoming.newOpenItems.filter((n) => !openTitles.has((n.title ?? "").trim().toLowerCase())).map((n) => ({ ...n, id: randomUUID() }));
+    }
     return next;
   }
 
@@ -196,6 +236,10 @@ export class ProcessingService {
       const base = row.content as unknown as Content;
       let content = base;
       let agentQuestions: AgentQuestion[] = [];
+      const openRows = await this.openItemsService.openForSite(site.id, row.localDate);
+      const citedIds = new Set(dayEntries.flatMap((e) => e.openItemIds));
+      const openIds = new Set(openRows.map((o) => o.id));
+      const openTitles = new Set(openRows.map((o) => o.title.trim().toLowerCase()));
       if (spoken.length === 0) {
         note = "Nenhum registro pôde ser transcrito: preencha o RDO à mão";
       } else {
@@ -210,9 +254,9 @@ export class ProcessingService {
           entries: spoken.map((e) => ({ capturedAt: e.capturedAt.toISOString(), transcript: e.transcript ?? "" })),
           services: serviceRows.map((s) => ({ id: s.id, code: s.code, description: s.description, unit: s.unit })),
           equipment: equipmentRows.map((e) => ({ equipmentId: e.id, name: e.name, identifier: e.identifier })),
-          openItems: [],
+          openItems: openRows.map((o) => ({ id: o.id, title: o.title, kind: o.kind, openedOn: o.openedOn, lastUpdate: o.lastUpdate ? `${o.lastUpdate.localDate}: ${o.lastUpdate.note}` : null, cited: citedIds.has(o.id) })),
         });
-        let merged = this.fill(base, result.fields, new Set(serviceRows.map((s) => s.id)), new Set(equipmentRows.map((e) => e.id)));
+        let merged = this.fill(base, result.fields, new Set(serviceRows.map((s) => s.id)), new Set(equipmentRows.map((e) => e.id)), openIds, openTitles);
         const structural = this.check(merged, site.type).structuralErrors;
         if (structural.length > 0) {
           const bad = new Set(structural.map((e) => e.path.split(".")[0]));
@@ -222,6 +266,23 @@ export class ProcessingService {
         content = merged;
         agentQuestions = result.questions;
       }
+      const answeredRows = await this.db
+        .select()
+        .from(questions)
+        .where(and(inArray(questions.entryId, dayEntries.length ? dayEntries.map((e) => e.id) : [randomUUID()]), eq(questions.kind, "open_item"), eq(questions.status, "answered")));
+      const answered = answeredRows.flatMap((q) => {
+        if (!q.openItemId || !openIds.has(q.openItemId) || !q.answer) return [];
+        const outcome = q.answer.optionId === "close" || q.answer.optionId === "keep" || q.answer.optionId === "update" ? q.answer.optionId : "update";
+        return [{ openItemId: q.openItemId, outcome, note: q.answer.text }];
+      });
+      if (answered.length > 0) {
+        const answeredIds = new Set(answered.map((a) => a.openItemId));
+        content = { ...content, openItemReviews: [...(content.openItemReviews as { openItemId: string }[]).filter((r) => !answeredIds.has(r.openItemId)), ...answered] };
+      }
+      const reviewedIds = new Set((content.openItemReviews as { openItemId: string }[]).map((r) => r.openItemId));
+      const openQuestions = openRows
+        .filter((o) => !reviewedIds.has(o.id) && !citedIds.has(o.id))
+        .map((o) => ({ kind: "open_item" as const, text: `Ficou em aberto: ${o.title}. Como está?`, field: null, options: this.closeOrKeep, openItemId: o.id }));
       const missing = this.check(content, site.type).missingFields;
       const pathsAsked = new Set(agentQuestions.map((q) => q.field));
       for (const m of missing) {
@@ -230,11 +291,14 @@ export class ProcessingService {
         if (auto) agentQuestions.push(auto);
       }
       const wanted = new Set(missing.map((m) => m.path));
-      const kept = agentQuestions.filter((q) => q.field === null || wanted.has(q.field) || q.kind === "service_match");
+      const kept = agentQuestions.filter((q) => q.kind !== "open_item" && (q.field === null || wanted.has(q.field) || q.kind === "service_match"));
       await this.db.transaction(async (tx) => {
         await tx.delete(questions).where(and(eq(questions.reportId, reportId), eq(questions.status, "open")));
         if (kept.length > 0) {
           await tx.insert(questions).values(kept.map((q) => ({ reportId, kind: q.kind, text: q.text, field: q.field, options: q.options })));
+        }
+        if (openQuestions.length > 0) {
+          await tx.insert(questions).values(openQuestions.map((q) => ({ reportId, kind: q.kind, text: q.text, field: q.field, openItemId: q.openItemId, options: q.options })));
         }
         await tx
           .update(reports)
