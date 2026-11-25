@@ -29,6 +29,13 @@
       "when": 1795637078905,
       "tag": "0003_amazing_night_thrasher",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795638045739,
+      "tag": "0004_cheerful_iron_monger",
+      "breakpoints": true
     }
   ]
 }

@@ -8,7 +8,9 @@ import { timezoneOf } from "../common/locale.js";
 import { ProblemException } from "../common/problem.js";
 import { parse } from "../common/validate.js";
 import { DB, type Database } from "../database/database.module.js";
-import { entries, media, reports } from "../database/schema.js";
+import { entries, media, questions, reports } from "../database/schema.js";
+import { aiEnabled } from "../config/env.js";
+import { ProcessingService } from "../processing/processing.service.js";
 import { SitesService } from "../sites/sites.service.js";
 import { uuid } from "../sites/sites.schemas.js";
 import { StorageService } from "../storage/storage.service.js";
@@ -52,6 +54,7 @@ export class EntriesController {
     @Inject(DB) private readonly db: Database,
     private readonly sites: SitesService,
     private readonly storage: StorageService,
+    private readonly processing: ProcessingService,
   ) {}
 
   private location(row: { lat: number | null; lng: number | null; accuracyMeters: number | null }): Schemas["Location"] | null {
@@ -74,6 +77,7 @@ export class EntriesController {
     const ids = [...new Set(rows.flatMap((r) => [r.audioMediaId, ...r.photoMediaIds]))];
     const mediaRows = ids.length ? await this.db.select().from(media).where(inArray(media.id, ids)) : [];
     const byId = new Map(mediaRows.map((m) => [m.id, this.toMedia(m)]));
+    const questionRows = rows.length ? await this.db.select().from(questions).where(inArray(questions.entryId, rows.map((r) => r.id))) : [];
     return rows.map((row) => ({
       id: row.id,
       siteId: row.siteId,
@@ -85,11 +89,13 @@ export class EntriesController {
       audio: byId.get(row.audioMediaId) ?? null,
       photos: row.photoMediaIds.flatMap((id) => byId.get(id) ?? []),
       status: row.status as Schemas["EntryStatus"],
-      transcript: null,
-      title: null,
-      tags: [],
+      transcript: row.transcript,
+      title: row.title,
+      tags: row.tags.map((t) => ({ kind: t.kind as Schemas["TagKind"], label: t.label })),
       openItemIds: [],
-      questions: [],
+      questions: questionRows
+        .filter((q) => q.entryId === row.id)
+        .map((q) => ({ id: q.id, kind: q.kind as Schemas["QuestionKind"], text: q.text, field: q.field, openItemId: q.openItemId, options: q.options, status: q.status as Schemas["QuestionStatus"], answer: q.answer })),
     }));
   }
 
@@ -184,9 +190,11 @@ export class EntriesController {
         offline: input.offline ?? false,
         audioMediaId: input.audioMediaId,
         photoMediaIds: photoIds,
+        status: aiEnabled() ? "processing" : "processed",
       })
       .returning();
-    res.status(201);
+    if (row!.status === "processing") void this.processing.processEntry(row!.id);
+    res.status(row!.status === "processing" ? 202 : 201);
     return (await this.toEntries([row!]))[0]!;
   }
 

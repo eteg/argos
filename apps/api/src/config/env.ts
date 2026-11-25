@@ -13,6 +13,9 @@ const envSchema = z.object({
   ENGINEER_TITLE: z.string().min(1).default("Eng. Rafael Lima"),
   ENGINEER_COMPANY: z.string().min(1).default("Construtora Horizonte"),
   ANTHROPIC_API_KEY: z.string().min(1),
+  AI_ENABLED: z.enum(["true", "false"]).default("true"),
+  GEMINI_API_KEY: z.string().min(1).optional(),
+  GEMINI_MODEL: z.string().min(1).default("gemini-3.6-flash"),
   ANTHROPIC_MODEL: z.string().min(1),
   LANGFUSE_PUBLIC_KEY: z.string().min(1),
   LANGFUSE_SECRET_KEY: z.string().min(1),
@@ -29,3 +32,5 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
 }
 
 export const env = loadEnv();
+
+export const aiEnabled = () => env.AI_ENABLED === "true" && env.GEMINI_API_KEY !== undefined && env.ANTHROPIC_API_KEY !== "dummy";

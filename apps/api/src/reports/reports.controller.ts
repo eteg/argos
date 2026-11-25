@@ -37,6 +37,13 @@ export class ReportsController {
     return question;
   }
 
+  @Post("reports/:reportId/voice-corrections")
+  async voiceCorrect(@Param("reportId") reportId: string, @Body() body: unknown, @Res({ passthrough: true }) res: Response): Promise<Schemas["Report"]> {
+    const row = await this.reports.voiceCorrect(reportId, body);
+    res.status(202).setHeader("Location", `/v1/reports/${row.id}`).setHeader("Retry-After", "2");
+    return this.reports.view(row);
+  }
+
   @Post("reports/:reportId/approve")
   @HttpCode(200)
   async approve(@Param("reportId") reportId: string, @Headers("idempotency-key") key: string | undefined): Promise<Schemas["Report"]> {

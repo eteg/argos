@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.14.0",
+    "@argos/agent": "workspace:*",
     "@argos/contract": "workspace:*",
     "@argos/rdo-schema": "workspace:*",
     "@langfuse/otel": "6.1.1",
