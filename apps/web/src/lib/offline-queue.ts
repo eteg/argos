@@ -54,7 +54,7 @@ export const enqueueEntry = (entry: QueuedEntry) =>
   });
 
 export async function listQueue(): Promise<QueuedEntry[]> {
-  const items = await run<QueuedEntry[]>("readonly", (store) => store.getAll());
+  const items = await run<QueuedEntry[]>("readonly", (store) => store.getAll() as IDBRequest<QueuedEntry[]>);
   return items.sort((a, b) => a.capturedAt.localeCompare(b.capturedAt));
 }
 

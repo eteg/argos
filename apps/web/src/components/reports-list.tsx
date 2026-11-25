@@ -46,8 +46,9 @@ export function ReportsList() {
   }
 
   useEffect(() => {
-    void load(null);
+    const first = setTimeout(() => void load(null), 0);
     void unwrap(api.GET("/v1/sites/{siteId}", { params: { path: { siteId }, ...tz } })).then((s) => setName(s.name), () => undefined);
+    return () => clearTimeout(first);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [siteId]);
 

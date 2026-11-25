@@ -55,10 +55,11 @@ export function OfflineSync() {
 
   useEffect(() => {
     const first = setTimeout(() => void refresh(), 0);
-    window.addEventListener("argos:queue-changed", refresh);
+    const onChange = () => void refresh();
+    window.addEventListener("argos:queue-changed", onChange);
     return () => {
       clearTimeout(first);
-      window.removeEventListener("argos:queue-changed", refresh);
+      window.removeEventListener("argos:queue-changed", onChange);
     };
   }, [refresh]);
 
