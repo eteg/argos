@@ -2014,9 +2014,10 @@ export interface operations {
                     "application/json": components["schemas"]["Report"];
                 };
             };
+            400: components["responses"]["Validation"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description `REPORT_INCOMPLETE`, com `errors` apontando cada campo que falta (`RG06`). */
+            /** @description `REPORT_INCOMPLETE`, com `errors` apontando cada campo que falta (`RG06`), ou `REPORT_ALREADY_APPROVED` com outra chave. */
             409: {
                 headers: {
                     [name: string]: unknown;

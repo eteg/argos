@@ -662,10 +662,11 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Report" }
+        "400": { $ref: "#/components/responses/Validation" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
-          description: "`REPORT_INCOMPLETE`, com `errors` apontando cada campo que falta (`RG06`)."
+          description: "`REPORT_INCOMPLETE`, com `errors` apontando cada campo que falta (`RG06`), ou `REPORT_ALREADY_APPROVED` com outra chave."
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
