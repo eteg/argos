@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Res } from "@nestjs/common";
+import { Controller, Get, Headers, HttpCode, Param, Post, Res } from "@nestjs/common";
 import type { Response } from "express";
 import { z } from "zod";
 import type { Schemas } from "@argos/contract";
@@ -22,5 +22,11 @@ export class ReportsController {
   @Get("reports/:reportId")
   async get(@Param("reportId") reportId: string): Promise<Schemas["Report"]> {
     return this.reports.view(await this.reports.find(reportId));
+  }
+
+  @Post("reports/:reportId/approve")
+  @HttpCode(200)
+  async approve(@Param("reportId") reportId: string, @Headers("idempotency-key") key: string | undefined): Promise<Schemas["Report"]> {
+    return this.reports.view(await this.reports.approve(reportId, key));
   }
 }

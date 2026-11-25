@@ -4,6 +4,7 @@ import { validateReport } from "@argos/rdo-schema";
 import type { Schemas } from "@argos/contract";
 import { ProblemException } from "../common/problem.js";
 import { DB, type Database } from "../database/database.module.js";
+import { env } from "../config/env.js";
 import { entries, equipment, media, questions, reports, sites } from "../database/schema.js";
 import { SitesService } from "../sites/sites.service.js";
 import { uuid } from "../sites/sites.schemas.js";
@@ -105,19 +106,50 @@ export class ReportsService {
     return row;
   }
 
-  async view(row: ReportRow): Promise<Schemas["Report"]> {
+  private async validate(row: ReportRow) {
     const content = row.content as unknown as Content;
     const [site] = await this.db.select({ type: sites.type }).from(sites).where(eq(sites.id, row.siteId));
+    const validation = validateReport(content, { siteType: (site?.type ?? "private") as Schemas["SiteType"], minPhotosPerReport: MIN_PHOTOS, maxPhotosPerReport: MAX_PHOTOS });
+    if (validation.structuralErrors.length > 0) {
+      this.logger.error(`Report ${row.id} is structurally invalid: ${JSON.stringify(validation.structuralErrors)}`);
+      throw new ProblemException(500, "UNAVAILABLE", "The report could not be built.");
+    }
+    return { content, validation };
+  }
+
+  async approve(reportId: string, key: string | undefined) {
+    if (!uuid.safeParse(key).success) {
+      throw new ProblemException(400, "VALIDATION", "Idempotency-Key must be a UUID.", [{ field: "Idempotency-Key", code: key ? "INVALID" : "REQUIRED" }]);
+    }
+    const row = await this.find(reportId);
+    if (row.status === "approved") {
+      if (row.approvalKey === key) return row;
+      throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report is already approved.");
+    }
+    const { validation } = await this.validate(row);
+    if (validation.missingFields.length > 0) {
+      throw new ProblemException(409, "REPORT_INCOMPLETE", `${validation.missingFields.length} required field(s) are missing.`, validation.missingFields.map((m) => ({ field: m.path, code: m.code })));
+    }
+    return this.db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${row.siteId}))`);
+      const [{ next }] = (await tx.execute<{ next: number }>(sql`select coalesce(max(number), 0)::int + 1 as next from reports where site_id = ${row.siteId}`)).rows as [{ next: number }];
+      const [approved] = await tx
+        .update(reports)
+        .set({ status: "approved", number: next, approvedBy: env.ENGINEER_NAME, approvedAt: new Date(), approvalKey: key, updatedAt: new Date() })
+        .where(and(eq(reports.id, row.id), sql`${reports.status} <> 'approved'`))
+        .returning();
+      if (!approved) throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report is already approved.");
+      return approved;
+    });
+  }
+
+  async view(row: ReportRow): Promise<Schemas["Report"]> {
+    const { content, validation } = await this.validate(row);
     const [{ count }] = (await this.db.execute<{ count: number }>(sql`select count(*)::int as count from entries where site_id = ${row.siteId} and local_date = ${row.localDate}`)).rows as [{ count: number }];
     let number = row.number;
     if (number === null) {
       const [{ next }] = (await this.db.execute<{ next: number }>(sql`select coalesce(max(number), 0)::int + 1 as next from reports where site_id = ${row.siteId}`)).rows as [{ next: number }];
       number = next;
-    }
-    const validation = validateReport(content, { siteType: (site?.type ?? "private") as Schemas["SiteType"], minPhotosPerReport: MIN_PHOTOS, maxPhotosPerReport: MAX_PHOTOS });
-    if (validation.structuralErrors.length > 0) {
-      this.logger.error(`Report ${row.id} is structurally invalid: ${JSON.stringify(validation.structuralErrors)}`);
-      throw new ProblemException(500, "UNAVAILABLE", "The report could not be built.");
     }
     const questionRows = await this.db.select().from(questions).where(eq(questions.reportId, row.id)).orderBy(asc(questions.createdAt));
     const history: Schemas["Report"]["history"] = [{ at: row.updatedAt.toISOString(), actor: "agent", description: `RDO montado a partir dos ${count} registros do dia` }];
