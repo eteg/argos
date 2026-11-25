@@ -89,8 +89,8 @@ Pronto quando a web abre no celular, fala com a API de staging e uma chamada à 
 |---|---|---|---|
 | Contrato | Convenções e decisões do M1 | a fazer | |
 | Contrato | OpenAPI do M1 e servidor falso | a fazer | |
-| Web | Web PWA base | a fazer | |
-| API | API base | a fazer | |
+| Web | Web PWA base | em andamento | monorepo: manifest e chamada à API; falta o Serwist |
+| API | API base | em andamento | monorepo: health, X-Api-Key e Problem Details; falta Drizzle |
 | IA | Chamada à Claude com Langfuse | a fazer | |
 | Contrato | Schema do RDO | a fazer | |
 | Dados | Obra fictícia e 5 gabaritos | a fazer | |

@@ -50,7 +50,7 @@ Fixadas pelo `npm view` em 25/11/2026. Atualização de versão maior é decisã
 | Monorepo | `turbo` | 2.11.13 |
 | Web | `next` | 16.4.6 |
 | PWA | `@serwist/next` | 9.6.0 |
-| API | `@nestjs/core` | 12.6.2 |
+| API | `@nestjs/core` | 12.6.0 (a 12.6.2 saiu no dia e fica barrada pela idade mínima do pnpm) |
 | Banco | `drizzle-orm` | 0.45.4 |
 | Migrations | `drizzle-kit` | 0.31.11 |
 | Schema | `zod` | 4.6.7 |
