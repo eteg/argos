@@ -106,13 +106,13 @@ export function Home() {
             <div className="rounded-[18px] bg-white px-3.5 py-0.5 shadow-sm">
               {todo.flatMap((s) => [
                 ...(s.pendingDays.length > 0
-                  ? [{ key: `${s.id}-p`, title: `${s.name} · ${s.pendingDays.length} ${s.pendingDays.length === 1 ? "dia" : "dias"}`, sub: "Capturados sem internet, falta finalizar", pill: <Pill tone="solid">Finalizar</Pill>, id: s.id }]
+                  ? [{ key: `${s.id}-p`, title: `${s.name} · ${s.pendingDays.length} ${s.pendingDays.length === 1 ? "dia" : "dias"}`, sub: "Capturados sem internet, falta finalizar", pill: <Pill tone="solid">Finalizar</Pill>, id: s.id, href: "/dias-anteriores" }]
                   : []),
                 ...(s.today.state !== "approved"
-                  ? [{ key: s.id, title: s.name, sub: s.today.state === "no_entries" ? "RDO de hoje ainda não começou" : "RDO de hoje em andamento", pill: <Pill>Hoje</Pill>, id: s.id }]
+                  ? [{ key: s.id, title: s.name, sub: s.today.state === "no_entries" ? "RDO de hoje ainda não começou" : "RDO de hoje em andamento", pill: <Pill>Hoje</Pill>, id: s.id, href: `/obra?id=${s.id}` }]
                   : []),
               ]).map((row) => (
-                <Link key={row.key} href={`/obra?id=${row.id}`} className="flex min-h-14 items-center gap-3 border-b border-[#E3E5EE] last:border-b-0">
+                <Link key={row.key} href={row.href} className="flex min-h-14 items-center gap-3 border-b border-[#E3E5EE] last:border-b-0">
                   <span className="size-2.5 flex-none rounded-full bg-[#A673D6]" />
                   <div className="flex flex-1 flex-col"><span className="text-sm font-semibold">{row.title}</span><span className="text-xs text-[#5B5F6B]">{row.sub}</span></div>
                   {row.pill}
