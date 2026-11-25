@@ -283,7 +283,16 @@ export class ReportsService {
         answer: q.answer,
       })),
       missingFields: validation.missingFields.map((m) => ({ field: m.path, questionId: null })),
-      photoRequirements: [],
+      photoRequirements: validation.missingFields.flatMap((m): Schemas["Report"]["photoRequirements"] => {
+        const [kind, index] = m.path.split(".");
+        if (m.code !== "PHOTO_REQUIRED" || index === undefined) return [];
+        if (kind === "activities") {
+          const a = content.activities[Number(index)];
+          return a ? [{ linkedTo: { type: "activity" as const, id: a.id }, label: a.description }] : [];
+        }
+        const o = content.occurrences[Number(index)];
+        return o ? [{ linkedTo: { type: "occurrence" as const, id: o.id }, label: o.description }] : [];
+      }),
       approval: row.approvedAt && row.approvedBy ? { approvedBy: row.approvedBy, approvedAt: row.approvedAt.toISOString() } : null,
       history,
       pdfUrl: null,
