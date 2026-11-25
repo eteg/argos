@@ -142,7 +142,7 @@ Pronto quando o engenheiro cadastra uma obra, faz o check-in e grava registros c
 | API | Obras, status, equipamentos, documentos e planilha de serviços | pronto | |
 | API | Upload de mídia, registros e dia (`uploadMedia`, `createEntry`, `getDay`) | pronto | |
 | Web | Início, cadastro, pasta da obra, status, fora de andamento, check-in e registro | em revisão: falta conferir no navegador | |
-| Contrato | OpenAPI do M1 `acordado` (D18) | a fazer | |
+| Contrato | OpenAPI do M1 `acordado` (D18) | pronto | |
 
 ## M2 RDO preenchido pela IA
 

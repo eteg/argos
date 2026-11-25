@@ -21,9 +21,9 @@ Um contrato passa por quatro situações: `rascunho` (escrito, ainda não aprova
 
 | Módulo | Telas | Marco | Situação |
 |---|---|---|---|
-| Convenções | | M0 | rascunho |
-| [Obras](telas/obras.md) | `2.1`, `2.2`, `2.2b`, `2.3`, `2.4`, `2.10`, `2.11` | M1 | rascunho |
-| [Registro do dia](telas/registro.md) | `2.5`, `3.1`, `3.2`, `3.6`, `2.7`, `2.6` | M1, M2, M4 | rascunho |
+| Convenções | | M0 | acordado (0.2.0) |
+| [Obras](telas/obras.md) | `2.1`, `2.2`, `2.2b`, `2.3`, `2.4`, `2.10`, `2.11` | M1 | acordado (0.2.0) |
+| [Registro do dia](telas/registro.md) | `2.5`, `3.1`, `3.2`, `3.6`, `2.7`, `2.6` | M1, M2, M4 | acordado só no que o M1 usa (0.2.0); o resto, rascunho |
 | [RDO](telas/rdo.md) | `3.3`, `3.3b`, `3.7`, `3.4`, `3.5`, `2.9` | M2, M5 | rascunho |
 | [Pendências](telas/pendencias.md) | `2.8` | M3 | rascunho |
 

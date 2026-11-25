@@ -1,6 +1,8 @@
 # Changelog do contrato
 
-## 0.2.0, rascunho
+## 0.2.0, acordado
+
+Acordado em 25/11/2026 por decisão de Jeferson Augusto de Melo Gomes (D18), valendo pra web e pra API, sem revisão em PR. Cobre as convenções, as obras e o que o registro do dia usa no M1. A revisão final do M0 e do M1 fica pro time todo.
 
 - Convenções: chave por ambiente em `X-Api-Key` (todas as rotas menos `getHealth`), erros 401 `UNAUTHORIZED` e 429 `RATE_LIMITED`, e limites de upload (áudio 10 MB, foto 15 MB, documento 50 MB, planilha 10 MB). O 415 passou pra ordem certa da tabela.
 - D02: `createSite` cria a obra `in_progress`.
