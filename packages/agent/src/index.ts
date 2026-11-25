@@ -162,10 +162,10 @@ export function interpretEntry(model: AgentModel, input: InterpretEntryInput): P
     model,
     {
       name: "interpret-entry",
-      maxTokens: 500,
+      maxTokens: 300,
       system: `Você ajuda um engenheiro de obra. Leia a transcrição de um registro de áudio do dia e resuma.
 Responda só com JSON: {"title": "até 6 palavras, ex.: Chuva parou a concretagem", "tags": [{"kind": "activity"|"occurrence"|"labor"|"equipment"|"weather"|"safety", "label": "ex.: Ocorrência: falta de material"}], "openItemIds": ["id de cada item em aberto citado ou atualizado neste registro"]}
-Use só o que foi dito. Sem tags se nada for reconhecido. Em openItemIds só entram ids da lista de itens em aberto abaixo e só os que o engenheiro realmente citou; lista vazia se nenhum.`,
+Use só o que foi dito, no máximo 4 tags curtas. Sem tags se nada for reconhecido. Em openItemIds só entram ids da lista de itens em aberto abaixo e só os que o engenheiro realmente citou; lista vazia se nenhum.`,
       user: `Itens em aberto da obra (id | título):
 ${(input.openItems ?? []).map((i) => `${i.id} | ${i.title}`).join("\n") || "(nenhum)"}
 

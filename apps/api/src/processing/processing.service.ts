@@ -90,9 +90,7 @@ export class ProcessingService {
         await this.db.update(entries).set({ status: "failed", transcript: "" }).where(eq(entries.id, entryId));
         return;
       }
-      let title: string | null = null;
-      let tags: { kind: string; label: string }[] = [];
-      let openItemIds: string[] = [];
+      await this.db.update(entries).set({ status: "processed", transcript }).where(eq(entries.id, entryId));
       try {
         const open = await this.openItemsService.openForSite(entry.siteId, entry.localDate);
         const result = await interpretEntry(this.model, {
@@ -100,14 +98,12 @@ export class ProcessingService {
           services: [],
           openItems: open.map((o) => ({ id: o.id, title: o.title, kind: o.kind, openedOn: o.openedOn })),
         });
-        title = result.title;
-        tags = result.tags;
         const valid = new Set(open.map((o) => o.id));
-        openItemIds = result.openItemIds.filter((id) => valid.has(id));
+        const openItemIds = result.openItemIds.filter((id) => valid.has(id));
+        await this.db.update(entries).set({ title: result.title, tags: result.tags, openItemIds }).where(eq(entries.id, entryId));
       } catch (error) {
         this.logger.warn(`interpretEntry failed for ${entryId}: ${String(error)}`);
       }
-      await this.db.update(entries).set({ status: "processed", transcript, title, tags, openItemIds }).where(eq(entries.id, entryId));
       await this.askAboutOpenItem(entry.id, entry.siteId, entry.localDate).catch((error: unknown) => this.logger.warn(`askAboutOpenItem failed for ${entryId}: ${String(error)}`));
     } catch (error) {
       this.logger.error(`processEntry failed for ${entryId}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
