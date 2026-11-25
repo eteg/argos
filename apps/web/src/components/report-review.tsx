@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Schemas } from "@argos/contract";
 import { api, timezoneParams } from "@/lib/api";
 import { errorMessage, fullDate } from "@/lib/format";
 import { ApiError, unwrap, useLoad } from "@/lib/hooks";
+import { uploadFile } from "@/lib/send-entry";
 import { Back, Page, Pill, Primary, Status, Title, field } from "@/components/ui";
 
 type Report = Schemas["Report"];
@@ -31,9 +32,18 @@ export function ReportReview() {
   const [busy, setBusy] = useState(false);
   const [services, setServices] = useState<Schemas["Service"][] | null>(null);
   const current = report ?? (state.status === "ok" ? state.data : null);
+  const generating = current?.status === "generating";
+  useEffect(() => {
+    if (!generating) return;
+    const t = setInterval(() => {
+      void unwrap(api.GET("/v1/reports/{reportId}", { params: { path: { reportId: id }, ...tz } })).then(setReport, () => undefined);
+    }, 3000);
+    return () => clearInterval(t);
+  }, [generating, id]);
   if (!current) return <Page><Status state={state.status === "ok" ? { status: "loading" } : state} retry={retry} /></Page>;
   const r = current;
   const approved = r.status === "approved";
+  const busyAi = r.status === "generating";
   const isPublic = r.site.type !== "private";
 
   async function patch(body: Schemas["UpdateReportRequest"]) {
@@ -56,6 +66,15 @@ export function ReportReview() {
     }
     setBusy(false);
   }
+  async function answerQuestion(questionId: string, body: Schemas["AnswerQuestionRequest"]) {
+    setError(null);
+    try {
+      await unwrap(api.POST("/v1/questions/{questionId}/answer", { params: { path: { questionId }, ...tz }, body }));
+      setReport(await unwrap(api.GET("/v1/reports/{reportId}", { params: { path: { reportId: id }, ...tz } })));
+    } catch (e) {
+      setError(e instanceof ApiError ? e : new ApiError("UNAVAILABLE"));
+    }
+  }
   async function loadServices() {
     if (!services) setServices((await unwrap(api.GET("/v1/sites/{siteId}/services", { params: { path: { siteId: r.siteId }, ...tz } }))).items);
   }
@@ -71,6 +90,21 @@ export function ReportReview() {
       <div className="flex items-center gap-3 px-5 pb-3 pt-5"><Back href={`/obra?id=${r.siteId}`} /><Title>{approved ? "RDO aprovado" : "Revise o RDO"}</Title></div>
       <div className="flex flex-col gap-3 px-4 pb-8">
         <div className="flex items-center gap-2 px-1"><Pill tone={approved ? "blue" : "purple"}>{approved ? "Aprovado" : "Rascunho"}</Pill><span className="text-[13px] text-[#5B5F6B]">Nº {String(r.number).padStart(3, "0")} · {fullDate(r.localDate)} · {r.entriesCount} registros</span></div>
+        {busyAi && <div role="status" className="rounded-xl bg-[#E3ECFF] p-3 text-sm text-[#0B3699]">O Argos está montando o RDO com o que você falou. Isso leva alguns segundos…</div>}
+        {!approved && !busyAi && r.questions.some((q) => q.status === "open") && (
+          <Block title="O Argos perguntou">
+            {r.questions.filter((q) => q.status === "open").map((q) => (
+              <div key={q.id} className="flex flex-col gap-2 border-b border-[#E3E5EE] pb-3 last:border-b-0">
+                <span className="text-[15px] leading-[1.4]">{q.text}</span>
+                <div className="flex flex-wrap gap-2">
+                  {q.options.map((o) => <button key={o.id} type="button" className="min-h-11 rounded-full border border-[#DDE0EA] bg-[#F4F5F9] px-3.5 text-[13px] font-medium" onClick={() => void answerQuestion(q.id, { optionId: o.id })}>{o.label}</button>)}
+                  {q.options.length === 0 && q.kind !== "safety" && <QuestionText onSend={(text) => void answerQuestion(q.id, { text })} />}
+                  {q.kind === "safety" && <Link href={`/rdo/seguranca?id=${id}`} className="min-h-11 rounded-full bg-[#E3ECFF] px-3.5 py-3 text-[13px] font-semibold text-[#0B3699]">Registrar segurança</Link>}
+                </div>
+              </div>
+            ))}
+          </Block>
+        )}
         {!approved && r.missingFields.some((m) => m.field.endsWith(".safety")) && (
           <Link href={`/rdo/seguranca?id=${id}`} className="flex items-center gap-2.5 rounded-xl bg-[#EFE3FA] p-3 text-[13px] font-semibold text-[#4A2470]">Registro de segurança pendente: toque para preencher antes de aprovar →</Link>
         )}
@@ -185,7 +219,8 @@ export function ReportReview() {
           {miss("photos") && <span className="text-xs text-[#6B3A00]">É preciso ao menos 3 fotos no dia. Tire mais fotos num novo registro e gere o RDO de novo.</span>}
         </Block>
         <Block title="Histórico">{r.history.map((h, i) => <span key={i} className="text-[13px] text-[#5B5F6B]">{new Date(h.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · {h.actor === "agent" ? "Argos" : "Você"}: {h.description}</span>)}</Block>
-        {!approved && <Primary disabled={busy || r.missingFields.length > 0} onClick={() => void approve()}>{busy ? "Aprovando…" : "Aprovar RDO"}</Primary>}
+        {!approved && <VoiceCorrect disabled={busyAi} reportId={id} onStarted={setReport} onError={setError} />}
+        {!approved && <Primary disabled={busy || busyAi || r.missingFields.length > 0} onClick={() => void approve()}>{busy ? "Aprovando…" : "Aprovar RDO"}</Primary>}
       </div>
     </Page>
   );
@@ -265,5 +300,60 @@ function OccurrenceAdd({ isPublic, services, loadServices, onAdd }: { isPublic: 
       <button type="button" disabled={!description || !startTime} className="min-h-11 rounded-xl border-[1.5px] border-dashed border-[#9AA3B8] font-semibold text-[#0B3699] disabled:opacity-50"
         onClick={() => { onAdd({ id: crypto.randomUUID(), type, description, startTime, endTime: endTime || null, status: endTime ? "closed" : "open", affectedServiceIds: affected, source: origin ? { origin, document: document || null } : null, materials: null, safety: null }); setDescription(""); setStart(""); setEnd(""); setAffected([]); setOrigin(""); setDocument(""); }}>Adicionar ocorrência</button>
     </div>
+  );
+}
+
+function QuestionText({ onSend }: { onSend: (text: string) => void }) {
+  const [text, setText] = useState("");
+  return (
+    <div className="flex w-full gap-2">
+      <input aria-label="Sua resposta" className={field} value={text} onChange={(e) => setText(e.target.value)} placeholder="Sua resposta" />
+      <button type="button" disabled={!text} onClick={() => { onSend(text); setText(""); }} className="min-h-11 rounded-xl bg-[#1563FF] px-4 text-[13px] font-semibold text-white disabled:opacity-50">Enviar</button>
+    </div>
+  );
+}
+
+function VoiceCorrect({ reportId, disabled, onStarted, onError }: { reportId: string; disabled: boolean; onStarted: (r: Report) => void; onError: (e: ApiError) => void }) {
+  const [recording, setRecording] = useState(false);
+  const rec = useRef<MediaRecorder | null>(null);
+  const chunks = useRef<Blob[]>([]);
+  const startedAt = useRef("");
+  const began = useRef(0);
+
+  async function toggle() {
+    if (recording) return rec.current?.stop();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const r = new MediaRecorder(stream);
+      chunks.current = [];
+      r.ondataavailable = (e) => chunks.current.push(e.data);
+      r.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        setRecording(false);
+        const blob = new Blob(chunks.current, { type: r.mimeType || "audio/webm" });
+        const mediaId = crypto.randomUUID();
+        void (async () => {
+          try {
+            await uploadFile({ id: mediaId, blob, capturedAt: startedAt.current, durationSeconds: Math.round((Date.now() - began.current) / 1000) }, "audio", null);
+            onStarted(await unwrap(api.POST("/v1/reports/{reportId}/voice-corrections", { params: { path: { reportId }, ...tz }, body: { audioMediaId: mediaId } })));
+          } catch (e) {
+            onError(e instanceof ApiError ? e : new ApiError("UNAVAILABLE"));
+          }
+        })();
+      };
+      startedAt.current = new Date().toISOString();
+      began.current = Date.now();
+      rec.current = r;
+      r.start();
+      setRecording(true);
+    } catch {
+      onError(new ApiError("UNAVAILABLE"));
+    }
+  }
+
+  return (
+    <button type="button" disabled={disabled} onClick={() => void toggle()} className={`flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-[#2D2D2B] text-[15px] font-semibold disabled:opacity-50 ${recording ? "bg-[#CCA6ED]" : "bg-white"}`}>
+      {recording ? "Parar e corrigir" : "Corrigir falando"}
+    </button>
   );
 }

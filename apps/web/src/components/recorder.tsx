@@ -1,18 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api, timezoneParams } from "@/lib/api";
 import { clock, errorMessage } from "@/lib/format";
 import { getPosition, type Position } from "@/lib/geo";
 import { ApiError, unwrap, useLoad } from "@/lib/hooks";
 import { sendEntry, type CapturedFile } from "@/lib/send-entry";
+import { Understood } from "@/components/understood";
 
 const localDateNow = (tz: string) => new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date());
 
 export function Recorder() {
-  const router = useRouter();
   const siteId = useSearchParams().get("id") ?? "";
   const timezone = timezoneParams().header["X-Timezone"];
   const [info, retry] = useLoad(async () => {
@@ -31,6 +31,7 @@ export function Recorder() {
   const [photos, setPhotos] = useState<(CapturedFile & { preview: string })[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
   const recorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
   const startedAt = useRef("");
@@ -80,17 +81,18 @@ export function Recorder() {
     setSaving(true);
     setError(null);
     try {
-      await sendEntry({
+      const entry = await sendEntry({
         id: entryId.current, siteId, capturedAt: startedAt.current, localDate: localDateNow(timezone), timezone, location: position,
         audio: { ...audio, durationSeconds: seconds }, photos,
       });
-      router.push(`/dia?id=${siteId}`);
+      setSavedId(entry.id);
     } catch (e) {
       setError(errorMessage(e instanceof ApiError ? e.code : "UNAVAILABLE"));
       setSaving(false);
     }
   }
 
+  if (savedId) return <Understood entryId={savedId} siteId={siteId} number={(info.status === "ok" ? info.data.count : 0) + 1} />;
   if (info.status !== "ok") {
     return <main className="mx-auto min-h-dvh max-w-[430px] bg-[#2D2D2B] p-6 text-white">{info.status === "loading" ? "Carregando…" : <button type="button" onClick={retry}>Não deu pra carregar. Tentar de novo</button>}</main>;
   }

@@ -20,7 +20,7 @@ export interface EntryDraft {
   photos: CapturedFile[];
 }
 
-async function uploadFile(file: CapturedFile, kind: "audio" | "photo", location: Position | null) {
+export async function uploadFile(file: CapturedFile, kind: "audio" | "photo", location: Position | null) {
   const form = new FormData();
   form.append("file", file.blob, kind === "audio" ? "audio" : "photo");
   form.append("kind", kind);
