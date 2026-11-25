@@ -2,7 +2,7 @@
 
 Atualizado em 25/11/2026.
 
-Cada marco termina com uma versão no ar, em staging, que alguém de fora do time consegue usar no celular. Os marcos andam em quatro raias: web (o app no navegador do celular), API, IA (o agente que preenche o RDO e lembra das pendências) e dados (a obra fictícia, os gabaritos e os áudios do eval). Responsáveis: [❓A definir quem fica em cada raia].
+Cada marco termina com uma versão no ar, em staging, que alguém de fora do time consegue usar no celular. Os marcos andam em cinco raias: web (o app no navegador do celular), API, contrato, IA (o agente que preenche o RDO e lembra das pendências) e dados (a obra fictícia, os gabaritos e os áudios do eval). A web e a API andam separadas e se encontram no [contrato](../contratos/README.md): a web nunca espera a API, porque desenvolve contra um servidor falso gerado do contrato. Responsáveis: [❓A definir quem fica em cada raia].
 
 As regras de negócio ficam no [guia do time], que é a fonte da verdade. Este roadmap cita as regras pelo ID, como `F1RN08` (cobrança de pendências), e as telas pelo número do frame no [protótipo], como `3.2` (registro por voz). A ordem dos marcos pode mudar num PR, e os IDs continuam os mesmos.
 
@@ -63,14 +63,25 @@ Cada uma tem uma recomendação, que vale até o time decidir diferente. A colun
 | D04 | Ordem de vários dias capturados sem internet (`RG07`) | Em ordem cronológica, pela data da captura, liberando cada RDO só depois da aprovação do anterior, como no protótipo (`2.6`). | M4 |
 | D05 | Formato e destinatários do compartilhamento (`F1RN12`) | PDF pelo compartilhamento nativo do celular, como no protótipo (`3.5`). | M5 |
 | D06 | IA perguntar sobre o que aparece na foto e não foi falado | Fica fora. A conferência entre foto e relato fica só no pitch. | M2 |
+| D07 | Proteger a API sem login (`RG01`) | Uma chave por ambiente num cabeçalho, sabendo que não protege de verdade, porque fica na web. Login fica pra uma versão futura. | M0 |
+| D08 | Status do RDO: o guia fala em rascunho, enviado e aprovado | Só rascunho e aprovado. O protótipo não tem passo de envio, e "RDO enviado" no início (`2.1`) vira "RDO aprovado". | M2 |
+| D09 | Localização da obra, pra distância e reconhecimento no canteiro | "Usar minha localização atual" manda a do celular. Sem ela, a API busca pelo endereço. | M1 |
+| D10 | Foto da galeria, que pode vir sem data e local (`F1RN02`) | Só câmera, com e sem internet. A `3.6` deixa de oferecer a galeria. | M1 |
+| D11 | Quando o RDO ganha o número | Ao ser gerado, em ordem de data. A fila de dias (D04) garante que não há salto. | M2 |
+| D12 | O check-in (`2.5`) grava algo na API? | Não. É só a escolha da obra, e o primeiro registro abre o dia. | M1 |
+| D13 | Interpretação ao vivo, durante a gravação (`3.2`) | Depois de salvar o registro. Ao vivo fica pra se sobrar tempo. | M2 |
+| D14 | Aviso de internet de volta (`2.7`) | Notificação local da web depois do envio, sem push pela API. | M4 |
+| D15 | "ART precisa de renovação" no início (`2.1`) | Tirar do protótipo: não há regra nem campo de validade da ART. | M1 |
+| D16 | Tempo de carro até a obra no início (`2.1`) | Mostrar só a distância, sem serviço de rotas. | M1 |
 
 ## M0 Fundação
 
 - **Monorepo:** estrutura das pastas da web, da API e do que é compartilhado; CI com tipos, lint, testes e build; deploy de staging.
 - **Schema do RDO:** os campos da matriz do guia num schema só, usado pela API pra validar a saída da IA e pela web pra montar a revisão (`RG06`). Já separa os campos universais, os de obra pública ou financiada e os recomendados.
 - **IA:** chave da API da Anthropic, uma chamada de ponta a ponta em staging e a observabilidade ligada, guardando prompt, saída e tokens de cada execução.
+- **Contrato:** [convenções](../contratos/convencoes.md) acordadas; OpenAPI do M1 escrito a partir das [telas](../contratos/telas/README.md) e das [operações](../contratos/operacoes.md); servidor falso pra web.
 - **Dados:** a obra fictícia e os primeiros gabaritos de RDO, em dias seguidos, com pendências que passam de um dia pro outro.
-- **Decisões antes do marco:** D01.
+- **Decisões antes do marco:** D01, D07.
 
 Pronto quando a web abre no celular, fala com a API de staging e uma chamada à IA aparece na observabilidade.
 
@@ -78,7 +89,8 @@ Pronto quando a web abre no celular, fala com a API de staging e uma chamada à 
 
 - **Web:** início (`2.1`), cadastro de obra privada e pública (`2.2`, `2.2b`), pasta da obra (`2.3`), status da obra (`2.10`, `2.11`), check-in (`2.5`) e o registro com áudio e até 3 fotos (`3.2`, sem a parte da IA).
 - **API:** obras com os dados de `RG02` e os documentos opcionais com tipo, status da obra (`RG08`), registros por obra e por dia (`RG03`), upload do áudio e das fotos com data, hora e localização (`F1RN02`).
-- **Decisões antes do marco:** D02.
+- **Contrato:** obras e registro acordados no OpenAPI.
+- **Decisões antes do marco:** D02, D09, D10, D12, D15, D16.
 
 Pronto quando o engenheiro cadastra uma obra, faz o check-in e grava registros com fotos ao longo do dia, e tudo fica guardado na obra certa.
 
@@ -89,7 +101,8 @@ Pronto quando o engenheiro cadastra uma obra, faz o check-in e grava registros c
 - **API:** montagem do RDO a partir dos registros do dia, validação pelo schema (`RG06`), aprovação com responsável, data e hora (`RG04`, `F1RN05`) e numeração sequencial do RDO.
 - **Dados:** os áudios gravados a partir dos gabaritos, com ruído de obra e jargão real.
 - **Eval:** % de campos corretos contra o gabarito, % dos campos faltantes que o agente perguntou e campos inventados, com meta zero.
-- **Decisões antes do marco:** D06.
+- **Contrato:** RDO, perguntas e operações demoradas acordados no OpenAPI.
+- **Decisões antes do marco:** D06, D08, D11, D13.
 
 Pronto quando um dia de registros vira um RDO aprovado que passa no schema, e o eval roda sobre pelo menos 10 áudios.
 
@@ -107,7 +120,7 @@ Pronto quando o RDO do dia 2 cobra as pendências do dia 1 e cada item sai fecha
 
 - **Web:** captura de áudio e fotos guardada no celular sem sinal (`3.6`), envio quando a internet volta, aviso de dias pra finalizar (`2.7`) e fila de dias anteriores (`2.6`).
 - **API:** recebimento de registros com a data e a hora da captura, e RDO com a data da captura, não a do envio.
-- **Decisões antes do marco:** D04.
+- **Decisões antes do marco:** D04, D14.
 
 Pronto quando um dia gravado em modo avião vira RDO depois que a internet volta, com a data certa.
 
@@ -127,6 +140,12 @@ Pronto quando o engenheiro manda o PDF de um RDO aprovado pelo celular e abre um
 - **Se sobrar tempo**, nesta ordem: conferência com o cronograma físico, conferência do clima com o INMET e RAG com os documentos da obra.
 
 Pronto quando a demo roda duas vezes seguidas sem intervenção.
+
+## Pontos de sincronia
+
+- **Antes de um marco começar:** o contrato do marco `acordado` e as decisões que ele bloqueia tomadas.
+- **Até o meio do marco:** a API do marco em staging, pra web integrar.
+- **No fim do marco:** a web integrada em staging e este roadmap atualizado.
 
 ## Situação de cada entrega
 
