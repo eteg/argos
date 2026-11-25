@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Anybody, Inter } from "next/font/google";
 import "./globals.css";
+import { OfflineSync } from "@/components/offline-sync";
 import { PwaProvider } from "./serwist-provider";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
@@ -24,7 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="pt-BR"
       className={`${inter.variable} ${anybody.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"><PwaProvider>{children}</PwaProvider></body>
+      <body className="min-h-full flex flex-col"><PwaProvider>{children}<OfflineSync /></PwaProvider></body>
     </html>
   );
 }

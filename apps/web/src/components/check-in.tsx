@@ -45,7 +45,7 @@ export function CheckIn() {
         {here && (<><H>Você está aqui</H>{card(here, true)}</>)}
         {worked.length > 0 && (<><H>Com registro hoje</H>{worked.map((s) => card(s, false))}</>)}
         {others.length > 0 && (<><H>Outras obras sem registro hoje</H>{others.map((s) => card(s, false))}</>)}
-        {pending.length > 0 && (<><H>Pendentes · capturados sem internet</H>{pending.map((s) => (<div key={s.id} className="rounded-2xl border border-[#E3E5EE] bg-white p-3.5 text-[15px]"><b>{s.name}</b> · {s.pendingDays.length} dia(s)</div>))}</>)}
+        {pending.length > 0 && (<><H>Pendentes · capturados sem internet</H>{pending.map((s) => (<Link key={s.id} href="/dias-anteriores" className="flex items-center gap-3 rounded-2xl border border-[#E3E5EE] bg-white p-3.5"><div className="flex flex-1 flex-col gap-0.5"><span className="text-[15px] font-semibold">{s.name} · {s.pendingDays.length} {s.pendingDays.length === 1 ? "dia" : "dias"}</span><span className="text-xs text-[#5B5F6B]">{s.pendingDays.map((d) => d.localDate.slice(8) + "/" + d.localDate.slice(5, 7)).join(" e ")} · prontos para finalizar</span></div><Pill tone="solid">Finalizar</Pill></Link>))}</>)}
         {approved.map((s) => <div key={s.id} className="rounded-[14px] bg-[#E3E5EE] px-3.5 py-2.5 text-[13px] text-[#5B5F6B]">{s.name}: RDO de hoje já aprovado</div>)}
       </div>
     </Page>

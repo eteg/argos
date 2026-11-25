@@ -1,5 +1,5 @@
 import { defaultCache } from "@serwist/turbopack/worker";
-import { Serwist, type PrecacheEntry, type SerwistGlobalConfig } from "serwist";
+import { NetworkOnly, Serwist, type PrecacheEntry, type SerwistGlobalConfig } from "serwist";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -14,5 +14,8 @@ new Serwist({
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
-  runtimeCaching: defaultCache,
+  runtimeCaching: [
+    { matcher: ({ url }) => url.pathname.startsWith("/v1/"), handler: new NetworkOnly() },
+    ...defaultCache,
+  ],
 }).addEventListeners();

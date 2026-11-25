@@ -567,6 +567,32 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/pending-days:
+    get:
+      operationId: listPendingDays
+      tags: [Entries]
+      summary: Dias anteriores que ficaram sem RDO aprovado
+      description: >-
+        Uma linha por obra em andamento, com os dias anteriores a hoje que têm registro e ainda não
+        têm RDO aprovado, do mais antigo pro mais novo. Só o mais antigo da obra é o próximo (`isNext`),
+        porque os dias são fechados em ordem (D04).
+      parameters:
+        - $ref: "#/components/parameters/XTimezone"
+        - $ref: "#/components/parameters/XDeviceLocation"
+      responses:
+        "200":
+          description: Os dias pendentes por obra.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/PendingDaysGroup" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/entries/{entryId}:
     parameters:
       - name: entryId
@@ -1063,6 +1089,24 @@ components:
       properties:
         localDate: { type: string, format: date }
         entriesCount: { type: integer }
+    PendingDayDetail:
+      type: object
+      required: [localDate, entriesCount, audiosCount, photosCount, offline, isNext]
+      properties:
+        localDate: { type: string, format: date }
+        entriesCount: { type: integer }
+        audiosCount: { type: integer }
+        photosCount: { type: integer }
+        offline: { type: boolean, description: Algum registro do dia foi capturado sem internet. }
+        isNext: { type: boolean, description: "`true` só no dia mais antigo da obra." }
+    PendingDaysGroup:
+      type: object
+      required: [site, days]
+      properties:
+        site: { $ref: "#/components/schemas/SiteSummary" }
+        days:
+          type: array
+          items: { $ref: "#/components/schemas/PendingDayDetail" }
     OpenItem:
       type: object
       required: [id, siteId, title, kind, status, openedOn, openedInReportId, lastUpdate, closedOn, closingNote, mentionedToday]

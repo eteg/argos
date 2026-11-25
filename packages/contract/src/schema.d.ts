@@ -384,6 +384,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/pending-days": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Dias anteriores que ficaram sem RDO aprovado
+         * @description Uma linha por obra em andamento, com os dias anteriores a hoje que têm registro e ainda não têm RDO aprovado, do mais antigo pro mais novo. Só o mais antigo da obra é o próximo (`isNext`), porque os dias são fechados em ordem (D04).
+         */
+        get: operations["listPendingDays"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/entries/{entryId}": {
         parameters: {
             query?: never;
@@ -729,6 +749,21 @@ export interface components {
             /** Format: date */
             localDate: string;
             entriesCount: number;
+        };
+        PendingDayDetail: {
+            /** Format: date */
+            localDate: string;
+            entriesCount: number;
+            audiosCount: number;
+            photosCount: number;
+            /** @description Algum registro do dia foi capturado sem internet. */
+            offline: boolean;
+            /** @description `true` só no dia mais antigo da obra. */
+            isNext: boolean;
+        };
+        PendingDaysGroup: {
+            site: components["schemas"]["SiteSummary"];
+            days: components["schemas"]["PendingDayDetail"][];
         };
         OpenItem: {
             id: string;
@@ -1940,6 +1975,41 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listPendingDays: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+                /**
+                 * @description `lat,lng`, só quando a pessoa permitiu a localização.
+                 * @example -19.9319,-44.0539
+                 */
+                "X-Device-Location"?: components["parameters"]["XDeviceLocation"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Os dias pendentes por obra. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["PendingDaysGroup"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
             503: components["responses"]["Unavailable"];
         };
     };

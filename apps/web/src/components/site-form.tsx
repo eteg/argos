@@ -6,6 +6,7 @@ import type { Schemas } from "@argos/contract";
 import { api, timezoneParams } from "@/lib/api";
 import { documentTypeLabel, errorMessage } from "@/lib/format";
 import { getPosition, type Position } from "@/lib/geo";
+import { useOnline } from "@/lib/online";
 import { ApiError, unwrap } from "@/lib/hooks";
 import { Back, Page, Primary, Title, field } from "@/components/ui";
 
@@ -20,6 +21,7 @@ const dashed = "flex min-h-12 items-center justify-center rounded-[14px] border-
 
 export function SiteForm() {
   const router = useRouter();
+  const online = useOnline();
   const id = useSearchParams().get("id");
   const [f, setF] = useState({
     name: "", type: "private" as Schemas["SiteType"], address: "", clientName: "", clientTaxId: "", contractorName: "", contractorTaxId: "",
@@ -192,7 +194,8 @@ export function SiteForm() {
         {error && (
           <div role="alert" className="rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">{errorMessage(error.code)}{error.errors.length > 0 && ` (${error.errors.map((e) => e.field).join(", ")})`}</div>
         )}
-        <Primary disabled={saving} onClick={() => void save()}>{saving ? "Salvando…" : "Salvar obra"}</Primary>
+        {!online && <div role="status" className="rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">Sem internet: a obra não é salva sem conexão.</div>}
+        <Primary disabled={saving || !online} onClick={() => void save()}>{saving ? "Salvando…" : "Salvar obra"}</Primary>
       </div>
     </Page>
   );

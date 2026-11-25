@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { api, timezoneParams } from "@/lib/api";
 import { documentTypeLabel, errorMessage, siteTypeLabel, statusLabel } from "@/lib/format";
+import { useOnline } from "@/lib/online";
 import { ApiError, unwrap, useLoad } from "@/lib/hooks";
 import { Page, Pill, Status } from "@/components/ui";
 
@@ -14,6 +15,7 @@ const Row = ({ k, children }: { k: string; children: React.ReactNode }) => (
 
 export function SiteFolder() {
   const router = useRouter();
+  const online = useOnline();
   const id = useSearchParams().get("id") ?? "";
   const [genError, setGenError] = useState<string | null>(null);
   const [state, retry] = useLoad(() => unwrap(api.GET("/v1/sites/{siteId}", { params: { path: { siteId: id }, ...timezoneParams() } })), [id]);
@@ -39,7 +41,7 @@ export function SiteFolder() {
         )}
         {s.status === "in_progress" && (s.today.entriesCount > 0 || s.today.reportId) && (
           <>
-            <button type="button" onClick={() => void (async () => {
+            <button type="button" disabled={!online} onClick={() => void (async () => {
               setGenError(null);
               if (s.today.state === "approved" && s.today.reportId) return router.push(`/rdo?id=${s.today.reportId}`);
               try {

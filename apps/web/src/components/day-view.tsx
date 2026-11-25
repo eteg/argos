@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { api, timezoneParams } from "@/lib/api";
 import { clock, errorMessage, fullDate } from "@/lib/format";
 import { getPosition, type Position } from "@/lib/geo";
+import { useOnline } from "@/lib/online";
 import { ApiError, unwrap, useLoad } from "@/lib/hooks";
 import { Page, Status } from "@/components/ui";
 
@@ -27,6 +28,7 @@ const Icon = ({ photo }: { photo: boolean }) => (
 
 export function DayView() {
   const router = useRouter();
+  const online = useOnline();
   const params = useSearchParams();
   const siteId = params.get("id") ?? "";
   const [position, setPosition] = useState<Position | null>(null);
@@ -94,7 +96,7 @@ export function DayView() {
         )}
         {count > 0 && (
           <div className="flex flex-col gap-2">
-            <button type="button" disabled={busy} onClick={() => void open()} className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3.5 text-left shadow-sm">
+            <button type="button" disabled={busy || !online} onClick={() => void open()} className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3.5 text-left shadow-sm">
               <div className="flex flex-1 flex-col gap-0.5"><span className="text-[15px] font-semibold">{approved ? "RDO aprovado" : "Pronto para fechar o dia?"}</span>
                 <span className="text-[13px] text-[#5B5F6B]">{approved ? "Abra para consultar." : `O Argos monta o RDO com os ${count} ${count === 1 ? "registro" : "registros"} para você revisar.`}</span></div>
               <span className="flex-none rounded-full bg-[#1563FF] px-3.5 py-2.5 text-[13px] font-semibold text-white">{busy ? "Montando…" : approved ? "Ver RDO" : day.report ? "Revisar RDO" : "Gerar RDO"}</span>

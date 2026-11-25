@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { Schemas } from "@argos/contract";
 import { api, timezoneParams } from "@/lib/api";
 import { errorMessage, fullDate, statusLabel } from "@/lib/format";
+import { useOnline } from "@/lib/online";
 import { ApiError, unwrap, useLoad } from "@/lib/hooks";
 import { Page, Primary, Status } from "@/components/ui";
 
@@ -18,6 +19,7 @@ const hints: Record<Schemas["SiteStatus"], string> = {
 
 export function SiteStatus() {
   const router = useRouter();
+  const online = useOnline();
   const siteId = useSearchParams().get("id") ?? "";
   const [state, retry] = useLoad(() => unwrap(api.GET("/v1/sites/{siteId}", { params: { path: { siteId }, ...timezoneParams() } })), [siteId]);
   const [picked, setChoice] = useState<Schemas["SiteStatus"] | null>(null);
@@ -65,7 +67,7 @@ export function SiteStatus() {
         )}
         {error && <div role="alert" className="rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">{errorMessage(error.code)}</div>}
         <div className="mt-auto flex flex-col gap-2">
-          <Primary disabled={blocked || choice === site.status} onClick={() => void save()}>{choice === "completed" ? "Concluir obra" : "Salvar status"}</Primary>
+          <Primary disabled={!online || blocked || choice === site.status} onClick={() => void save()}>{choice === "completed" ? "Concluir obra" : "Salvar status"}</Primary>
           <Link href={`/obra?id=${siteId}`} className="flex min-h-11 items-center justify-center text-[15px] font-semibold">Cancelar</Link>
         </div>
       </div>

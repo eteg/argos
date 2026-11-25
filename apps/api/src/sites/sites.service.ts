@@ -159,6 +159,46 @@ export class SitesService {
     return { items };
   }
 
+  async pendingDays(timezone: string, device: DeviceLocation) {
+    const siteRows = await this.db.select().from(sites).where(eq(sites.status, "in_progress"));
+    const ids = siteRows.map((r) => r.id);
+    const stats = await this.dayStats(ids, timezone);
+    const counts = ids.length
+      ? await this.db
+          .select({
+            siteId: entries.siteId,
+            localDate: entries.localDate,
+            audios: sql<number>`count(*)::int`,
+            photos: sql<number>`coalesce(sum(cardinality(${entries.photoMediaIds})), 0)::int`,
+          })
+          .from(entries)
+          .where(inArray(entries.siteId, ids))
+          .groupBy(entries.siteId, entries.localDate)
+      : [];
+    const items: Schemas["PendingDaysGroup"][] = [];
+    for (const row of siteRows) {
+      const days = stats.openRows
+        .filter((r) => r.siteId === row.id && r.localDate < stats.today)
+        .sort((a, b) => a.localDate.localeCompare(b.localDate));
+      if (days.length === 0) continue;
+      items.push({
+        site: await this.summaryOf(row, timezone, device),
+        days: days.map((d, index) => {
+          const extra = counts.find((c) => c.siteId === row.id && c.localDate === d.localDate);
+          return {
+            localDate: d.localDate,
+            entriesCount: d.count,
+            audiosCount: extra?.audios ?? d.count,
+            photosCount: extra?.photos ?? 0,
+            offline: d.offline,
+            isNext: index === 0,
+          };
+        }),
+      });
+    }
+    return { items: items.sort((a, b) => a.site.name.localeCompare(b.site.name)) };
+  }
+
   async summaryOf(row: SiteRow, timezone: string, device: DeviceLocation = null) {
     const stats = await this.dayStats([row.id], timezone);
     return this.summarize(row, stats, await this.servicesCount(row.id), device);
