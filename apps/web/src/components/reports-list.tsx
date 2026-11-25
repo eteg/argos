@@ -78,7 +78,7 @@ export function ReportsList() {
                       Aprovado às {new Date(item.approvedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · {item.occurrencesCount === 0 ? "sem ocorrências" : `${item.occurrencesCount} ${item.occurrencesCount === 1 ? "ocorrência" : "ocorrências"}`}
                     </span>
                   </div>
-                  <span aria-hidden="true" className="text-[#9AA3B8]">›</span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9AA3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
                 </Link>
               </li>
             ))}

@@ -72,7 +72,7 @@ export function ReportApproved() {
       <div className="relative flex min-h-dvh flex-col">
         <div className="absolute inset-x-0 top-0 h-[250px] rounded-b-[32px] bg-[#2D2D2B]" />
         <div className="relative flex justify-end px-[18px] pt-[18px]">
-          <Link href={`/obra?id=${report.siteId}`} aria-label="Fechar e voltar à obra" className="flex size-11 items-center justify-center rounded-full bg-[#3A3A37] text-white">✕</Link>
+          <Link href={`/obra?id=${report.siteId}`} aria-label="Fechar e voltar à obra" className="flex size-11 items-center justify-center rounded-full bg-[#3A3A37]"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></Link>
         </div>
         <div className="relative flex flex-col items-center gap-1.5 px-6 pb-5 text-center text-white">
           <span className="flex size-[52px] items-center justify-center rounded-full bg-[#CCA6ED]">
@@ -104,8 +104,8 @@ export function ReportApproved() {
         <div className="relative mt-auto flex flex-col gap-1.5 px-4 pb-[22px] pt-3.5">
           {error && <div role="alert" className="rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">{error}</div>}
           <div className="flex gap-2.5">
-            <Link href={`/rdo/compartilhar?id=${id}`} className="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl bg-white text-[15px] font-semibold shadow-sm">Compartilhar</Link>
-            <button type="button" disabled={busy} onClick={() => void download()} className="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl bg-[#1563FF] text-[15px] font-semibold text-white disabled:opacity-60">{busy ? "Baixando…" : "Baixar PDF"}</button>
+            <Link href={`/rdo/compartilhar?id=${id}`} className="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl bg-white text-[15px] font-semibold shadow-[0_6px_18px_-12px_rgba(45,45,43,0.5)]"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2D2D2B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5" /><path d="M5 12v7h14v-7" /></svg>Compartilhar</Link>
+            <button type="button" disabled={busy} onClick={() => void download()} className="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl bg-[#1563FF] text-[15px] font-semibold text-white disabled:opacity-60"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5" /><path d="M5 20h14" /></svg>{busy ? "Baixando…" : "Baixar PDF"}</button>
           </div>
           <Link href="/" className="flex min-h-11 items-center justify-center text-[15px] font-semibold text-[#5B5F6B]">Voltar ao início</Link>
         </div>

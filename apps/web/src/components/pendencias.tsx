@@ -37,7 +37,14 @@ export function Pendencias() {
   return (
     <Page>
       <div className="flex flex-col gap-3.5 px-5 pb-2 pt-5">
-        <Link href="/" aria-label="Voltar para o início" className="flex size-11 items-center justify-center rounded-full bg-white">←</Link>
+        <div className="flex items-center justify-between">
+          <Link href="/" aria-label="Voltar para o início" className="flex size-11 items-center justify-center rounded-full bg-white">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2D2D2B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+          </Link>
+          <Link href="/menu" aria-label="Abrir menu" className="flex size-11 items-center justify-center rounded-full bg-white">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2D2D2B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+          </Link>
+        </div>
         <div className="flex flex-col gap-1">
           <h1 className="m-0 font-[family-name:var(--font-anybody)] text-[26px] font-bold leading-[1.15] tracking-[-0.02em]">Pendências</h1>
           <p className="m-0 text-[13px] leading-[1.45] text-[#5B5F6B]">O que ficou em aberto nos RDOs aprovados. O Argos pergunta por cada item no próximo RDO da obra.</p>

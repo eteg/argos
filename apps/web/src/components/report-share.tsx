@@ -12,6 +12,17 @@ import { Page, Status } from "@/components/ui";
 const tz = timezoneParams();
 const clock = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
+function Destino({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button type="button" onClick={onClick} className="flex flex-1 flex-col items-center gap-1.5 text-center text-xs leading-[1.3] text-[#2D2D2B]">
+      <span className="flex size-[54px] items-center justify-center rounded-2xl bg-[#F4F5F9]">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2D2D2B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
+      </span>
+      {label}
+    </button>
+  );
+}
+
 export function ReportShare() {
   const id = useSearchParams().get("id") ?? "";
   const [state, retry] = useLoad(async () => {
@@ -56,13 +67,14 @@ export function ReportShare() {
               <span className="text-[13px] text-[#5B5F6B]">{sizeKb} KB · aprovado às {report.approval ? clock(report.approval.approvedAt) : "--:--"}</span>
             </div>
           </div>
-          <p className="m-0 text-[13px] leading-[1.45] text-[#5B5F6B]">Os destinos, como WhatsApp, e-mail e salvar na nuvem, são os do seu celular. Toque em Compartilhar para abri-los.</p>
           {message && <div role="status" className="rounded-xl bg-[#E3ECFF] p-3 text-sm text-[#0B3699]">{message}</div>}
-          <div className="flex flex-col gap-2">
-            <button type="button" onClick={() => void share()} className="flex min-h-[52px] items-center justify-center rounded-[14px] bg-[#1563FF] text-[15px] font-semibold text-white">Compartilhar</button>
-            <button type="button" onClick={() => saveBlob(pdf)} className="flex min-h-11 items-center justify-center rounded-[14px] border-[1.5px] border-[#2D2D2B] text-[15px] font-semibold">Baixar PDF</button>
-            <Link href={`/rdo/aprovado?id=${id}`} className="flex min-h-[52px] items-center justify-center rounded-[14px] bg-[#F4F5F9] text-[15px] font-semibold">Cancelar</Link>
+          <div className="flex gap-1.5">
+            <Destino label="WhatsApp" onClick={() => void share()}><path d="M4 18.5l1.3-3.6A7.5 7.5 0 1 1 9 19l-5-.5z" /></Destino>
+            <Destino label="E-mail" onClick={() => void share()}><rect x="3" y="5.5" width="18" height="13" rx="2" /><path d="M3.5 7l8.5 6 8.5-6" /></Destino>
+            <Destino label="Salvar na nuvem" onClick={() => void share()}><path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.4 1.6A3.3 3.3 0 0 0 7 18z" /><path d="M12 15v-4M10 13l2-2 2 2" /></Destino>
+            <Destino label="Baixar PDF" onClick={() => saveBlob(pdf)}><path d="M12 4v11M7 10l5 5 5-5" /><path d="M5 20h14" /></Destino>
           </div>
+          <Link href={`/rdo/aprovado?id=${id}`} className="flex min-h-[52px] items-center justify-center rounded-[14px] bg-[#F4F5F9] text-[15px] font-semibold text-[#2D2D2B]">Cancelar</Link>
         </div>
       </div>
     </Page>

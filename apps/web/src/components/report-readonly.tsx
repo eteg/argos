@@ -67,7 +67,7 @@ export function ReportReadonly() {
       <div className="flex flex-col gap-3 px-4 pb-28 pt-1">
         {r.approval ? (
           <div className="flex items-center gap-3 rounded-2xl border-[1.5px] border-[#CCA6ED] bg-white px-3.5 py-3">
-            <span className="flex size-9 flex-none items-center justify-center rounded-full bg-[#CCA6ED]">✓</span>
+            <span className="flex size-9 flex-none items-center justify-center rounded-full bg-[#CCA6ED]"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2D2D2B" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></span>
             <div className="flex flex-col gap-0.5"><span className="text-[15px] font-semibold">Aprovado por {r.approval.approvedBy}</span>
               <span className="text-[13px] text-[#5B5F6B]">{new Date(r.approval.approvedAt).toLocaleDateString("pt-BR")} às {clock(r.approval.approvedAt)} · só leitura</span></div>
           </div>
@@ -136,7 +136,7 @@ export function ReportReadonly() {
       </div>
       {r.status === "approved" && (
         <div className="fixed inset-x-0 bottom-0 mx-auto flex w-full max-w-[430px] gap-2.5 border-t border-[#E3E5EE] bg-white px-4 pb-[22px] pt-3">
-          <Link href={`/rdo/compartilhar?id=${r.id}`} className="flex min-h-[52px] flex-1 items-center justify-center rounded-[14px] border-[1.5px] border-[#2D2D2B] text-[15px] font-semibold">Compartilhar</Link>
+          <Link href={`/rdo/compartilhar?id=${r.id}`} className="flex min-h-[52px] flex-1 items-center justify-center gap-1.5 rounded-[14px] border-[1.5px] border-[#2D2D2B] text-[15px] font-semibold"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2D2D2B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5" /><path d="M5 12v7h14v-7" /></svg>Compartilhar</Link>
           <button type="button" disabled={busy} onClick={() => void download()} className="flex min-h-[52px] flex-[1.3] items-center justify-center rounded-[14px] bg-[#1563FF] text-[15px] font-semibold text-white disabled:opacity-60">{busy ? "Baixando…" : "Baixar PDF"}</button>
         </div>
       )}
