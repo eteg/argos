@@ -2,7 +2,7 @@
 
 Atualizado em 25/11/2026.
 
-Cada marco termina com uma versão no ar, em staging, que alguém de fora do time consegue usar no celular. Os marcos andam em cinco raias: web (o app no navegador do celular), API, contrato, IA (o agente que preenche o RDO e lembra das pendências) e dados (a obra fictícia, os gabaritos e os áudios do eval). A web e a API andam separadas e se encontram no [contrato](../contratos/README.md): a web nunca espera a API, porque desenvolve contra um servidor falso gerado do contrato. Responsáveis: [❓A definir quem fica em cada raia].
+Cada marco termina com uma versão no ar, em staging, que alguém de fora do time consegue usar no celular. Os marcos andam em cinco raias: web (o app no navegador do celular), API, contrato, IA (o agente que preenche o RDO e lembra das pendências) e dados (a obra fictícia, os gabaritos e os áudios do eval). A web e a API andam separadas e se encontram no [contrato](../contratos/README.md): a web nunca espera a API, porque desenvolve contra um servidor falso gerado do contrato. Quatro devs dividem as raias em [frentes](#frentes).
 
 As regras de negócio ficam no [guia do time], que é a fonte da verdade. Este roadmap cita as regras pelo ID, como `F1RN08` (cobrança de pendências), e as telas pelo número do frame no [protótipo], como `3.2` (registro por voz). A ordem dos marcos pode mudar, e os IDs continuam os mesmos.
 
@@ -33,6 +33,34 @@ flowchart LR
 ```
 
 O M4 depende só da captura do M1 e pode andar em paralelo ao M2 e ao M3. A raia de dados começa no M0, porque o eval do M2 precisa dos gabaritos prontos.
+
+## Frentes
+
+Quatro devs, cada um dono de uma frente e das pastas dela. As frentes seguem as raias, com duas exceções: o M4 sai da web e vai inteiro pra frente D, e o M5 vai inteiro pra frente A. A web é a raia mais pesada e fica só no caminho crítico, que é M1, M2 e M3. Contrato e dados andam um marco à frente, e a IA começa o M2 durante o M1, que não tem trabalho de IA.
+
+| Frente | Responsável | Raias | Pastas |
+|---|---|---|---|
+| A Plataforma e API | [❓A definir: quem já está no M0] | API | `apps/api`, `infra/staging/` |
+| B Web | [❓A definir] | Web | `apps/web` |
+| C IA e eval | [❓A definir] | IA | `packages/agent` ([D19](#decisões-em-aberto)) e o eval |
+| D Contrato e dados | [❓A definir] | Contrato, dados e, a partir do M2, o M4 | `docs/contratos/openapi/`, `packages/contract`, `packages/rdo-schema`, `data/` |
+
+| Marco | A Plataforma e API | B Web | C IA e eval | D Contrato e dados |
+|---|---|---|---|---|
+| M0 | Monorepo, CI, API base e staging. O esqueleto do monorepo sai primeiro, porque é a única entrega que bloqueia as outras. | Web PWA base contra o servidor falso, assim que `apps/web` existir. | Chamada à Claude com Langfuse e o teste da transcrição ([D17](#decisões-em-aberto)). | Convenções, OpenAPI do M1, servidor falso, schema do RDO, obra fictícia e 5 gabaritos. |
+| M1 | Obras, registros e upload, já com o `id` idempotente da [escrita sem internet](../contratos/convencoes.md#escrita-sem-internet). | `2.1`, `2.2`, `2.2b`, `2.3`, `2.10`, `2.11`, `2.5` e `3.2` sem a IA. | O agente do M2 fora da API, contra os gabaritos, com o eval rodando. | Contrato do M2, os primeiros áudios gravados e as decisões do M2. |
+| M2 | Montagem do RDO, operações demoradas, validação pelo schema, aprovação e numeração. | `3.1`, `3.2` com a IA, `3.3`, `3.3b`, `3.7` e `3.4`. | O agente em staging, com a pergunta pelo que faltou (`RG05`), a segurança quando há acidente (`F1RN04`) e o eval sobre 10 áudios. | Contrato do M3. Começa o M4: service worker, fila local e `3.6`. |
+| M3 | Itens em aberto e o desfecho deles na aprovação. | A memória na `3.1`, na `3.2` e na `3.3`, e a `2.8`. | Carga, cobrança e desfecho dos itens em aberto, com o eval da cobrança. | O resto do M4: `2.7`, `2.6`, a fila de dias e o `listPendingDays` na API. |
+| M5 e M6 | O M5 inteiro: PDF, lista de RDOs aprovados, `3.5` e `2.9`. | Acabamento e ensaio da demo. | Eval completo, de 10 a 20 gabaritos. | Roteiro da demo e os gabaritos que faltam. |
+
+Se faltar tempo, o M4 é o primeiro a cair, porque a demo mínima não precisa dele. A frente D passa então a reforçar a web no M3, começando pela `2.8`.
+
+Combinados entre as frentes:
+
+- **IA fora do NestJS.** O agente fica num pacote com funções puras, como `interpretEntry` e `assembleReport`, que devolvem JSON validado pelo schema do RDO. A API cuida do 202, da fila e do banco. O eval roda direto no pacote, sem subir a API. Depende da [D19](#decisões-em-aberto).
+- **Um ponto só de envio do registro na web.** A `3.2` envia por um módulo da frente D, como `sendEntry`. No M1 ele manda direto pra API, e no M4 vira a fila local, sem reescrever a tela.
+- **Schema do RDO com dono.** A frente D é dona do `packages/rdo-schema`. Mudança nele avisa as frentes A, B e C, porque quebra a web, a API e os gabaritos juntos ([ADR 0001](../decisoes/0001-stack-e-staging.md)).
+- **Commit direto na `main` com quatro pessoas.** Commits pequenos, `git pull --rebase` antes de subir e CI verde. Tela incompleta fica fora da navegação até ficar pronta.
 
 ## Decisões tomadas
 
@@ -73,12 +101,15 @@ Cada uma tem uma recomendação, que vale até o time decidir diferente. A colun
 | D14 | Aviso de internet de volta (`2.7`) | Notificação local da web depois do envio, sem push pela API. | M4 |
 | D15 | "ART precisa de renovação" no início (`2.1`) | Tirar do protótipo: não há regra nem campo de validade da ART. | M1 |
 | D16 | Tempo de carro até a obra no início (`2.1`) | Mostrar só a distância, sem serviço de rotas. | M1 |
+| D17 | Transcrição do áudio do registro | A frente C testa no M0 se a API da Claude recebe o áudio. Se não receber, escolhe um serviço de transcrição que lide bem com português e ruído de obra, e a escolha vira ADR. | M2 |
+| D18 | Como o contrato fica `acordado` sem PR | O [README do contrato](../contratos/README.md) pede PR aprovado pela web e pela API, mas o fluxo é commit direto na `main`. A frente D sobe o contrato na `main`, as frentes A e B leem, e um commit muda a situação pra `acordado`. O README do contrato muda junto. | M1 |
+| D19 | Onde fica o código da IA | Num pacote `packages/agent`, fora do NestJS, com funções puras que a API chama. A pasta não está no [ADR 0001](../decisoes/0001-stack-e-staging.md), então pede um ADR. | M1 |
 
 ## M0 Fundação
 
 - **Monorepo:** estrutura das pastas da web, da API e do que é compartilhado; CI com tipos, lint e build, sem teste unitário ([ADR 0001](../decisoes/0001-stack-e-staging.md)); deploy de staging.
 - **Schema do RDO:** os campos da matriz do guia num schema só, usado pela API pra validar a saída da IA e pela web pra montar a revisão (`RG06`). Já separa os campos universais, os de obra pública ou financiada e os recomendados.
-- **IA:** chave da API da Anthropic, uma chamada de ponta a ponta em staging e a observabilidade ligada, guardando prompt, saída e tokens de cada execução.
+- **IA:** chave da API da Anthropic, uma chamada de ponta a ponta em staging e a observabilidade ligada, guardando prompt, saída e tokens de cada execução; o teste da transcrição do áudio (D17).
 - **Contrato:** [convenções](../contratos/convencoes.md) acordadas; OpenAPI do M1 escrito a partir das [telas](../contratos/telas/README.md) e das [operações](../contratos/operacoes.md); servidor falso pra web.
 - **Dados:** a obra fictícia e os primeiros gabaritos de RDO, em dias seguidos, com pendências que passam de um dia pro outro.
 - **Decisões antes do marco:** tomadas nos ADRs [0001](../decisoes/0001-stack-e-staging.md) (D01) e [0002](../decisoes/0002-chave-da-api-sem-login.md) (D07).
@@ -92,6 +123,7 @@ Pronto quando a web abre no celular, fala com a API de staging e uma chamada à 
 | Web | Web PWA base | a fazer | |
 | API | API base | a fazer | |
 | IA | Chamada à Claude com Langfuse | a fazer | |
+| IA | Teste da transcrição do áudio (D17) | a fazer | |
 | Contrato | Schema do RDO | a fazer | |
 | Dados | Obra fictícia e 5 gabaritos | a fazer | |
 | API | Staging na EC2 | a fazer | |
@@ -101,7 +133,7 @@ Pronto quando a web abre no celular, fala com a API de staging e uma chamada à 
 - **Web:** início (`2.1`), cadastro de obra privada e pública (`2.2`, `2.2b`), pasta da obra (`2.3`), status da obra (`2.10`, `2.11`), check-in (`2.5`) e o registro com áudio e até 3 fotos (`3.2`, sem a parte da IA).
 - **API:** obras com os dados de `RG02` e os documentos opcionais com tipo, status da obra (`RG08`), registros por obra e por dia (`RG03`), upload do áudio e das fotos com data, hora e localização (`F1RN02`).
 - **Contrato:** obras e registro acordados no OpenAPI.
-- **Decisões antes do marco:** D02, D09, D10, D12, D15, D16.
+- **Decisões antes do marco:** D02, D09, D10, D12, D15, D16, D18, D19.
 
 Pronto quando o engenheiro cadastra uma obra, faz o check-in e grava registros com fotos ao longo do dia, e tudo fica guardado na obra certa.
 
@@ -113,7 +145,7 @@ Pronto quando o engenheiro cadastra uma obra, faz o check-in e grava registros c
 - **Dados:** os áudios gravados a partir dos gabaritos, com ruído de obra e jargão real.
 - **Eval:** % de campos corretos contra o gabarito, % dos campos faltantes que o agente perguntou e campos inventados, com meta zero.
 - **Contrato:** RDO, perguntas e operações demoradas acordados no OpenAPI.
-- **Decisões antes do marco:** D06, D08, D11, D13.
+- **Decisões antes do marco:** D06, D08, D11, D13, D17.
 
 Pronto quando um dia de registros vira um RDO aprovado que passa no schema, e o eval roda sobre pelo menos 10 áudios.
 
