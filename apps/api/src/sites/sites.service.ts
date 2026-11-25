@@ -33,7 +33,7 @@ export class SitesService {
     return row.lat === null || row.lng === null ? null : { lat: row.lat, lng: row.lng, accuracyMeters: row.accuracyMeters };
   }
 
-  private publicContract(contract: PublicContractRow | null, today: string): Schemas["PublicContract"] | null {
+  publicContract(contract: PublicContractRow | null, today: string): Schemas["PublicContract"] | null {
     if (!contract) return null;
     const added = contract.amendments.reduce((sum, a) => sum + a.addedDays, 0);
     const elapsedDays = Math.max(0, daysBetween(contract.serviceOrderDate, today));

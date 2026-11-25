@@ -6,12 +6,13 @@ import { DatabaseModule } from "./database/database.module.js";
 import { DiagnosticsModule } from "./diagnostics/diagnostics.module.js";
 import { EngineerModule } from "./engineer/engineer.module.js";
 import { EntriesModule } from "./entries/entries.module.js";
+import { ReportsModule } from "./reports/reports.module.js";
 import { SitesModule } from "./sites/sites.module.js";
 import { StorageModule } from "./storage/storage.module.js";
 import { HealthModule } from "./health/health.module.js";
 
 @Module({
-  imports: [AiModule, DatabaseModule, DiagnosticsModule, EngineerModule, EntriesModule, HealthModule, SitesModule, StorageModule],
+  imports: [AiModule, DatabaseModule, DiagnosticsModule, EngineerModule, EntriesModule, HealthModule, ReportsModule, SitesModule, StorageModule],
   providers: [{ provide: APP_GUARD, useClass: ApiKeyGuard }],
 })
 export class AppModule {}
