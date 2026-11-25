@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Schemas } from "@argos/contract";
 import { api, timezoneParams } from "@/lib/api";
 import { errorMessage, fullDate } from "@/lib/format";
+import { useOnline } from "@/lib/online";
 import { ApiError, unwrap, useLoad } from "@/lib/hooks";
 import { uploadFile } from "@/lib/send-entry";
 import { Back, Page, Pill, Primary, Status, Title, field } from "@/components/ui";
@@ -25,6 +26,7 @@ const Block = ({ title, children }: { title: string; children: React.ReactNode }
 
 export function ReportReview() {
   const router = useRouter();
+  const online = useOnline();
   const id = useSearchParams().get("id") ?? "";
   const [state, retry] = useLoad(() => unwrap(api.GET("/v1/reports/{reportId}", { params: { path: { reportId: id }, ...tz } })), [id]);
   const [report, setReport] = useState<Report | null>(null);
@@ -90,6 +92,7 @@ export function ReportReview() {
       <div className="flex items-center gap-3 px-5 pb-3 pt-5"><Back href={`/obra?id=${r.siteId}`} /><Title>{approved ? "RDO aprovado" : "Revise o RDO"}</Title></div>
       <div className="flex flex-col gap-3 px-4 pb-8">
         <div className="flex items-center gap-2 px-1"><Pill tone={approved ? "blue" : "purple"}>{approved ? "Aprovado" : "Rascunho"}</Pill><span className="text-[13px] text-[#5B5F6B]">Nº {String(r.number).padStart(3, "0")} · {fullDate(r.localDate)} · {r.entriesCount} registros</span></div>
+        {!online && <div role="status" className="rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">Sem internet: dá para ler o último RDO carregado, mas editar, corrigir falando e aprovar precisam de internet.</div>}
         {busyAi && <div role="status" className="rounded-xl bg-[#E3ECFF] p-3 text-sm text-[#0B3699]">O Argos está montando o RDO com o que você falou. Isso leva alguns segundos…</div>}
         {!approved && !busyAi && r.questions.some((q) => q.status === "open") && (
           <Block title="O Argos perguntou">
@@ -219,8 +222,8 @@ export function ReportReview() {
           {miss("photos") && <span className="text-xs text-[#6B3A00]">É preciso ao menos 3 fotos no dia. Tire mais fotos num novo registro e gere o RDO de novo.</span>}
         </Block>
         <Block title="Histórico">{r.history.map((h, i) => <span key={i} className="text-[13px] text-[#5B5F6B]">{new Date(h.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · {h.actor === "agent" ? "Argos" : "Você"}: {h.description}</span>)}</Block>
-        {!approved && <VoiceCorrect disabled={busyAi} reportId={id} onStarted={setReport} onError={setError} />}
-        {!approved && <Primary disabled={busy || busyAi || r.missingFields.length > 0} onClick={() => void approve()}>{busy ? "Aprovando…" : "Aprovar RDO"}</Primary>}
+        {!approved && <VoiceCorrect disabled={busyAi || !online} reportId={id} onStarted={setReport} onError={setError} />}
+        {!approved && <Primary disabled={!online || busy || busyAi || r.missingFields.length > 0} onClick={() => void approve()}>{busy ? "Aprovando…" : "Aprovar RDO"}</Primary>}
       </div>
     </Page>
   );
