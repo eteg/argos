@@ -1,0 +1,275 @@
+{
+  "day": 4,
+  "localDate": "2026-11-26",
+  "timezone": "America/Sao_Paulo",
+  "entries": [
+    {
+      "capturedAt": "2026-11-26T10:10:00Z",
+      "script": "Quinta, vinte e seis. O mecânico trocou o motor e a betoneira dois voltou a funcionar às nove, pode fechar. A armação dos pilares P3 e P4 não andou porque faltou armador, continua em aberto. Forma das vigas baldrame em andamento, cinquenta e cinco metros quadrados, e começamos a alvenaria de embasamento, dezoito metros quadrados.",
+      "photos": [
+        {
+          "id": "56d661fc-16b7-56a3-9735-6e13b1b9e554",
+          "caption": "Forma das vigas baldrame",
+          "linkedTo": {
+            "type": "activity",
+            "id": "a603a12c-f210-54e2-b682-31b369e66eef"
+          }
+        },
+        {
+          "id": "7edb3626-1f00-5b76-a885-2173931f61ae",
+          "caption": "Alvenaria de embasamento",
+          "linkedTo": {
+            "type": "activity",
+            "id": "2e4604d0-5acb-5440-9ebe-4dff279f5086"
+          }
+        }
+      ]
+    },
+    {
+      "capturedAt": "2026-11-26T19:00:00Z",
+      "script": "Rafael, fim do dia. Registro um acidente: um servente se cortou na mão ao serrar madeira da forma, por volta de três e dez. Foi atendido pelo técnico de segurança e voltou depois. Ele estava sem luva, tivemos DDS de manhã. Não sei dizer o horário que acabou o atendimento.",
+      "photos": [
+        {
+          "id": "d4b88438-9a6e-5023-8f13-a4ef11f1b6d8",
+          "caption": "Local do acidente",
+          "linkedTo": {
+            "type": "occurrence",
+            "id": "74966ff5-89b0-5d53-9fc1-4d81844f411c"
+          }
+        }
+      ]
+    }
+  ],
+  "omittedFields": [
+    {
+      "field": "occurrences.0.endTime",
+      "expectedQuestion": "A que horas terminou o atendimento do acidente?",
+      "answer": "Às dezesseis horas."
+    }
+  ],
+  "expectedReport": {
+    "site": {
+      "name": "Residencial Vila Verde · Bloco B",
+      "type": "public",
+      "address": "Rua das Acácias, 410 · Contagem, MG",
+      "client": {
+        "name": "Prefeitura Municipal de Contagem",
+        "taxId": "18.715.532/0001-70"
+      },
+      "contractor": {
+        "name": "Construtora Horizonte",
+        "taxId": "11.222.333/0001-81"
+      },
+      "technicalManager": {
+        "name": "Eng. Rafael Lima",
+        "artNumber": "MG2026001234"
+      },
+      "publicContract": {
+        "number": "045/2026",
+        "commitmentOrAgreement": "2026NE000312",
+        "inspectorName": "Eng. Paula Reis",
+        "serviceOrderDate": "2026-09-01",
+        "durationDays": 180,
+        "amendments": [
+          {
+            "id": "b10972f9-360e-5742-bb15-e21803ef1f90",
+            "description": "Aditivo de prazo por chuvas",
+            "addedDays": 30,
+            "signedOn": "2026-10-15"
+          }
+        ],
+        "elapsedDays": 86,
+        "remainingDays": 124
+      }
+    },
+    "localDate": "2026-11-26",
+    "workday": {
+      "startTime": "07:00",
+      "endTime": "17:00",
+      "breakMinutes": 60
+    },
+    "weather": [
+      {
+        "shift": "morning",
+        "weather": "good",
+        "condition": "workable"
+      },
+      {
+        "shift": "afternoon",
+        "weather": "cloudy",
+        "condition": "workable"
+      }
+    ],
+    "weatherStoppage": {
+      "hours": 0,
+      "serviceIds": []
+    },
+    "rainfallMm": 0,
+    "labor": [
+      {
+        "role": "Pedreiro",
+        "count": 6,
+        "employment": "own",
+        "company": null,
+        "category": "direct"
+      },
+      {
+        "role": "Servente",
+        "count": 4,
+        "employment": "own",
+        "company": null,
+        "category": "direct"
+      },
+      {
+        "role": "Armador",
+        "count": 3,
+        "employment": "third_party",
+        "company": "Aço Forte Armações",
+        "category": "direct"
+      },
+      {
+        "role": "Carpinteiro",
+        "count": 2,
+        "employment": "own",
+        "company": null,
+        "category": "direct"
+      }
+    ],
+    "laborNotes": null,
+    "equipment": [
+      {
+        "equipmentId": "ec0c194b-14c5-5be7-a60c-193aca9f8e77",
+        "name": "Betoneira 2",
+        "identifier": "BT-02",
+        "status": "operating",
+        "operatingHours": 3
+      }
+    ],
+    "activities": [
+      {
+        "id": "a603a12c-f210-54e2-b682-31b369e66eef",
+        "description": "Forma das vigas baldrame",
+        "service": {
+          "id": "ccffd541-bcc6-5a8b-bd72-f9a76381d3b2",
+          "code": "03.02",
+          "description": "Forma de madeira para vigas baldrame",
+          "unit": "m²"
+        },
+        "location": "Bloco B, eixos A e B",
+        "status": "in_progress",
+        "quantity": 55,
+        "unit": "m²",
+        "cumulativeProgressPercent": null,
+        "executor": "Equipe própria"
+      },
+      {
+        "id": "2e4604d0-5acb-5440-9ebe-4dff279f5086",
+        "description": "Alvenaria de embasamento",
+        "service": {
+          "id": "f43fe496-136b-53b8-987a-581c78122641",
+          "code": "05.01",
+          "description": "Alvenaria de embasamento",
+          "unit": "m²"
+        },
+        "location": "Bloco B, perímetro",
+        "status": "started",
+        "quantity": 18,
+        "unit": "m²",
+        "cumulativeProgressPercent": null,
+        "executor": "Equipe própria"
+      }
+    ],
+    "occurrences": [
+      {
+        "id": "74966ff5-89b0-5d53-9fc1-4d81844f411c",
+        "type": "accident",
+        "description": "Servente com corte na mão ao serrar madeira da forma",
+        "startTime": "15:10",
+        "endTime": "16:00",
+        "status": "closed",
+        "affectedServiceIds": [
+          "ccffd541-bcc6-5a8b-bd72-f9a76381d3b2"
+        ],
+        "source": {
+          "origin": "técnico de segurança",
+          "document": "comunicado de acidente 004/2026"
+        },
+        "safety": {
+          "type": "accident",
+          "dds": true,
+          "ppeInUse": false
+        },
+        "materials": null
+      }
+    ],
+    "openItemReviews": [
+      {
+        "openItemId": "54d7b451-c73a-5e50-b9ee-0c02523fe9b6",
+        "outcome": "close",
+        "note": "Betoneira 2 voltou a funcionar após troca do motor"
+      },
+      {
+        "openItemId": "95612390-525f-5522-9b7a-292eaf4635d9",
+        "outcome": "keep",
+        "note": "P3 e P4 sem armação por falta de armador"
+      }
+    ],
+    "newOpenItems": [],
+    "photos": [
+      {
+        "id": "56d661fc-16b7-56a3-9735-6e13b1b9e554",
+        "kind": "photo",
+        "source": "camera",
+        "capturedAt": "2026-11-26T10:15:00Z",
+        "location": {
+          "lat": -19.9319,
+          "lng": -44.0539,
+          "accuracyMeters": 10
+        },
+        "durationSeconds": null,
+        "url": "fixture://photos/d4-p1.jpg",
+        "caption": "Forma das vigas baldrame",
+        "linkedTo": {
+          "type": "activity",
+          "id": "a603a12c-f210-54e2-b682-31b369e66eef"
+        }
+      },
+      {
+        "id": "7edb3626-1f00-5b76-a885-2173931f61ae",
+        "kind": "photo",
+        "source": "camera",
+        "capturedAt": "2026-11-26T10:40:00Z",
+        "location": {
+          "lat": -19.9319,
+          "lng": -44.0539,
+          "accuracyMeters": 10
+        },
+        "durationSeconds": null,
+        "url": "fixture://photos/d4-p2.jpg",
+        "caption": "Alvenaria de embasamento",
+        "linkedTo": {
+          "type": "activity",
+          "id": "2e4604d0-5acb-5440-9ebe-4dff279f5086"
+        }
+      },
+      {
+        "id": "d4b88438-9a6e-5023-8f13-a4ef11f1b6d8",
+        "kind": "photo",
+        "source": "camera",
+        "capturedAt": "2026-11-26T19:05:00Z",
+        "location": {
+          "lat": -19.9319,
+          "lng": -44.0539,
+          "accuracyMeters": 10
+        },
+        "durationSeconds": null,
+        "url": "fixture://photos/d4-p3.jpg",
+        "caption": "Local do acidente",
+        "linkedTo": {
+          "type": "occurrence",
+          "id": "74966ff5-89b0-5d53-9fc1-4d81844f411c"
+        }
+      }
+    ]
+  }
+}

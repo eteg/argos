@@ -1,0 +1,280 @@
+{
+  "day": 1,
+  "localDate": "2026-11-23",
+  "timezone": "America/Sao_Paulo",
+  "entries": [
+    {
+      "capturedAt": "2026-11-23T10:15:00Z",
+      "script": "Bom dia, aqui é o Rafael, Vila Verde bloco B, segunda dia vinte e três. Começamos às sete. Temos seis pedreiros, quatro serventes, três armadores da Aço Forte, que é terceirizada, e dois carpinteiros. Escavação da fundação do bloco B, eixos um a quatro, em andamento, uns trinta e oito metros cúbicos hoje com a retroescavadeira, que operou sete horas. Começamos também a armação dos pilares P1 a P4, seiscentos quilos de CA-50, com os armadores da Aço Forte. Manhã de sol, tarde nublada, sem chuva, tudo trabalhável.",
+      "photos": [
+        {
+          "id": "ae6ed80f-515f-5919-b3a4-be87bb692263",
+          "caption": "Escavação da fundação, eixos 1 a 4",
+          "linkedTo": {
+            "type": "activity",
+            "id": "f3bf6ddb-740d-50f7-a0d1-9f74ee51cade"
+          }
+        },
+        {
+          "id": "88653823-4315-57b5-89c9-abe6507672d8",
+          "caption": "Armação dos pilares P1 a P4",
+          "linkedTo": {
+            "type": "activity",
+            "id": "09a2e9c4-5575-5c79-af9a-112fde7413ad"
+          }
+        }
+      ]
+    },
+    {
+      "capturedAt": "2026-11-23T14:40:00Z",
+      "script": "Rafael de novo. O aço CA-50 de doze e meio que o fornecedor ia entregar hoje às oito e meia não chegou. Faltam uma tonelada e duzentos de aço, o que trava a armação dos pilares. Cobrei por e-mail ontem e vou cobrar de novo amanhã cedo. Isso fica como pendência pra acompanhar, e a armação dos pilares também fica em aberto até o aço chegar.",
+      "photos": [
+        {
+          "id": "11b3aae6-2fd1-5f51-868e-6df1493b38c7",
+          "caption": "Pátio sem o aço previsto",
+          "linkedTo": {
+            "type": "occurrence",
+            "id": "fea7b580-3950-52e2-b009-ed6792b4975b"
+          }
+        }
+      ]
+    }
+  ],
+  "omittedFields": [
+    {
+      "field": "labor.1.count",
+      "expectedQuestion": "Quantos serventes trabalharam hoje?",
+      "answer": "Quatro."
+    }
+  ],
+  "expectedReport": {
+    "site": {
+      "name": "Residencial Vila Verde · Bloco B",
+      "type": "public",
+      "address": "Rua das Acácias, 410 · Contagem, MG",
+      "client": {
+        "name": "Prefeitura Municipal de Contagem",
+        "taxId": "18.715.532/0001-70"
+      },
+      "contractor": {
+        "name": "Construtora Horizonte",
+        "taxId": "11.222.333/0001-81"
+      },
+      "technicalManager": {
+        "name": "Eng. Rafael Lima",
+        "artNumber": "MG2026001234"
+      },
+      "publicContract": {
+        "number": "045/2026",
+        "commitmentOrAgreement": "2026NE000312",
+        "inspectorName": "Eng. Paula Reis",
+        "serviceOrderDate": "2026-09-01",
+        "durationDays": 180,
+        "amendments": [
+          {
+            "id": "b10972f9-360e-5742-bb15-e21803ef1f90",
+            "description": "Aditivo de prazo por chuvas",
+            "addedDays": 30,
+            "signedOn": "2026-10-15"
+          }
+        ],
+        "elapsedDays": 83,
+        "remainingDays": 127
+      }
+    },
+    "localDate": "2026-11-23",
+    "workday": {
+      "startTime": "07:00",
+      "endTime": "17:00",
+      "breakMinutes": 60
+    },
+    "weather": [
+      {
+        "shift": "morning",
+        "weather": "good",
+        "condition": "workable"
+      },
+      {
+        "shift": "afternoon",
+        "weather": "cloudy",
+        "condition": "workable"
+      }
+    ],
+    "weatherStoppage": {
+      "hours": 0,
+      "serviceIds": []
+    },
+    "rainfallMm": 0,
+    "labor": [
+      {
+        "role": "Pedreiro",
+        "count": 6,
+        "employment": "own",
+        "company": null,
+        "category": "direct"
+      },
+      {
+        "role": "Servente",
+        "count": 4,
+        "employment": "own",
+        "company": null,
+        "category": "direct"
+      },
+      {
+        "role": "Armador",
+        "count": 3,
+        "employment": "third_party",
+        "company": "Aço Forte Armações",
+        "category": "direct"
+      },
+      {
+        "role": "Carpinteiro",
+        "count": 2,
+        "employment": "own",
+        "company": null,
+        "category": "direct"
+      }
+    ],
+    "laborNotes": null,
+    "equipment": [
+      {
+        "equipmentId": "252d0317-4f6d-5d98-8b88-9d201e6bf2c7",
+        "name": "Retroescavadeira",
+        "identifier": "RE-01",
+        "status": "operating",
+        "operatingHours": 7
+      },
+      {
+        "equipmentId": "ec0c194b-14c5-5be7-a60c-193aca9f8e77",
+        "name": "Betoneira 2",
+        "identifier": "BT-02",
+        "status": "operating",
+        "operatingHours": 4
+      }
+    ],
+    "activities": [
+      {
+        "id": "f3bf6ddb-740d-50f7-a0d1-9f74ee51cade",
+        "description": "Escavação da fundação do bloco B",
+        "service": {
+          "id": "ba302e63-da16-52ae-984f-119c55230526",
+          "code": "02.05",
+          "description": "Escavação da fundação",
+          "unit": "m³"
+        },
+        "location": "Bloco B, eixos 1 a 4",
+        "status": "in_progress",
+        "quantity": 38,
+        "unit": "m³",
+        "cumulativeProgressPercent": null,
+        "executor": "Equipe própria"
+      },
+      {
+        "id": "09a2e9c4-5575-5c79-af9a-112fde7413ad",
+        "description": "Armação dos pilares P1 a P4",
+        "service": {
+          "id": "7f37f0da-fab1-5f35-83d5-14f5dae7cc3b",
+          "code": "04.02",
+          "description": "Armação de pilares CA-50",
+          "unit": "kg"
+        },
+        "location": "Bloco B, pilares P1 a P4",
+        "status": "started",
+        "quantity": 600,
+        "unit": "kg",
+        "cumulativeProgressPercent": null,
+        "executor": "Aço Forte Armações"
+      }
+    ],
+    "occurrences": [
+      {
+        "id": "fea7b580-3950-52e2-b009-ed6792b4975b",
+        "type": "material_shortage",
+        "description": "Entrega do aço CA-50 de 12,5 mm prevista para hoje não chegou",
+        "startTime": "08:30",
+        "endTime": null,
+        "status": "open",
+        "affectedServiceIds": [
+          "7f37f0da-fab1-5f35-83d5-14f5dae7cc3b"
+        ],
+        "source": {
+          "origin": "fornecedor",
+          "document": "e-mail de 22/11"
+        },
+        "safety": null,
+        "materials": "Aço CA-50 12,5 mm, 1,2 t em falta"
+      }
+    ],
+    "openItemReviews": [],
+    "newOpenItems": [
+      {
+        "id": "5d4b4e3e-8b3d-5223-8749-4d1255e74a5b",
+        "title": "Entrega do aço CA-50",
+        "kind": "declared_pending",
+        "track": true
+      },
+      {
+        "id": "95612390-525f-5522-9b7a-292eaf4635d9",
+        "title": "Armação dos pilares P1 a P4",
+        "kind": "unfinished_service",
+        "track": true
+      }
+    ],
+    "photos": [
+      {
+        "id": "ae6ed80f-515f-5919-b3a4-be87bb692263",
+        "kind": "photo",
+        "source": "camera",
+        "capturedAt": "2026-11-23T10:20:00Z",
+        "location": {
+          "lat": -19.9319,
+          "lng": -44.0539,
+          "accuracyMeters": 10
+        },
+        "durationSeconds": null,
+        "url": "fixture://photos/d1-p1.jpg",
+        "caption": "Escavação da fundação, eixos 1 a 4",
+        "linkedTo": {
+          "type": "activity",
+          "id": "f3bf6ddb-740d-50f7-a0d1-9f74ee51cade"
+        }
+      },
+      {
+        "id": "88653823-4315-57b5-89c9-abe6507672d8",
+        "kind": "photo",
+        "source": "camera",
+        "capturedAt": "2026-11-23T10:35:00Z",
+        "location": {
+          "lat": -19.9319,
+          "lng": -44.0539,
+          "accuracyMeters": 10
+        },
+        "durationSeconds": null,
+        "url": "fixture://photos/d1-p2.jpg",
+        "caption": "Armação dos pilares P1 a P4",
+        "linkedTo": {
+          "type": "activity",
+          "id": "09a2e9c4-5575-5c79-af9a-112fde7413ad"
+        }
+      },
+      {
+        "id": "11b3aae6-2fd1-5f51-868e-6df1493b38c7",
+        "kind": "photo",
+        "source": "camera",
+        "capturedAt": "2026-11-23T14:45:00Z",
+        "location": {
+          "lat": -19.9319,
+          "lng": -44.0539,
+          "accuracyMeters": 10
+        },
+        "durationSeconds": null,
+        "url": "fixture://photos/d1-p3.jpg",
+        "caption": "Pátio sem o aço previsto",
+        "linkedTo": {
+          "type": "occurrence",
+          "id": "fea7b580-3950-52e2-b009-ed6792b4975b"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,278 @@
+{
+  "day": 2,
+  "localDate": "2026-11-24",
+  "timezone": "America/Sao_Paulo",
+  "entries": [
+    {
+      "capturedAt": "2026-11-24T10:30:00Z",
+      "script": "Terça, vinte e quatro, Vila Verde. O aço chegou às nove da manhã, uma tonelada e duzentos conferidas, então a pendência do aço pode fechar. A armação dos pilares segue, quatrocentos e cinquenta quilos hoje, faltam o P3 e o P4. Concretamos as sapatas S1 e S2, doze metros cúbicos de fck vinte e cinco, serviço concluído, com a betoneira e o vibrador. Efetivo igual a ontem, só que não sei dizer quantos serventes vieram.",
+      "photos": [
+        {
+          "id": "4c827bb1-e8b2-509d-a6b0-4ce8c54b84bd",
+          "caption": "Armação dos pilares P1 e P2",
+          "linkedTo": {
+            "type": "activity",
+            "id": "72a19d92-ad07-5201-b3c4-64f34c579b69"
+          }
+        },
+        {
+          "id": "b3396108-d231-536c-9e6c-cfd2767c1225",
+          "caption": "Concretagem das sapatas",
+          "linkedTo": {
+            "type": "activity",
+            "id": "f9f98774-e493-50d7-b293-1f723c29e7c0"
+          }
+        }
+      ]
+    },
+    {
+      "capturedAt": "2026-11-24T18:10:00Z",
+      "script": "Rafael, final do dia. Às duas da tarde o fiscal do contrato, a engenheira Paula Reis, fez visita na obra até as três, sem apontamentos. À tarde veio garoa leve, parou a concretagem por uma hora e meia, e deu uns três milímetros de chuva.",
+      "photos": [
+        {
+          "id": "6dd0d560-718f-50e2-a0b5-46e8ead47f37",
+          "caption": "Visita do fiscal",
+          "linkedTo": {
+            "type": "occurrence",
+            "id": "4bcb289a-8c6c-5c0c-bc73-fd426e5e3dfc"
+          }
+        }
+      ]
+    }
+  ],
+  "omittedFields": [
+    {
+      "field": "weather.1.weather",
+      "expectedQuestion": "Como foi o clima à tarde?",
+      "answer": "Garoa leve."
+    }
+  ],
+  "expectedReport": {
+    "site": {
+      "name": "Residencial Vila Verde · Bloco B",
+      "type": "public",
+      "address": "Rua das Acácias, 410 · Contagem, MG",
+      "client": {
+        "name": "Prefeitura Municipal de Contagem",
+        "taxId": "18.715.532/0001-70"
+      },
+      "contractor": {
+        "name": "Construtora Horizonte",
+        "taxId": "11.222.333/0001-81"
+      },
+      "technicalManager": {
+        "name": "Eng. Rafael Lima",
+        "artNumber": "MG2026001234"
+      },
+      "publicContract": {
+        "number": "045/2026",
+        "commitmentOrAgreement": "2026NE000312",
+        "inspectorName": "Eng. Paula Reis",
+        "serviceOrderDate": "2026-09-01",
+        "durationDays": 180,
+        "amendments": [
+          {
+            "id": "b10972f9-360e-5742-bb15-e21803ef1f90",
+            "description": "Aditivo de prazo por chuvas",
+            "addedDays": 30,
+            "signedOn": "2026-10-15"
+          }
+        ],
+        "elapsedDays": 84,
+        "remainingDays": 126
+      }
+    },
+    "localDate": "2026-11-24",
+    "workday": {
+      "startTime": "07:00",
+      "endTime": "17:00",
+      "breakMinutes": 60
+    },
+    "weather": [
+      {
+        "shift": "morning",
+        "weather": "good",
+        "condition": "workable"
+      },
+      {
+        "shift": "afternoon",
+        "weather": "light_rain",
+        "condition": "partially_workable"
+      }
+    ],
+    "weatherStoppage": {
+      "hours": 1.5,
+      "serviceIds": [
+        "aa225960-8a25-569c-bb67-ea438d8fae58"
+      ]
+    },
+    "rainfallMm": 3,
+    "labor": [
+      {
+        "role": "Pedreiro",
+        "count": 6,
+        "employment": "own",
+        "company": null,
+        "category": "direct"
+      },
+      {
+        "role": "Servente",
+        "count": 4,
+        "employment": "own",
+        "company": null,
+        "category": "direct"
+      },
+      {
+        "role": "Armador",
+        "count": 3,
+        "employment": "third_party",
+        "company": "Aço Forte Armações",
+        "category": "direct"
+      },
+      {
+        "role": "Carpinteiro",
+        "count": 2,
+        "employment": "own",
+        "company": null,
+        "category": "direct"
+      }
+    ],
+    "laborNotes": null,
+    "equipment": [
+      {
+        "equipmentId": "ec0c194b-14c5-5be7-a60c-193aca9f8e77",
+        "name": "Betoneira 2",
+        "identifier": "BT-02",
+        "status": "operating",
+        "operatingHours": 5
+      },
+      {
+        "equipmentId": "259788d4-a6e3-56fc-8526-9e5584a8b97d",
+        "name": "Vibrador de imersão",
+        "identifier": "VI-03",
+        "status": "operating",
+        "operatingHours": 3
+      }
+    ],
+    "activities": [
+      {
+        "id": "72a19d92-ad07-5201-b3c4-64f34c579b69",
+        "description": "Armação dos pilares P1 a P4",
+        "service": {
+          "id": "7f37f0da-fab1-5f35-83d5-14f5dae7cc3b",
+          "code": "04.02",
+          "description": "Armação de pilares CA-50",
+          "unit": "kg"
+        },
+        "location": "Bloco B, pilares P1 e P2",
+        "status": "in_progress",
+        "quantity": 450,
+        "unit": "kg",
+        "cumulativeProgressPercent": null,
+        "executor": "Aço Forte Armações"
+      },
+      {
+        "id": "f9f98774-e493-50d7-b293-1f723c29e7c0",
+        "description": "Concretagem das sapatas S1 e S2",
+        "service": {
+          "id": "aa225960-8a25-569c-bb67-ea438d8fae58",
+          "code": "03.04",
+          "description": "Concreto fck 25 MPa para sapatas",
+          "unit": "m³"
+        },
+        "location": "Bloco B, sapatas S1 e S2",
+        "status": "completed",
+        "quantity": 12,
+        "unit": "m³",
+        "cumulativeProgressPercent": null,
+        "executor": "Equipe própria"
+      }
+    ],
+    "occurrences": [
+      {
+        "id": "4bcb289a-8c6c-5c0c-bc73-fd426e5e3dfc",
+        "type": "visit",
+        "description": "Visita do fiscal do contrato, sem apontamentos",
+        "startTime": "14:00",
+        "endTime": "15:00",
+        "status": "closed",
+        "affectedServiceIds": [],
+        "source": {
+          "origin": "fiscal do contrato",
+          "document": "registro de visita"
+        },
+        "safety": null,
+        "materials": null
+      }
+    ],
+    "openItemReviews": [
+      {
+        "openItemId": "5d4b4e3e-8b3d-5223-8749-4d1255e74a5b",
+        "outcome": "close",
+        "note": "Aço chegou às 9h, 1,2 t conferidas"
+      },
+      {
+        "openItemId": "95612390-525f-5522-9b7a-292eaf4635d9",
+        "outcome": "keep",
+        "note": "Armação segue, faltam P3 e P4"
+      }
+    ],
+    "newOpenItems": [],
+    "photos": [
+      {
+        "id": "4c827bb1-e8b2-509d-a6b0-4ce8c54b84bd",
+        "kind": "photo",
+        "source": "camera",
+        "capturedAt": "2026-11-24T10:40:00Z",
+        "location": {
+          "lat": -19.9319,
+          "lng": -44.0539,
+          "accuracyMeters": 10
+        },
+        "durationSeconds": null,
+        "url": "fixture://photos/d2-p1.jpg",
+        "caption": "Armação dos pilares P1 e P2",
+        "linkedTo": {
+          "type": "activity",
+          "id": "72a19d92-ad07-5201-b3c4-64f34c579b69"
+        }
+      },
+      {
+        "id": "b3396108-d231-536c-9e6c-cfd2767c1225",
+        "kind": "photo",
+        "source": "camera",
+        "capturedAt": "2026-11-24T11:30:00Z",
+        "location": {
+          "lat": -19.9319,
+          "lng": -44.0539,
+          "accuracyMeters": 10
+        },
+        "durationSeconds": null,
+        "url": "fixture://photos/d2-p2.jpg",
+        "caption": "Concretagem das sapatas",
+        "linkedTo": {
+          "type": "activity",
+          "id": "f9f98774-e493-50d7-b293-1f723c29e7c0"
+        }
+      },
+      {
+        "id": "6dd0d560-718f-50e2-a0b5-46e8ead47f37",
+        "kind": "photo",
+        "source": "camera",
+        "capturedAt": "2026-11-24T18:00:00Z",
+        "location": {
+          "lat": -19.9319,
+          "lng": -44.0539,
+          "accuracyMeters": 10
+        },
+        "durationSeconds": null,
+        "url": "fixture://photos/d2-p3.jpg",
+        "caption": "Visita do fiscal",
+        "linkedTo": {
+          "type": "occurrence",
+          "id": "4bcb289a-8c6c-5c0c-bc73-fd426e5e3dfc"
+        }
+      }
+    ]
+  }
+}

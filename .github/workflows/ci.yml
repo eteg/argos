@@ -22,4 +22,4 @@ jobs:
       - run: pnpm contract:lint
       - run: pnpm contract:types
       - run: git diff --exit-code packages/contract/src/schema.d.ts
-      # A validação dos gabaritos entra aqui na fase 09.
+      - run: pnpm data:validate

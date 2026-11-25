@@ -1,0 +1,36 @@
+{
+  "name": "Residencial Vila Verde · Bloco B",
+  "type": "public",
+  "address": "Rua das Acácias, 410 · Contagem, MG",
+  "location": {
+    "lat": -19.9319,
+    "lng": -44.0539,
+    "accuracyMeters": 12
+  },
+  "client": {
+    "name": "Prefeitura Municipal de Contagem",
+    "taxId": "18.715.532/0001-70"
+  },
+  "contractor": {
+    "name": "Construtora Horizonte",
+    "taxId": "11.222.333/0001-81"
+  },
+  "technicalManager": {
+    "name": "Eng. Rafael Lima",
+    "artNumber": "MG2026001234"
+  },
+  "publicContract": {
+    "number": "045/2026",
+    "commitmentOrAgreement": "2026NE000312",
+    "inspectorName": "Eng. Paula Reis",
+    "serviceOrderDate": "2026-09-01",
+    "durationDays": 180,
+    "amendments": [
+      {
+        "description": "Aditivo de prazo por chuvas",
+        "addedDays": 30,
+        "signedOn": "2026-10-15"
+      }
+    ]
+  }
+}
