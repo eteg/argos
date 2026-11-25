@@ -24,6 +24,8 @@ export async function api<T>(path: string, init?: RequestInit & { location?: { l
     const problem = await res.json().catch(() => ({}));
     throw new ApiError(res.status, problem.code ?? "UNAVAILABLE", problem);
   }
+  // 204 (como ao apagar) não tem corpo.
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 

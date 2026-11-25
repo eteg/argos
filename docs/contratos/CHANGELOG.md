@@ -1,5 +1,9 @@
 # Changelog do contrato
 
+## 0.2.0, rascunho, 25/11/2026
+
+- `deleteSite` e `deleteEntry`: apagar uma obra, com tudo o que é dela, e um registro de dia ainda não aprovado.
+
 ## 0.1.0, rascunho, 25/11/2026
 
 - Primeira versão, escrita a partir do protótipo e do guia do time: convenções, telas, recursos, operações e os fluxos do RDO do dia e do registro sem internet.

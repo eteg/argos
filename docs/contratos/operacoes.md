@@ -18,6 +18,7 @@ As operações que as [telas](telas/README.md) usam. Método e rota são sugest�
 | `getSite` | `GET /v1/sites/{siteId}` | `2.3` | M1 | A obra inteira, mais `today`, os itens em aberto e os 3 últimos RDOs aprovados. |
 | `updateSite` | `PATCH /v1/sites/{siteId}` | `2.2`, `2.2b` | M1 | Vale pros RDOs montados depois. Os já montados guardam a cópia do dia. |
 | `changeSiteStatus` | `PUT /v1/sites/{siteId}/status` | `2.10`, `2.11` | M1 | 409 `SITE_HAS_OPEN_REPORTS` ao concluir com RDO não aprovado (`RG08`). |
+| `deleteSite` | `DELETE /v1/sites/{siteId}` | `2.3` | M1 | 204. Apaga junto os registros, áudios, fotos, RDOs e itens em aberto da obra. Não tem volta: a web pede o nome da obra pra confirmar. |
 | `importServices` | `PUT /v1/sites/{siteId}/services` | `2.2`, `2.2b` | M1 | Upload da planilha. Substitui a lista e responde a quantidade importada. 422 `SPREADSHEET_UNREADABLE` quando não acha código e descrição. |
 | `listServices` | `GET /v1/sites/{siteId}/services?search=` | `3.3`, `3.3b` | M2 | Pra escolher o serviço de uma atividade. |
 | `addEquipment` | `POST /v1/sites/{siteId}/equipment` | `2.2`, `2.2b` | M1 | |
@@ -34,9 +35,12 @@ As operações que as [telas](telas/README.md) usam. Método e rota são sugest�
 | `uploadMedia` | `PUT /v1/media/{mediaId}` | `3.2`, `3.6` | M1 | ✓ | |
 | `createEntry` | `POST /v1/sites/{siteId}/entries` | `3.2`, `3.6` | M1 | ✓ | ✓ a partir do M2 |
 | `getEntry` | `GET /v1/entries/{entryId}` | `3.2` | M2 | | |
+| `deleteEntry` | `DELETE /v1/entries/{entryId}` | `2.3` | M1 | | |
 | `getDay` | `GET /v1/sites/{siteId}/days/{localDate}` | `3.1` | M1 | | |
 | `listPendingDays` | `GET /v1/pending-days` | `2.1`, `2.6` | M4 | | |
 | `answerQuestion` | `POST /v1/questions/{questionId}/answer` | `3.2`, `3.3`, `3.3b`, `3.7` | M2 | | ✓ com resposta falada |
+
+`deleteEntry` responde 204 e apaga junto o áudio e as fotos do registro. Responde 409 `REPORT_ALREADY_APPROVED` quando o RDO do dia já foi aprovado (`RG04`). Com o RDO em rascunho, ele é remontado no próximo `generateReport`.
 
 ## RDO
 

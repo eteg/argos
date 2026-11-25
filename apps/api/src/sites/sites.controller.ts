@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Headers, NotFoundException, Param, ParseUUIDPipe, Patch, Post, Put, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Headers, HttpCode, NotFoundException, Param, ParseUUIDPipe, Patch, Post, Put, Query } from "@nestjs/common";
 import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "../db/db";
 import { entries, openItems, reports, sites } from "../db/schema";
+import { deleteMedia, removeFiles } from "../media/media.controller";
 import { toOpenItem } from "../open-items/open-items";
 import { ProblemException } from "../problem.filter";
 import { locationSchema, parse, todayIn } from "../validation";
@@ -230,6 +231,25 @@ export class SitesController {
       .where(eq(sites.id, siteId))
       .returning();
     return toSite(row!, todayIn(tz));
+  }
+
+  // Apaga a obra com tudo o que é dela: registros, áudios, fotos, RDOs e itens em aberto. Não tem volta.
+  @Delete(":siteId")
+  @HttpCode(204)
+  async deleteSite(@Param("siteId", ParseUUIDPipe) siteId: string) {
+    await findSite(siteId);
+    const files = await db.transaction(async (tx) => {
+      const rows = await tx.delete(entries).where(eq(entries.siteId, siteId)).returning();
+      await tx.delete(openItems).where(eq(openItems.siteId, siteId));
+      await tx.delete(reports).where(eq(reports.siteId, siteId));
+      const paths = await deleteMedia(
+        rows.flatMap((r) => [...(r.audioMediaId ? [r.audioMediaId] : []), ...r.photoMediaIds]),
+        tx,
+      );
+      await tx.delete(sites).where(eq(sites.id, siteId));
+      return paths;
+    });
+    removeFiles(files);
   }
 
   @Put(":siteId/status")

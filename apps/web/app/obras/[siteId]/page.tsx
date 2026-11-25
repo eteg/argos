@@ -47,6 +47,31 @@ export default function SiteFolder() {
     }
   }
 
+  async function deleteEntry(entry: Entry) {
+    if (!window.confirm(`Apagar o registro das ${time(entry.capturedAt)}, com o áudio e as fotos? Não dá pra desfazer.`)) return;
+    setError("");
+    try {
+      await api(`/entries/${entry.id}`, { method: "DELETE" });
+      load();
+    } catch (e) {
+      setError(e instanceof ApiError && e.code === "REPORT_ALREADY_APPROVED" ? "O RDO do dia já foi aprovado: o registro não sai mais." : "Não deu pra apagar o registro agora.");
+    }
+  }
+
+  async function deleteSite() {
+    const typed = window.prompt(
+      `Apagar a obra apaga também todos os registros, áudios, fotos, RDOs e pendências dela. Não dá pra desfazer.\n\nPra confirmar, escreva o nome da obra:\n${site!.name}`,
+    );
+    if (typed === null) return;
+    if (typed.trim() !== site!.name) return setError("O nome não confere. A obra não foi apagada.");
+    try {
+      await api(`/sites/${siteId}`, { method: "DELETE" });
+      router.replace("/");
+    } catch {
+      setError("Não deu pra apagar a obra agora.");
+    }
+  }
+
   async function changeStatus(status: SiteStatus) {
     setError("");
     try {
@@ -157,6 +182,15 @@ export default function SiteFolder() {
             <span className="muted">
               {e.audio ? `Áudio${duration(e.audio.durationSeconds)}` : "Sem áudio"}
               {e.photos.length > 0 && ` · ${e.photos.length} foto(s)`}
+              {report?.status !== "approved" && (
+                <button
+                  onClick={() => deleteEntry(e)}
+                  aria-label={`Apagar o registro das ${time(e.capturedAt)}`}
+                  style={{ marginLeft: 10, border: "none", background: "none", color: "var(--danger)", cursor: "pointer", padding: 0, fontSize: ".9rem" }}
+                >
+                  Apagar
+                </button>
+              )}
             </span>
           </div>
           {e.status === "processing" && <p className="muted">O Argos está entendendo o registro…</p>}
@@ -231,6 +265,10 @@ export default function SiteFolder() {
         ))}
       </select>
       {error && <p className="error">{error}</p>}
+
+      <button className="btn block" style={{ marginTop: 24, color: "var(--danger)" }} onClick={deleteSite}>
+        Apagar obra
+      </button>
 
       {site.status === "in_progress" && report?.status !== "approved" && (
         <BottomNav current="home" registerHref={`/obras/${site.id}/registro`} />

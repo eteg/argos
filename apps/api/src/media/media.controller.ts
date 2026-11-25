@@ -13,7 +13,7 @@ import {
 import { FileInterceptor } from "@nestjs/platform-express";
 import { eq, inArray } from "drizzle-orm";
 import type { Response } from "express";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { z } from "zod";
 import { db } from "../db/db";
@@ -54,6 +54,18 @@ export function toMedia(row: MediaRow) {
     // Link sem a chave da API, pra <img> e <audio> abrirem. O UUID não é adivinhável.
     url: `/v1/media/${row.id}/file`,
   };
+}
+
+// Apaga as linhas e devolve os caminhos dos arquivos, que só saem do disco depois do commit (removeFiles).
+// Chamar depois de apagar os registros que citam a mídia.
+export async function deleteMedia(ids: string[], tx: Pick<typeof db, "delete"> = db) {
+  if (ids.length === 0) return [];
+  const rows = await tx.delete(media).where(inArray(media.id, ids)).returning({ path: media.path });
+  return rows.map((r) => r.path);
+}
+
+export function removeFiles(paths: string[]) {
+  for (const path of paths) rmSync(path, { force: true });
 }
 
 export async function findMedia(ids: string[]) {

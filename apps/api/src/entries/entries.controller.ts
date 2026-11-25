@@ -1,10 +1,10 @@
-import { Body, Controller, Get, HttpCode, Inject, NotFoundException, Param, ParseUUIDPipe, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Inject, NotFoundException, Param, ParseUUIDPipe, Post } from "@nestjs/common";
 import { and, desc, eq } from "drizzle-orm";
 import { LIMITS } from "@argos/rdo-schema";
 import { z } from "zod";
 import { db } from "../db/db";
 import { entries, reports } from "../db/schema";
-import { findMedia, toMedia } from "../media/media.controller";
+import { deleteMedia, findMedia, removeFiles, toMedia } from "../media/media.controller";
 import { ProblemException } from "../problem.filter";
 import { openItemsOfDay } from "../open-items/open-items";
 import { RdoService } from "../rdo/rdo.service";
@@ -105,6 +105,24 @@ export class EntriesController {
       .returning();
     void this.rdo.interpretEntry(row!.id);
     return (await toEntries([row!]))[0];
+  }
+
+  // O RDO aprovado não muda (RG04): registro de dia aprovado não sai. Com rascunho, o RDO é remontado depois.
+  @Delete("entries/:entryId")
+  @HttpCode(204)
+  async deleteEntry(@Param("entryId", ParseUUIDPipe) entryId: string) {
+    const [row] = await db.select().from(entries).where(eq(entries.id, entryId));
+    if (!row) throw new NotFoundException("Entry not found");
+    const [dayReport] = await db
+      .select({ status: reports.status })
+      .from(reports)
+      .where(and(eq(reports.siteId, row.siteId), eq(reports.localDate, row.localDate)));
+    if (dayReport?.status === "approved") throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The day's report is approved");
+    const files = await db.transaction(async (tx) => {
+      await tx.delete(entries).where(eq(entries.id, entryId));
+      return deleteMedia([...(row.audioMediaId ? [row.audioMediaId] : []), ...row.photoMediaIds], tx);
+    });
+    removeFiles(files);
   }
 
   @Get("entries/:entryId")
