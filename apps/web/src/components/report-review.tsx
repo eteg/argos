@@ -42,6 +42,10 @@ export function ReportReview() {
     }, 3000);
     return () => clearInterval(t);
   }, [generating, id]);
+  const isApproved = current?.status === "approved";
+  useEffect(() => {
+    if (isApproved) router.replace(`/rdo/aprovado?id=${id}`);
+  }, [isApproved, id, router]);
   if (!current) return <Page><Status state={state.status === "ok" ? { status: "loading" } : state} retry={retry} /></Page>;
   const r = current;
   const approved = r.status === "approved";
@@ -60,7 +64,8 @@ export function ReportReview() {
     setBusy(true);
     setError(null);
     try {
-      setReport(await unwrap(api.POST("/v1/reports/{reportId}/approve", { params: { path: { reportId: id }, header: { ...tz.header, "Idempotency-Key": crypto.randomUUID() } } })));
+      await unwrap(api.POST("/v1/reports/{reportId}/approve", { params: { path: { reportId: id }, header: { ...tz.header, "Idempotency-Key": crypto.randomUUID() } } }));
+      return router.push(`/rdo/aprovado?id=${id}`);
     } catch (e) {
       const err = e instanceof ApiError ? e : new ApiError("UNAVAILABLE");
       if (err.code === "REPORT_INCOMPLETE" && err.errors.some((x) => x.field.endsWith(".safety"))) return router.push(`/rdo/seguranca?id=${id}`);

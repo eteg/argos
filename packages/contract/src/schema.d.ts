@@ -544,6 +544,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/reports/{reportId}/pdf": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+            };
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Baixa o PDF do RDO aprovado
+         * @description Só do RDO aprovado. O nome sugerido vem em `Content-Disposition`, como `RDO-088_VilaVerde_25-11.pdf`. Leva `X-Api-Key` como as outras rotas, então a web baixa por `fetch` e não por link direto.
+         */
+        get: operations["getReportPdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sites/{siteId}/reports": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+            };
+            path: {
+                /** @example 5b1f0a52-6d0e-4a55-9a0b-1d4c2f6e8a01 */
+                siteId: components["parameters"]["SiteId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Lista os RDOs aprovados da obra
+         * @description Do mais novo pro mais antigo, com cursor.
+         */
+        get: operations["listReports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/reports/{reportId}/approve": {
         parameters: {
             query?: never;
@@ -985,6 +1042,17 @@ export interface components {
                 } | null;
             }[];
         };
+        ReportListItem: {
+            /** Format: uuid */
+            id: string;
+            number: number;
+            /** Format: date */
+            localDate: string;
+            status: components["schemas"]["ReportStatus"];
+            /** Format: date-time */
+            approvedAt: string;
+            occurrencesCount: number;
+        };
         Workday: {
             startTime: string | null;
             endTime: string | null;
@@ -1128,6 +1196,7 @@ export interface components {
                 actor: "agent" | "engineer";
                 description: string;
             }[];
+            /** @description Só no aprovado: a rota `getReportPdf`, que pede `X-Api-Key`. */
             pdfUrl: string | null;
         };
     };
@@ -2259,6 +2328,90 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getReportPdf: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+            };
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O PDF. */
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description `REPORT_NOT_APPROVED`: o RDO ainda não foi aprovado. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listReports: {
+        parameters: {
+            query?: {
+                /** @description Só `approved` por enquanto. */
+                status?: "approved";
+                /** @description Padrão 20, máximo 50. */
+                limit?: number;
+                /** @description O `nextCursor` da página anterior. */
+                cursor?: string;
+            };
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+            };
+            path: {
+                /** @example 5b1f0a52-6d0e-4a55-9a0b-1d4c2f6e8a01 */
+                siteId: components["parameters"]["SiteId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Uma página de RDOs. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["ReportListItem"][];
+                        nextCursor: string | null;
+                    };
+                };
+            };
+            400: components["responses"]["Validation"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
             503: components["responses"]["Unavailable"];
         };
     };

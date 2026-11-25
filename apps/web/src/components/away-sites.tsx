@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { api, timezoneParams } from "@/lib/api";
 import { shortDate, statusLabel } from "@/lib/format";
 import { unwrap, useLoad } from "@/lib/hooks";
@@ -30,7 +31,12 @@ export function AwaySites() {
                 <div key={s.id} className="flex flex-col gap-2.5 rounded-2xl bg-white p-3.5">
                   <Pill tone={tones[g as keyof typeof tones]}>{statusLabel[g]}{s.statusChangedOn && ` desde ${shortDate(s.statusChangedOn)}`}</Pill>
                   <span className="text-[15px] font-semibold">{s.name}</span>
-                  <button type="button" onClick={() => void reopen(s.id)} className="flex min-h-11 items-center justify-center rounded-xl bg-[#1563FF] text-[15px] font-semibold text-white">{g === "not_started" ? "Começar obra" : "Voltar a andamento"}</button>
+                  <div className="flex gap-2">
+                    {g !== "not_started" && (
+                      <Link href={`/obra/rdos?id=${s.id}`} className="flex min-h-11 flex-1 items-center justify-center rounded-xl border-[1.5px] border-[#2D2D2B] text-[15px] font-semibold">Ver RDOs</Link>
+                    )}
+                    <button type="button" onClick={() => void reopen(s.id)} className="flex min-h-11 flex-[1.4] items-center justify-center rounded-xl bg-[#1563FF] text-[15px] font-semibold text-white">{g === "not_started" ? "Começar obra" : "Voltar a andamento"}</button>
+                  </div>
                 </div>
               ))}
             </section>
