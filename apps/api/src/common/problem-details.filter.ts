@@ -9,6 +9,7 @@ const titles: Record<string, string> = {
   FILE_TOO_LARGE: "File too large",
   UNSUPPORTED_FILE: "Unsupported file",
   RATE_LIMITED: "Too many requests",
+  REQUEST_REJECTED: "Request rejected",
   UNAVAILABLE: "Service unavailable",
 };
 
@@ -34,7 +35,7 @@ export class ProblemDetailsFilter implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
-      const code = codeByStatus[status] ?? "UNAVAILABLE";
+      const code = codeByStatus[status] ?? (status >= 500 ? "UNAVAILABLE" : "REQUEST_REJECTED");
       return this.send(response, status, code, exception.message);
     }
 
