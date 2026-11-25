@@ -88,6 +88,10 @@ const gp = await call("GET", `/v1/reports/${ap}/pdf`);
 check("PDF do aprovado continua saindo depois da troca de tipo", gp.status === 200, { status: gp.status, body: gp.json });
 const gd = await call("GET", `/v1/reports/${draft.id}`);
 check("rascunho continua abrindo depois da troca de tipo", gd.status === 200, { status: gd.status, body: gd.json });
+const missingOf = (r: any) => r.missingFields.map((m: any) => m.field);
+check("rascunho segue a cópia pública até gerar de novo", gd.json?.site?.type === "public" && missingOf(gd.json).includes("weatherStoppage"), [gd.json?.site?.type, missingOf(gd.json)]);
+const regen = await generate(pub.id, today);
+check("gerar de novo refaz a cópia como obra privada", regen.status === 202 && regen.json.site.type === "private" && regen.json.site.publicContract === null && !missingOf(regen.json).includes("weatherStoppage"), [regen.status, regen.json?.site?.type, missingOf(regen.json ?? { missingFields: [] })]);
 done();
 
 async function approvedDayPublic(siteId: string, localDate: string) {

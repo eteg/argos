@@ -26,7 +26,8 @@ export interface ValidationResult {
 }
 
 export interface ValidateOptions {
-  siteType: SiteType;
+  /** Sem ele, vale o tipo da cópia da obra guardada no RDO (`site.type`), nunca o cadastro atual. */
+  siteType?: SiteType;
   minPhotosPerReport: number;
   maxPhotosPerReport: number;
   schema?: "content" | "report";
@@ -199,15 +200,16 @@ export function validateReport(input: unknown, options: ValidateOptions): Valida
     return { structuralErrors: parsed.error.issues.flatMap(mapIssue), missingFields: [] };
   }
 
-  const structuralErrors = collectNotAllowed(jsonSchema, parsed.data, options.siteType);
+  const siteType = options.siteType ?? parsed.data.site.type ?? "private";
+  const structuralErrors = collectNotAllowed(jsonSchema, parsed.data, siteType);
   if (parsed.data.photos.length > options.maxPhotosPerReport) {
     structuralErrors.push({ path: "photos", code: "TOO_MANY_PHOTOS" });
   }
   if (structuralErrors.length > 0) return { structuralErrors, missingFields: [] };
 
   const missingFields = [
-    ...collectRequired(jsonSchema, parsed.data, options.siteType),
-    ...collectConditionals(parsed.data, options.siteType, options),
+    ...collectRequired(jsonSchema, parsed.data, siteType),
+    ...collectConditionals(parsed.data, siteType, options),
   ];
   return { structuralErrors, missingFields };
 }

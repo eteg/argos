@@ -3,7 +3,6 @@ import { Inject, Injectable, Logger } from "@nestjs/common";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { assembleReport, correctReport, interpretEntry, type AgentModel, type AgentQuestion, type ReportFields } from "@argos/agent";
 import { validateReport } from "@argos/rdo-schema";
-import type { Schemas } from "@argos/contract";
 import { AiClientService } from "../ai/ai-client.service.js";
 import { TranscriptionService } from "../ai/transcription.service.js";
 import { DB, type Database } from "../database/database.module.js";
@@ -183,8 +182,8 @@ export class ProcessingService {
     return next;
   }
 
-  private check(content: Content, type: string) {
-    return validateReport(content, { siteType: type as Schemas["SiteType"], minPhotosPerReport: MIN_PHOTOS, maxPhotosPerReport: MAX_PHOTOS });
+  private check(content: Content) {
+    return validateReport(content, { minPhotosPerReport: MIN_PHOTOS, maxPhotosPerReport: MAX_PHOTOS });
   }
 
   private autoQuestion(path: string, content: Content): AgentQuestion | null {
@@ -244,7 +243,7 @@ export class ProcessingService {
           this.db.select().from(equipment).where(eq(equipment.siteId, site.id)),
         ]);
         const result = await assembleReport(this.model, {
-          siteType: site.type as "private" | "public" | "financed",
+          siteType: (base.site as { type: "private" | "public" | "financed" }).type,
           localDate: row.localDate,
           timezone: dayEntries[0]?.timezone ?? "America/Sao_Paulo",
           entries: spoken.map((e) => ({ capturedAt: e.capturedAt.toISOString(), transcript: e.transcript ?? "" })),
@@ -253,7 +252,7 @@ export class ProcessingService {
           openItems: openRows.map((o) => ({ id: o.id, title: o.title, kind: o.kind, openedOn: o.openedOn, lastUpdate: o.lastUpdate ? `${o.lastUpdate.localDate}: ${o.lastUpdate.note}` : null, cited: citedIds.has(o.id) })),
         });
         let merged = this.fill(base, result.fields, new Set(serviceRows.map((s) => s.id)), new Set(equipmentRows.map((e) => e.id)), openIds, openTitles);
-        const structural = this.check(merged, site.type).structuralErrors;
+        const structural = this.check(merged).structuralErrors;
         if (structural.length > 0) {
           const bad = new Set(structural.map((e) => e.path.split(".")[0]));
           this.logger.warn(`Dropping invalid AI fields: ${[...bad].join(", ")}`);
@@ -279,7 +278,7 @@ export class ProcessingService {
       const openQuestions = openRows
         .filter((o) => !reviewedIds.has(o.id) && !citedIds.has(o.id))
         .map((o) => ({ kind: "open_item" as const, text: `Ficou em aberto: ${o.title}. Como está?`, field: null, options: this.closeOrKeep, openItemId: o.id }));
-      const missing = this.check(content, site.type).missingFields;
+      const missing = this.check(content).missingFields;
       const pathsAsked = new Set(agentQuestions.map((q) => q.field));
       for (const m of missing) {
         if (pathsAsked.has(m.path)) continue;
@@ -316,7 +315,6 @@ export class ProcessingService {
     try {
       const [row] = await this.db.select().from(reports).where(eq(reports.id, reportId));
       if (!row) return;
-      const [site] = await this.db.select().from(sites).where(eq(sites.id, row.siteId));
       const serviceRows = await this.db.select().from(services).where(eq(services.siteId, row.siteId)).orderBy(asc(services.code));
       const instruction = await this.transcribeMedia(audioMediaId);
       if (instruction === "") {
@@ -337,7 +335,7 @@ export class ProcessingService {
         candidate.activities = acts.map((a) => ({ ...a, id: idOf(a), service: a.service && ids.has(a.service.id) ? a.service : null }));
         candidate.occurrences = (candidate.occurrences as unknown as { id?: string }[]).map((o) => ({ ...o, id: idOf(o) })) as unknown as Content["occurrences"];
         candidate.newOpenItems = (candidate.newOpenItems as unknown as { id?: string }[]).map((n) => ({ ...n, id: idOf(n) }));
-        if (site && this.check(candidate, site.type).structuralErrors.length === 0) {
+        if (this.check(candidate).structuralErrors.length === 0) {
           content = candidate;
           description = `Corrigiu por voz${section ? ` (${section})` : ""}: ${result.summary || instruction.slice(0, 120)}`;
         } else {

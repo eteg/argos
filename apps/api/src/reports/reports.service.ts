@@ -56,6 +56,8 @@ const NULLABLE_FIELDS = ["rainfallMm", "laborNotes", "weatherStoppage"];
 const MIN_PHOTOS = 3;
 const MAX_PHOTOS = 20;
 
+const checkReport = (content: unknown) => validateReport(content, { minPhotosPerReport: MIN_PHOTOS, maxPhotosPerReport: MAX_PHOTOS });
+
 @Injectable()
 export class ReportsService {
   private readonly logger = new Logger(ReportsService.name);
@@ -171,8 +173,7 @@ export class ReportsService {
           return edit ? { ...p, ...(edit.caption !== undefined && { caption: edit.caption }), ...(edit.linkedTo !== undefined && { linkedTo: edit.linkedTo }) } : p;
         });
       }
-      const [site] = await tx.select({ type: sites.type }).from(sites).where(eq(sites.id, row.siteId));
-      const check = validateReport(content, { siteType: (site?.type ?? "private") as Schemas["SiteType"], minPhotosPerReport: MIN_PHOTOS, maxPhotosPerReport: MAX_PHOTOS });
+      const check = checkReport(content);
       if (check.structuralErrors.length > 0) {
         throw new ProblemException(400, "VALIDATION", "Invalid data.", check.structuralErrors.map((e) => ({ field: e.path, code: e.code })));
       }
@@ -253,10 +254,9 @@ export class ReportsService {
     return row;
   }
 
-  private async validate(row: ReportRow) {
+  private validate(row: ReportRow) {
     const content = this.contentOf(row);
-    const [site] = await this.db.select({ type: sites.type }).from(sites).where(eq(sites.id, row.siteId));
-    const validation = validateReport(content, { siteType: (site?.type ?? "private") as Schemas["SiteType"], minPhotosPerReport: MIN_PHOTOS, maxPhotosPerReport: MAX_PHOTOS });
+    const validation = checkReport(content);
     if (validation.structuralErrors.length > 0) {
       this.logger.error(`Report ${row.id} is structurally invalid: ${JSON.stringify(validation.structuralErrors)}`);
       throw new ProblemException(500, "UNAVAILABLE", "The report could not be built.");
@@ -303,8 +303,7 @@ export class ReportsService {
         else if (typed === "true" || typed === "false") value = typed === "true";
       }
       if (!setPath(content, q.field, value)) throw new ProblemException(400, "VALIDATION", "The answer does not fit the field.", [{ field: "optionId", code: "INVALID" }]);
-      const [site] = await tx.select({ type: sites.type }).from(sites).where(eq(sites.id, target.siteId));
-      const check = validateReport(content, { siteType: (site?.type ?? "private") as Schemas["SiteType"], minPhotosPerReport: MIN_PHOTOS, maxPhotosPerReport: MAX_PHOTOS });
+      const check = checkReport(content);
       if (check.structuralErrors.length > 0) {
         throw new ProblemException(400, "VALIDATION", "The answer does not fit the field.", [{ field: input.optionId ? "optionId" : "text", code: "INVALID" }]);
       }
@@ -361,7 +360,7 @@ export class ReportsService {
       if (previous.length > 0) {
         throw new ProblemException(409, "PREVIOUS_DAY_PENDING", "A previous day has no approved report.", previous.map((d) => ({ field: d, code: "REPORT_NOT_APPROVED" })));
       }
-      const { content, validation } = await this.validate(row);
+      const { content, validation } = this.validate(row);
       if (validation.missingFields.length > 0) {
         throw new ProblemException(409, "REPORT_INCOMPLETE", `${validation.missingFields.length} required field(s) are missing.`, validation.missingFields.map((m) => ({ field: m.path, code: m.code })));
       }
@@ -386,7 +385,7 @@ export class ReportsService {
   }
 
   async view(row: ReportRow): Promise<Schemas["Report"]> {
-    const { content, validation } = await this.validate(row);
+    const { content, validation } = this.validate(row);
     const [{ count }] = (await this.db.execute<{ count: number }>(sql`select count(*)::int as count from entries where site_id = ${row.siteId} and local_date = ${row.localDate}`)).rows as [{ count: number }];
     let number = row.number;
     if (number === null) {
