@@ -2,6 +2,7 @@
 
 ## 0.3.0, rascunho
 
+- Novo 409 `AI_DISABLED` em `correctReportByVoice`, `answerQuestion` com `audioMediaId` e `runAiDiagnostic` quando a IA está desligada no ambiente (`AI_ENABLED=false`). Com a IA desligada a API não chama nenhum serviço de IA, nem a transcrição. `answerQuestion` passa a conferir o `audioMediaId` como `correctReportByVoice`: precisa existir e ser `audio`, senão 400 `VALIDATION` no campo `audioMediaId`.
 - M4: `listPendingDays` (`GET /v1/pending-days`) e os schemas `PendingDaysGroup` e `PendingDayDetail`. Só entram obras em andamento e dias anteriores a hoje com registro e sem RDO aprovado; só o mais antigo da obra é `isNext` (D04). O registro capturado sem internet chega com `offline` `true` e o `capturedAt`, `localDate` e `timezone` originais, e o RDO sai com a data da captura.
 - M3: `listOpenItems` (`GET /v1/open-items?status=&closedSince=&siteId=`). `getSite`, `getDay` e `SiteSummary.openItemsCount` passam a vir da tabela real de itens em aberto; `Entry.openItemIds` traz os itens que o registro citou e `OpenItem.mentionedToday` o registro do dia que citou cada um. `approveReport` aplica na mesma transação o desfecho de cada `openItemReviews` (`close`, `keep` ou `update`) e abre os `newOpenItems` com `track` `true` (`F1RN09`, `F1RN11`). O agente cobra os itens não citados com perguntas `open_item` de opções `close` e `keep` (`F1RN08`), e `answerQuestion` numa pergunta `open_item` grava o desfecho no rascunho.
 

@@ -70,6 +70,7 @@ export const errorText: Record<string, string> = {
   PHOTO_LIMIT_REPORT: "O dia passaria de 20 fotos.",
   REPORT_ALREADY_APPROVED: "O RDO de hoje já foi aprovado.",
   SITE_HAS_OPEN_REPORTS: "Falta finalizar RDO para concluir a obra.",
+  AI_DISABLED: "A IA está desligada agora. Corrija os campos à mão ou responda digitando.",
 };
 
 export const errorMessage = (code: string) => errorText[code] ?? "Não deu pra concluir agora. Tente de novo.";

@@ -95,6 +95,11 @@ paths:
               examples:
                 ok: { $ref: "#/components/examples/AiDiagnostic" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "409":
+          description: "`AI_DISABLED`: a IA está desligada neste ambiente (`AI_ENABLED=false`)."
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
         "429": { $ref: "#/components/responses/RateLimited" }
         "503": { $ref: "#/components/responses/Unavailable" }
   /v1/sites:
@@ -664,7 +669,7 @@ paths:
       operationId: answerQuestion
       tags: [Reports]
       summary: Responde uma pergunta do agente
-      description: Com `optionId` ou `text` responde 200. Com `audioMediaId` responde 202 e a IA interpreta a resposta.
+      description: Com `optionId` ou `text` responde 200. Com `audioMediaId` responde 202 e a IA interpreta a resposta. O `audioMediaId` precisa ser um áudio enviado por `uploadMedia` (senão 400 `VALIDATION` no campo `audioMediaId`).
       requestBody:
         required: true
         content:
@@ -686,6 +691,11 @@ paths:
         "400": { $ref: "#/components/responses/Validation" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`AI_DISABLED`: resposta falada com a IA desligada neste ambiente. Responda com `optionId` ou `text`."
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
         "503": { $ref: "#/components/responses/Unavailable" }
   /v1/sites/{siteId}/days/{localDate}/report:
     parameters:
@@ -781,7 +791,7 @@ paths:
       tags: [Reports]
       summary: Corrige o rascunho falando
       description: >-
-        O áudio sobe antes por `uploadMedia`. A API transcreve, aplica a correção e volta o RDO
+        O áudio sobe antes por `uploadMedia` e precisa ser `audio` (senão 400 `VALIDATION` no campo `audioMediaId`). A API transcreve, aplica a correção e volta o RDO
         a `draft`; o histórico registra a correção. Se não der pra aplicar, o RDO volta a `draft`
         sem mudança e o histórico diz o motivo.
       requestBody:
@@ -807,7 +817,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
-          description: "`REPORT_ALREADY_APPROVED` ou `REPORT_NOT_READY`."
+          description: "`REPORT_ALREADY_APPROVED`, `REPORT_NOT_READY` ou `AI_DISABLED` (a IA está desligada neste ambiente)."
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }

@@ -468,7 +468,7 @@ export interface paths {
         put?: never;
         /**
          * Responde uma pergunta do agente
-         * @description Com `optionId` ou `text` responde 200. Com `audioMediaId` responde 202 e a IA interpreta a resposta.
+         * @description Com `optionId` ou `text` responde 200. Com `audioMediaId` responde 202 e a IA interpreta a resposta. O `audioMediaId` precisa ser um áudio enviado por `uploadMedia` (senão 400 `VALIDATION` no campo `audioMediaId`).
          */
         post: operations["answerQuestion"];
         delete?: never;
@@ -555,7 +555,7 @@ export interface paths {
         put?: never;
         /**
          * Corrige o rascunho falando
-         * @description O áudio sobe antes por `uploadMedia`. A API transcreve, aplica a correção e volta o RDO a `draft`; o histórico registra a correção. Se não der pra aplicar, o RDO volta a `draft` sem mudança e o histórico diz o motivo.
+         * @description O áudio sobe antes por `uploadMedia` e precisa ser `audio` (senão 400 `VALIDATION` no campo `audioMediaId`). A API transcreve, aplica a correção e volta o RDO a `draft`; o histórico registra a correção. Se não der pra aplicar, o RDO volta a `draft` sem mudança e o histórico diz o motivo.
          */
         post: operations["correctReportByVoice"];
         delete?: never;
@@ -1411,6 +1411,15 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            /** @description `AI_DISABLED`: a IA está desligada neste ambiente (`AI_ENABLED=false`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             429: components["responses"]["RateLimited"];
             503: components["responses"]["Unavailable"];
         };
@@ -2213,6 +2222,15 @@ export interface operations {
             400: components["responses"]["Validation"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description `AI_DISABLED`: resposta falada com a IA desligada neste ambiente. Responda com `optionId` ou `text`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             503: components["responses"]["Unavailable"];
         };
     };
@@ -2376,7 +2394,7 @@ export interface operations {
             400: components["responses"]["Validation"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description `REPORT_ALREADY_APPROVED` ou `REPORT_NOT_READY`. */
+            /** @description `REPORT_ALREADY_APPROVED`, `REPORT_NOT_READY` ou `AI_DISABLED` (a IA está desligada neste ambiente). */
             409: {
                 headers: {
                     [name: string]: unknown;

@@ -91,6 +91,7 @@ A web decide o texto da tela a partir do `code`. `title` e `detail` servem pra l
 | 401 | `UNAUTHORIZED` | Sem chave ou com chave errada. | Mostra que o app está mal configurado. |
 | 404 | `NOT_FOUND` | O recurso não existe. | Tira o item da tela e avisa. |
 | 409 | Específico da operação | O estado atual impede a operação, como concluir obra com RDO em aberto. | Conforme a tela. |
+| 409 | `AI_DISABLED` | A operação precisa da IA (correção falando, resposta falada, diagnóstico) e a IA está desligada no ambiente (`AI_ENABLED=false`). Nada é gravado. | Avisa que a IA está desligada e oferece o caminho à mão. |
 | 413 | `FILE_TOO_LARGE` | Arquivo acima do limite do upload. | Avisa o limite. |
 | 415 | `UNSUPPORTED_FILE` | Tipo de arquivo não aceito. | Avisa os tipos aceitos. |
 | 422 | Específico da operação | O arquivo chegou, mas o conteúdo não serve, como uma planilha sem código e descrição. | Conforme a tela. |

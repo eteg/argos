@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { startObservation } from "@langfuse/tracing";
 import { Inject, Injectable, Logger, OnApplicationShutdown } from "@nestjs/common";
 import { ProblemException } from "../common/problem.js";
-import { env } from "../config/env.js";
+import { aiEnabled, env } from "../config/env.js";
 import { LANGFUSE } from "./langfuse.provider.js";
 import type { LangfuseSpanProcessor } from "@langfuse/otel";
 
@@ -37,6 +37,7 @@ export class AiClientService implements OnApplicationShutdown {
   constructor(@Inject(LANGFUSE) private readonly langfuse: LangfuseSpanProcessor) {}
 
   async run(input: AiRunInput): Promise<AiRunResult> {
+    if (!aiEnabled()) throw new ProblemException(409, "AI_DISABLED", "The AI is turned off in this environment.");
     const model = env.ANTHROPIC_MODEL;
     const generation = startObservation(
       input.name,

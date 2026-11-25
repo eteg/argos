@@ -213,11 +213,20 @@ export class ReportsService {
     const row = await this.find(reportId);
     if (row.status === "approved") throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report is already approved.");
     this.requireReady(row);
-    const audio = (await this.processing.mediaIds([input.audioMediaId]))[0];
-    if (audio?.kind !== "audio") throw new ProblemException(400, "VALIDATION", "Audio not found.", [{ field: "audioMediaId", code: "INVALID" }]);
+    await this.requireAudio(input.audioMediaId);
+    this.requireAi();
     const [updated] = await this.db.update(reports).set({ status: "generating", updatedAt: new Date() }).where(eq(reports.id, row.id)).returning();
     void this.processing.voiceCorrection(row.id, input.audioMediaId, input.section ?? null);
     return updated!;
+  }
+
+  private async requireAudio(mediaId: string) {
+    const audio = (await this.processing.mediaIds([mediaId]))[0];
+    if (audio?.kind !== "audio") throw new ProblemException(400, "VALIDATION", "Audio not found.", [{ field: "audioMediaId", code: "INVALID" }]);
+  }
+
+  private requireAi() {
+    if (!aiEnabled()) throw new ProblemException(409, "AI_DISABLED", "The AI is turned off in this environment.");
   }
 
   async find(reportId: string) {
@@ -254,6 +263,10 @@ export class ReportsService {
     );
     if (input.optionId && !row.options.some((o) => o.id === input.optionId)) {
       throw new ProblemException(400, "VALIDATION", "Unknown option.", [{ field: "optionId", code: "INVALID" }]);
+    }
+    if (input.audioMediaId) {
+      await this.requireAudio(input.audioMediaId);
+      this.requireAi();
     }
     const answer = { optionId: input.optionId ?? null, text: input.text ?? null, audioMediaId: input.audioMediaId ?? null, answeredAt: new Date().toISOString() };
     let applied: { reportId: string; content: Record<string, unknown>; description: string } | null = null;
