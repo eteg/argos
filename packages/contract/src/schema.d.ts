@@ -168,7 +168,8 @@ export interface paths {
             };
             cookie?: never;
         };
-        get?: never;
+        /** Lista os serviços da planilha da obra */
+        get: operations["listServices"];
         /**
          * Importa a planilha de serviços da obra
          * @description Substitui a lista de serviços. Aceita `.xlsx` e `.csv` até 10 MB.
@@ -677,6 +678,13 @@ export interface components {
         };
         UpdateSiteDocumentRequest: {
             type: components["schemas"]["DocumentType"];
+        };
+        Service: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            description: string;
+            unit: string | null;
         };
         ImportServicesResult: {
             servicesCount: number;
@@ -1442,6 +1450,43 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listServices: {
+        parameters: {
+            query?: {
+                /** @description Parte do código ou da descrição. */
+                search?: string;
+            };
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+            };
+            path: {
+                /** @example 5b1f0a52-6d0e-4a55-9a0b-1d4c2f6e8a01 */
+                siteId: components["parameters"]["SiteId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Até 200 serviços, por código. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Service"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
             503: components["responses"]["Unavailable"];
         };
     };

@@ -240,6 +240,30 @@ paths:
     parameters:
       - $ref: "#/components/parameters/SiteId"
       - $ref: "#/components/parameters/XTimezone"
+    get:
+      operationId: listServices
+      tags: [Sites]
+      summary: Lista os serviços da planilha da obra
+      parameters:
+        - name: search
+          in: query
+          description: Parte do código ou da descrição.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Até 200 serviços, por código.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Service" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
     put:
       operationId: importServices
       tags: [Sites]
@@ -958,6 +982,14 @@ components:
       required: [type]
       properties:
         type: { $ref: "#/components/schemas/DocumentType" }
+    Service:
+      type: object
+      required: [id, code, description, unit]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        description: { type: string }
+        unit: { type: [string, "null"] }
     ImportServicesResult:
       type: object
       required: [servicesCount, servicesFileName]
