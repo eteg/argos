@@ -6,6 +6,7 @@ A documentação do Argos fica aqui, junto do código. As regras de negócio fic
 |---|---|
 | [`roadmap/`](roadmap/ROADMAP.md) | Marcos, ordem, dependências, decisões e a situação de cada entrega. |
 | [`contratos/`](contratos/README.md) | O que a web espera da API: convenções, telas, recursos, operações e fluxos. |
+| [`decisoes/`](decisoes/README.md) | ADRs: as decisões de arquitetura, com contexto e consequências. |
 
 ## Como escrever
 
