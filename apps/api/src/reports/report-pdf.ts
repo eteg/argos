@@ -28,7 +28,7 @@ export interface PdfImage {
   bytes: Uint8Array;
 }
 
-const winAnsi = (text: string) => text.replaceAll(/[^ -~ -ÿ–—‘’“”•…]/g, "?");
+const winAnsi = (text: string) => text.replaceAll(/[^ -~\u00a0-\u00ff\u2013\u2014\u2018\u2019\u201c\u201d\u2022\u2026]/g, "?");
 const dateBr = (iso: string) => iso.split("-").reverse().join("/");
 const clockBr = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 const dateTimeBr = (iso: string) => `${new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })} às ${clockBr(iso)}`;
