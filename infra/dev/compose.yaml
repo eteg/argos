@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: argos
+      POSTGRES_PASSWORD: argos
+      POSTGRES_DB: argos
+    ports:
+      - "5432:5432"
+    volumes:
+      - argos-pg:/var/lib/postgresql/data
+
+volumes:
+  argos-pg:
