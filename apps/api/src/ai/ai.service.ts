@@ -19,7 +19,7 @@ export class AiService {
   private client?: Anthropic;
   private gemini?: GoogleGenAI;
   private readonly model = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-5-5";
-  private readonly transcriptionModel = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+  private readonly transcriptionModel = process.env.GEMINI_MODEL ?? "gemini-3.5-flash-lite";
 
   complete({ name, system, prompt, effort = "medium" }: CompleteParams) {
     return this.traced(name, { system, prompt }, effort, async () => {
@@ -80,7 +80,8 @@ export class AiService {
   // A Claude não recebe áudio: a transcrição é do Gemini.
   transcribe(audio: Buffer, mimeType: string) {
     return this.traced("transcrever-audio", { mimeType, bytes: audio.length }, "low", async () => {
-      this.gemini ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      // Sem limite, um modelo lento deixa o registro preso em processing.
+      this.gemini ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, httpOptions: { timeout: 60_000 } });
       const response = await this.gemini.models.generateContent({
         model: this.transcriptionModel,
         contents: [

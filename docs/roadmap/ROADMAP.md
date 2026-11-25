@@ -125,7 +125,7 @@ Pronto quando um dia de registros vira um RDO aprovado que passa no schema, e o 
 
 | Raia | Entrega | Situação | Onde |
 |---|---|---|---|
-| IA | Transcrição pelo Gemini, interpretação do registro e preenchimento do RDO pela Claude | em revisão | transcrição sem teste real: falta a `GEMINI_API_KEY` |
+| IA | Transcrição pelo Gemini, interpretação do registro e preenchimento do RDO pela Claude | em revisão | transcrição testada com áudio gerado por TTS, sem ruído de obra |
 | API | `generateReport`, `getReport`, `updateReport`, `answerQuestion`, `approveReport`, `getEntry` | em revisão | sem `correctReportByVoice` e sem segurança (`3.7`) própria |
 | Web | Pasta com o que o agente entendeu, revisão com perguntas (`3.3`) e aprovado (`3.4`) | em revisão | sem correção à mão nem falando |
 | Dados e eval | Áudios gravados e eval | a fazer | |
