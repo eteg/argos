@@ -7,6 +7,7 @@ import type { Schemas } from "@argos/contract";
 import { api, timezoneParams } from "@/lib/api";
 import { errorMessage, fullDate } from "@/lib/format";
 import { ApiError, unwrap, useLoad } from "@/lib/hooks";
+import { ageLabel } from "@/lib/open-items";
 import { uploadFile } from "@/lib/send-entry";
 import { Back, Page, Pill, Primary, Status, Title, field } from "@/components/ui";
 
@@ -33,6 +34,7 @@ export function ReportReview() {
   const [services, setServices] = useState<Schemas["Service"][] | null>(null);
   const current = report ?? (state.status === "ok" ? state.data : null);
   const generating = current?.status === "generating";
+  const [dayState] = useLoad(async () => (current ? unwrap(api.GET("/v1/sites/{siteId}/days/{localDate}", { params: { path: { siteId: current.siteId, localDate: current.localDate }, ...tz } })) : null), [current?.siteId, current?.localDate]);
   useEffect(() => {
     if (!generating) return;
     const t = setInterval(() => {
@@ -45,6 +47,7 @@ export function ReportReview() {
   const approved = r.status === "approved";
   const busyAi = r.status === "generating";
   const isPublic = r.site.type !== "private";
+  const openList = (dayState.status === "ok" ? (dayState.data?.openItems ?? []) : []).filter((i) => i.openedOn < r.localDate);
 
   async function patch(body: Schemas["UpdateReportRequest"]) {
     setError(null);
@@ -53,6 +56,10 @@ export function ReportReview() {
     } catch (e) {
       setError(e instanceof ApiError ? e : new ApiError("UNAVAILABLE"));
     }
+  }
+  function setReview(openItemId: string, outcome: string, note: string | null) {
+    const others = r.openItemReviews.filter((x) => x.openItemId !== openItemId);
+    return patch({ openItemReviews: outcome ? [...others, { openItemId, outcome: outcome as "close" | "keep" | "update", note }] : others });
   }
   async function approve() {
     setBusy(true);
@@ -195,6 +202,34 @@ export function ReportReview() {
           ))}
           {!approved && <OccurrenceAdd isPublic={isPublic} services={services} loadServices={() => void loadServices()} onAdd={(o) => void patch({ occurrences: [...r.occurrences, o] })} />}
           {miss("occurrences") && <span className="text-xs text-[#6B3A00]">Complete as ocorrências (horário, serviços afetados, fonte).</span>}
+        </Block>
+        <Block title="Itens em aberto">
+          {openList.length === 0 && r.newOpenItems.length === 0 && <span className="text-[13px] text-[#5B5F6B]">Nenhum item de dias anteriores nesta obra.</span>}
+          {openList.map((i) => {
+            const review = r.openItemReviews.find((x) => x.openItemId === i.id);
+            return (
+              <div key={i.id} className="flex flex-col gap-1.5 border-b border-[#E3E5EE] pb-3 last:border-b-0">
+                <div className="flex items-baseline justify-between gap-2"><span className="text-[15px]">{i.title}</span><span className="flex-none text-xs text-[#5B5F6B]">{ageLabel(i.openedOn, r.localDate)}</span></div>
+                <span className="text-[13px] text-[#5B5F6B]">{i.mentionedToday ? `Citado às ${new Date(i.mentionedToday.capturedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : "Não citado hoje"}</span>
+                <select aria-label={`Desfecho de ${i.title}`} disabled={approved} className={field} value={review?.outcome ?? ""} onChange={(e) => void setReview(i.id, e.target.value, review?.note ?? null)}>
+                  <option value="">Sem decisão (continua aberto)</option><option value="close">Fechar</option><option value="keep">Manter aberto</option><option value="update">Atualizar</option>
+                </select>
+                {review && review.outcome !== "keep" && (
+                  <input aria-label="Observação do item" placeholder={review.outcome === "close" ? "Como foi resolvido (opcional)" : "O que mudou"} disabled={approved} defaultValue={review.note ?? ""} className={field}
+                    onBlur={(e) => e.target.value !== (review.note ?? "") && void setReview(i.id, review.outcome, e.target.value || null)} />
+                )}
+              </div>
+            );
+          })}
+          {r.newOpenItems.length > 0 && <span className="text-[13px] text-[#5B5F6B]">Nascem hoje:</span>}
+          {r.newOpenItems.map((n, idx) => (
+            <div key={n.id} className="flex flex-col gap-1">
+              <div className="flex items-baseline justify-between gap-2"><span className="text-[15px]">{n.title}</span><span className="rounded-full bg-[#E3ECFF] px-2 py-0.5 text-xs font-semibold text-[#0B3699]">novo</span></div>
+              <select aria-label={`Acompanhar ${n.title}`} disabled={approved} className={field} value={n.track ? "yes" : "no"} onChange={(e) => void patch({ newOpenItems: r.newOpenItems.map((y, j) => (j === idx ? { ...y, track: e.target.value === "yes" } : y)) })}>
+                <option value="yes">Abrir item</option><option value="no">Não acompanhar</option>
+              </select>
+            </div>
+          ))}
         </Block>
         <Block title={`Fotos · ${r.photos.length} de 20`}>
           <span className="text-[13px] text-[#5B5F6B]">{isPublic ? "Em obra pública, uma foto por atividade e por ocorrência. " : ""}Cada foto guarda data, hora e local.</span>
