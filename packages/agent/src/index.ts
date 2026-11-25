@@ -55,6 +55,58 @@ export type InterpretEntryResult = z.infer<typeof interpretSchema>;
 const assembleSchema = z.object({ fields: z.unknown(), questions: z.array(questionSchema).default([]) });
 const correctSchema = z.object({ fields: z.unknown(), summary: z.string().default("") });
 
+interface SchemaDef {
+  type: string;
+  shape?: Record<string, z.ZodType>;
+  innerType?: z.ZodType;
+  element?: z.ZodType;
+}
+
+const defOf = (schema: z.ZodType) => (schema as unknown as { def: SchemaDef }).def;
+
+// O modelo às vezes omite chaves que aceitam null ou manda chaves a mais: conserta antes de validar.
+function fillNulls(schema: z.ZodType, value: unknown): unknown {
+  const def = defOf(schema);
+  if (def.type === "nullable" || def.type === "optional") {
+    return value === null || value === undefined || !def.innerType ? value : fillNulls(def.innerType, value);
+  }
+  if (def.type === "array" && Array.isArray(value) && def.element) {
+    const element = def.element;
+    return value.map((item) => fillNulls(element, item));
+  }
+  if (def.type === "object" && def.shape && typeof value === "object" && value !== null && !Array.isArray(value)) {
+    const input = value as Record<string, unknown>;
+    const out: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(def.shape)) {
+      if (input[key] === undefined) {
+        const type = defOf(child).type;
+        if (type === "nullable") out[key] = null;
+        else if (type === "array") out[key] = [];
+      } else out[key] = fillNulls(child, input[key]);
+    }
+    return out;
+  }
+  return value;
+}
+
+function normalizeOccurrences(fields: unknown): unknown {
+  if (typeof fields !== "object" || fields === null) return fields;
+  const record = fields as { occurrences?: unknown };
+  if (!Array.isArray(record.occurrences)) return fields;
+  const occurrences = record.occurrences.map((item: unknown) => {
+    const occurrence = item as { source?: { origin?: string; document?: string | null } | null };
+    if (occurrence?.source && typeof occurrence.source === "object") {
+      return { ...occurrence, source: { origin: occurrence.source.origin ?? "", document: occurrence.source.document ?? "" } };
+    }
+    return item;
+  });
+  return { ...record, occurrences };
+}
+
+export function parseFields(value: unknown): ReportFields {
+  return fieldsSchema.parse(fillNulls(fieldsSchema, normalizeOccurrences(value ?? {})));
+}
+
 export function extractJson(text: string): unknown {
   const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(text);
   const body = fenced?.[1] ?? text;
@@ -95,7 +147,7 @@ labor: [{ role, count, employment: "own"|"third_party", company: texto|null (obr
 laborNotes: texto|null
 equipment: [{ equipmentId (da lista de equipamentos da obra), name, identifier, status: "operating"|"stopped"|"under_maintenance"|null, operatingHours: número|null }]
 activities: [{ id: "a1", description, service: { id, code, description, unit }|null, location: texto|null, status: "started"|"in_progress"|"completed"|"stopped"|null, quantity: número|null, unit: texto|null, cumulativeProgressPercent: número|null, executor: texto|null }]
-occurrences: [{ id: "o1", type: "stoppage"|"accident"|"material_shortage"|"equipment_failure"|"inspection_order"|"visit"|"external_interference"|"other", description, startTime: "HH:MM"|null, endTime: "HH:MM"|null, status: "open"|"closed", affectedServiceIds: [id de serviço], source: { origin, document|null }|null, safety: { type: "accident"|"incident", dds: true|false, ppeInUse: true|false }|null, materials: texto|null }]
+occurrences: [{ id: "o1", type: "stoppage"|"accident"|"material_shortage"|"equipment_failure"|"inspection_order"|"visit"|"external_interference"|"other", description, startTime: "HH:MM"|null, endTime: "HH:MM"|null, status: "open"|"closed", affectedServiceIds: [id de serviço], source: { origin, document (texto; "" se não houver documento) }|null, safety: { type: "accident"|"incident", dds: true|false, ppeInUse: true|false }|null, materials: texto|null }]
 openItemReviews: [{ openItemId, outcome: "close"|"keep"|"update", note: texto|null }]
 newOpenItems: [{ id: "n1", title, kind: "declared_pending"|"unresolved_occurrence"|"unfinished_service", track: true|false }]`;
 
@@ -180,7 +232,7 @@ ${input.entries.map((e, i) => `Registro ${i + 1} (${e.capturedAt}):\n${e.transcr
     },
     (value) => {
       const parsed = assembleSchema.parse(value);
-      return { fields: fieldsSchema.parse(parsed.fields ?? {}), questions: parsed.questions };
+      return { fields: parseFields(parsed.fields), questions: parsed.questions };
     },
   );
 }
@@ -216,7 +268,7 @@ ${input.instruction}`,
     },
     (value) => {
       const parsed = correctSchema.parse(value);
-      return { fields: fieldsSchema.parse(parsed.fields ?? {}), summary: parsed.summary };
+      return { fields: parseFields(parsed.fields), summary: parsed.summary };
     },
   );
 }
