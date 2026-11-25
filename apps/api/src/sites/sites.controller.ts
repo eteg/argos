@@ -106,6 +106,24 @@ const todaySummary = (entriesCount: number, localDate: string) => ({
   reportId: null,
 });
 
+async function recentReports(siteId: string) {
+  const approved = await db
+    .select()
+    .from(reports)
+    .where(and(eq(reports.siteId, siteId), eq(reports.status, "approved")))
+    .orderBy(desc(reports.localDate));
+  return {
+    recentReports: approved.slice(0, 3).map((r) => ({
+      id: r.id,
+      number: r.number,
+      localDate: r.localDate,
+      approvedAt: r.approval?.approvedAt ?? null,
+      occurrencesCount: r.content?.occurrences.length ?? 0,
+    })),
+    approvedReportsCount: approved.length,
+  };
+}
+
 export async function findSite(siteId: string) {
   const [row] = await db.select().from(sites).where(eq(sites.id, siteId));
   if (!row) throw new NotFoundException("Site not found");
@@ -185,8 +203,7 @@ export class SitesController {
       today: todaySummary(counts.get(siteId) ?? 0, today),
       pendingDays: [],
       openItems: (await db.select().from(openItems).where(and(eq(openItems.siteId, siteId), eq(openItems.status, "open")))).map(toOpenItem),
-      recentReports: [],
-      approvedReportsCount: 0,
+      ...(await recentReports(siteId)),
     };
   }
 

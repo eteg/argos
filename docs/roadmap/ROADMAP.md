@@ -16,7 +16,7 @@ As regras de negócio ficam no [guia do time], que é a fonte da verdade. Este r
 | [M3](#m3-memória-entre-dias) | Memória entre dias | em andamento |
 | [M4](#m4-sem-internet) | Sem internet | não iniciado |
 | [M5](#m5-compartilhar-e-consultar) | Compartilhar e consultar | não iniciado |
-| [M6](#m6-demo) | Demo | não iniciado |
+| [M6](#m6-demo) | Demo | em andamento |
 
 **Demo mínima:** de M0 a M3, mais o M6. É o que o [fluxo da demo] precisa: dois dias seguidos da mesma obra, com o agente cobrando no dia 2 o que ficou aberto no dia 1. O M4 e o M5 completam as 20 regras da primeira versão (`RG07`, sem internet, e `F1RN12`, compartilhamento).
 
@@ -171,6 +171,13 @@ Pronto quando o engenheiro manda o PDF de um RDO aprovado pelo celular e abre um
 - **Se sobrar tempo**, nesta ordem: conferência com o cronograma físico, conferência do clima com o INMET e RAG com os documentos da obra.
 
 Pronto quando a demo roda duas vezes seguidas sem intervenção.
+
+| Raia | Entrega | Situação | Onde |
+|---|---|---|---|
+| Dados | Obra fictícia, áudios do dia 1 e do dia 2 (TTS do Gemini) e fotos de demonstração em `data/demo` | em revisão | fotos desenhadas, sem foto real de obra: a cota gratuita do Gemini não gera imagem |
+| Roteiro | [Roteiro](../demo/ROTEIRO.md) e `seed:demo`, que zera o banco e aprova o dia 1 | em revisão | dia 2 ensaiado pela API, não pela tela com microfone |
+| Eval | 10 a 20 gabaritos e as quatro métricas | a fazer | |
+| Pitch | Diferencial da memória e ROI | a fazer | |
 
 ## Pontos de sincronia
 

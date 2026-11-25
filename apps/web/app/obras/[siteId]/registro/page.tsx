@@ -141,6 +141,25 @@ export default function NewEntry() {
         {recording ? `■ Parar · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}` : audio ? "🎙 Gravar de novo" : "🎙 Gravar"}
       </button>
       {audio && !recording && <audio controls src={audio.preview} style={{ width: "100%", marginTop: 8 }} />}
+      {/* Saída de emergência da demo, quando o microfone não funciona. */}
+      {!audio && !recording && (
+        <label className="muted" style={{ display: "block", marginTop: 6, textDecoration: "underline", cursor: "pointer" }}>
+          Usar um áudio já gravado
+          <input
+            type="file"
+            accept="audio/*"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const preview = URL.createObjectURL(file);
+              const el = new Audio(preview);
+              el.onloadedmetadata = () =>
+                setAudio({ id: crypto.randomUUID(), blob: file, capturedAt: stamp(), preview, durationSeconds: Math.round(el.duration) || 0 });
+            }}
+          />
+        </label>
+      )}
       <p className="muted">Conte o que aconteceu: atividades, equipe, clima, ocorrências.</p>
 
       <h2>

@@ -25,7 +25,7 @@ import { locationSchema, parse } from "../validation";
 const UPLOAD_DIR = resolve(process.env.UPLOAD_DIR ?? "uploads");
 const MAX_BYTES = 20 * 1024 * 1024;
 const TYPES = {
-  audio: ["audio/webm", "audio/mp4", "audio/mpeg", "audio/ogg", "audio/wav"],
+  audio: ["audio/webm", "audio/mp4", "audio/mpeg", "audio/ogg", "audio/wav", "audio/x-wav", "audio/wave", "audio/x-m4a"],
   photo: ["image/jpeg", "image/png", "image/heic", "image/webp"],
 };
 

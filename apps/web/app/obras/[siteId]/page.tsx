@@ -133,6 +133,17 @@ export default function SiteFolder() {
         </div>
       ))}
 
+      {site.recentReports.length > 0 && (
+        <>
+          <h2>RDOs aprovados · {site.approvedReportsCount} no total</h2>
+          {site.recentReports.map((r) => (
+            <Link key={r.id} href={`/rdo/${r.id}`} className="card">
+              Nº {String(r.number).padStart(3, "0")} · {r.localDate.split("-").reverse().join("/")} · {r.occurrencesCount} ocorrência(s)
+            </Link>
+          ))}
+        </>
+      )}
+
       {site.equipment.length > 0 && (
         <>
           <h2>Equipamentos</h2>

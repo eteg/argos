@@ -126,4 +126,6 @@ export interface Site extends SiteSummary {
   technicalManager: { name: string; artNumber: string | null } | null;
   publicContract: { number: string; durationDays: number; elapsedDays: number; remainingDays: number } | null;
   equipment: { id: string; name: string; identifier: string | null }[];
+  recentReports: { id: string; number: number; localDate: string; occurrencesCount: number }[];
+  approvedReportsCount: number;
 }
