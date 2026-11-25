@@ -7,6 +7,7 @@ import { api, timezoneParams } from "@/lib/api";
 import { deviceHeader, getPosition, type Position } from "@/lib/geo";
 import { dayStateLabel, distanceLabel, firstName, greeting } from "@/lib/format";
 import { unwrap, useLoad } from "@/lib/hooks";
+import { MainNav } from "@/components/main-nav";
 import { Page, Pill, Status, Title } from "@/components/ui";
 
 type Site = Schemas["SiteSummary"];
@@ -30,20 +31,15 @@ function SiteCard({ site, radius, primary }: { site: Site; radius: number; prima
 
 export function Home() {
   const [position, setPosition] = useState<Position | null>(null);
-  const [ready, setReady] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("near");
 
   useEffect(() => {
-    void getPosition().then((p) => {
-      setPosition(p);
-      setReady(true);
-    });
+    void getPosition().then(setPosition);
   }, []);
 
   const [state, retry] = useLoad(
     async () => {
-      if (!ready) return null;
       const [me, config, sites, away] = await Promise.all([
         unwrap(api.GET("/v1/me", { params: { header: timezoneParams().header } })),
         unwrap(api.GET("/v1/config", { params: timezoneParams() })),
@@ -52,7 +48,7 @@ export function Home() {
       ]);
       return { me, config, sites: sites.items, awayCount: away.items.length };
     },
-    [ready, position, search],
+    [position, search],
   );
 
   const data = state.status === "ok" ? state.data : null;
@@ -122,19 +118,7 @@ export function Home() {
           </div>
         )}
       </div>
-      <nav aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 mx-auto flex h-[88px] w-full max-w-[430px] items-start rounded-t-3xl bg-white px-2 shadow-[0_-8px_24px_-14px_rgba(45,45,43,0.35)]">
-        <Link href="/" className="flex min-h-11 flex-1 flex-col items-center gap-1 pt-3 text-[11px] font-semibold text-[#1563FF]">Início</Link>
-        <div className="flex flex-[1.2] flex-col items-center">
-          <Link href="/registrar" aria-label="Registrar o dia" className="-mt-[26px] flex size-[68px] items-center justify-center rounded-full border-[5px] border-[#F4F5F9] bg-[#1563FF] shadow-lg">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
-          </Link>
-          <span className="mt-1 text-[11px] font-bold text-[#1563FF]">Registrar</span>
-        </div>
-        <Link href="/pendencias" className="flex min-h-11 flex-1 flex-col items-center gap-1 pt-3 text-[11px] font-medium text-[#5B5F6B]">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11" /><path d="M4 6h.01M4 12h.01M4 18h.01" /></svg>
-          Pendências
-        </Link>
-      </nav>
+      <MainNav active="home" />
     </Page>
   );
 }

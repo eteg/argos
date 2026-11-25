@@ -12,16 +12,14 @@ const H = ({ children }: { children: React.ReactNode }) => <span className="px-1
 
 export function CheckIn() {
   const [position, setPosition] = useState<Position | null>(null);
-  const [ready, setReady] = useState(false);
-  useEffect(() => { void getPosition().then((p) => { setPosition(p); setReady(true); }); }, []);
+  useEffect(() => { void getPosition().then(setPosition); }, []);
   const [state, retry] = useLoad(async () => {
-    if (!ready) return null;
     const [config, sites] = await Promise.all([
       unwrap(api.GET("/v1/config", { params: timezoneParams() })),
       unwrap(api.GET("/v1/sites", { params: { header: { ...timezoneParams().header, ...deviceHeader(position) } } })),
     ]);
     return { radius: config.geofenceRadiusMeters, sites: sites.items };
-  }, [ready, position]);
+  }, [position]);
   if (state.status !== "ok" || !state.data) return <Page><div className="p-5"><Back href="/" /></div><Status state={state.status === "ok" ? { status: "loading" } : state} retry={retry} /></Page>;
   const { radius, sites } = state.data;
   const here = sites.find((s) => s.distanceMeters !== null && s.distanceMeters <= radius && s.today.state !== "approved");
