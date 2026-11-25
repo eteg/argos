@@ -1,4 +1,4 @@
-import { Controller, Get, Headers, HttpCode, Param, Post, Res } from "@nestjs/common";
+import { Body, Controller, Get, Headers, HttpCode, Param, Patch, Post, Res } from "@nestjs/common";
 import type { Response } from "express";
 import { z } from "zod";
 import type { Schemas } from "@argos/contract";
@@ -22,6 +22,11 @@ export class ReportsController {
   @Get("reports/:reportId")
   async get(@Param("reportId") reportId: string): Promise<Schemas["Report"]> {
     return this.reports.view(await this.reports.find(reportId));
+  }
+
+  @Patch("reports/:reportId")
+  async update(@Param("reportId") reportId: string, @Body() body: unknown): Promise<Schemas["Report"]> {
+    return this.reports.view(await this.reports.update(reportId, body));
   }
 
   @Post("reports/:reportId/approve")

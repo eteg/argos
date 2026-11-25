@@ -1,6 +1,8 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
-import { validateReport } from "@argos/rdo-schema";
+import { reportContentSchema, validateReport } from "@argos/rdo-schema";
+import { z } from "zod";
+import { parse } from "../common/validate.js";
 import type { Schemas } from "@argos/contract";
 import { ProblemException } from "../common/problem.js";
 import { DB, type Database } from "../database/database.module.js";
@@ -15,6 +17,38 @@ type Content = Omit<
   Schemas["Report"],
   "id" | "siteId" | "number" | "status" | "entriesCount" | "questions" | "missingFields" | "photoRequirements" | "approval" | "history" | "pdfUrl"
 >;
+
+const editableSchema = reportContentSchema
+  .omit({ site: true, localDate: true, photos: true })
+  .partial()
+  .extend({
+    photos: z
+      .array(
+        z.strictObject({
+          id: z.string(),
+          caption: z.string().nullable().optional(),
+          linkedTo: z.strictObject({ type: z.enum(["activity", "occurrence"]), id: z.string() }).nullable().optional(),
+        }),
+      )
+      .optional(),
+  });
+
+const fieldLabels: Record<string, string> = {
+  workday: "jornada",
+  weather: "clima",
+  weatherStoppage: "horas paradas por clima",
+  rainfallMm: "pluviometria",
+  labor: "efetivo",
+  laborNotes: "observações do efetivo",
+  equipment: "equipamentos",
+  activities: "atividades",
+  occurrences: "ocorrências",
+  openItemReviews: "itens em aberto dos dias anteriores",
+  newOpenItems: "novos itens em aberto",
+  photos: "fotos",
+};
+
+const NULLABLE_FIELDS = ["rainfallMm", "laborNotes", "weatherStoppage"];
 
 const MIN_PHOTOS = 3;
 const MAX_PHOTOS = 20;
@@ -78,6 +112,61 @@ export class ReportsService {
     };
   }
 
+  private keepEdits(fresh: Content, old: Content): Content {
+    const oldPhotos = new Map(old.photos.map((p) => [p.id, p]));
+    const oldEquipment = new Map(old.equipment.map((e) => [e.equipmentId, e]));
+    return {
+      ...fresh,
+      workday: old.workday,
+      weather: old.weather,
+      weatherStoppage: old.weatherStoppage,
+      rainfallMm: old.rainfallMm,
+      labor: old.labor,
+      laborNotes: old.laborNotes,
+      activities: old.activities,
+      occurrences: old.occurrences,
+      openItemReviews: old.openItemReviews,
+      newOpenItems: old.newOpenItems,
+      equipment: fresh.equipment.map((e) => ({ ...e, status: oldEquipment.get(e.equipmentId)?.status ?? null, operatingHours: oldEquipment.get(e.equipmentId)?.operatingHours ?? null })),
+      photos: fresh.photos.map((p) => ({ ...p, caption: oldPhotos.get(p.id)?.caption ?? null, linkedTo: oldPhotos.get(p.id)?.linkedTo ?? null })),
+    };
+  }
+
+  async update(reportId: string, body: unknown) {
+    const row = await this.find(reportId);
+    if (row.status === "approved") throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report is already approved.");
+    const { photos, ...fields } = parse(editableSchema, body);
+    const changed = [...Object.keys(fields), ...(photos ? ["photos"] : [])];
+    if (changed.length === 0) throw new ProblemException(400, "VALIDATION", "Nothing to update.", [{ field: "body", code: "REQUIRED" }]);
+    const cleared = Object.entries(fields).filter(([key, value]) => value === null && !NULLABLE_FIELDS.includes(key));
+    if (cleared.length > 0) throw new ProblemException(400, "VALIDATION", "Invalid data.", cleared.map(([key]) => ({ field: key, code: "INVALID_TYPE" })));
+    const merged: Record<string, unknown> = { ...row.content, ...fields };
+    const content = merged as unknown as Content;
+    if (photos) {
+      const known = new Set(content.photos.map((p) => p.id));
+      const unknown = photos.filter((p) => !known.has(p.id));
+      if (unknown.length > 0) throw new ProblemException(400, "VALIDATION", "Unknown photo.", unknown.map((p) => ({ field: `photos.${p.id}`, code: "INVALID" })));
+      const patch = new Map(photos.map((p) => [p.id, p]));
+      merged.photos = content.photos.map((p) => {
+        const edit = patch.get(p.id);
+        return edit ? { ...p, ...(edit.caption !== undefined && { caption: edit.caption }), ...(edit.linkedTo !== undefined && { linkedTo: edit.linkedTo }) } : p;
+      });
+    }
+    const [site] = await this.db.select({ type: sites.type }).from(sites).where(eq(sites.id, row.siteId));
+    const check = validateReport(content, { siteType: (site?.type ?? "private") as Schemas["SiteType"], minPhotosPerReport: MIN_PHOTOS, maxPhotosPerReport: MAX_PHOTOS });
+    if (check.structuralErrors.length > 0) {
+      throw new ProblemException(400, "VALIDATION", "Invalid data.", check.structuralErrors.map((e) => ({ field: e.path, code: e.code })));
+    }
+    const description = `Corrigiu ${changed.map((k) => fieldLabels[k] ?? k).join(", ")}`;
+    const [updated] = await this.db
+      .update(reports)
+      .set({ content: merged, history: [...row.history, { at: new Date().toISOString(), actor: "engineer", description }], updatedAt: new Date() })
+      .where(and(eq(reports.id, row.id), sql`${reports.status} <> 'approved'`))
+      .returning();
+    if (!updated) throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report is already approved.");
+    return updated;
+  }
+
   async generate(siteId: string, localDate: string) {
     const site = await this.sitesService.requireSite(siteId);
     const [existing] = await this.db.select().from(reports).where(and(eq(reports.siteId, siteId), eq(reports.localDate, localDate)));
@@ -92,8 +181,13 @@ export class ReportsService {
     if (previous.rows.length > 0) {
       throw new ProblemException(409, "PREVIOUS_DAY_PENDING", "A previous day has no approved report.", previous.rows.map((r) => ({ field: r.local_date, code: "REPORT_NOT_APPROVED" })));
     }
-    const content = await this.assemble(site, localDate, dayEntries);
-    const values = { content: content as unknown as Record<string, unknown>, siteSnapshot: content.site as unknown as Record<string, unknown>, status: "draft", updatedAt: new Date() };
+    const fresh = await this.assemble(site, localDate, dayEntries);
+    const content = existing ? this.keepEdits(fresh, existing.content as unknown as Content) : fresh;
+    const history = [
+      ...(existing?.history ?? []),
+      { at: new Date().toISOString(), actor: "agent" as const, description: `RDO ${existing ? "remontado" : "montado"} a partir dos ${dayEntries.length} registros do dia` },
+    ];
+    const values = { content: content as unknown as Record<string, unknown>, siteSnapshot: content.site as unknown as Record<string, unknown>, status: "draft", history, updatedAt: new Date() };
     const [row] = existing
       ? await this.db.update(reports).set(values).where(eq(reports.id, existing.id)).returning()
       : await this.db.insert(reports).values({ siteId, localDate, ...values }).returning();
@@ -135,7 +229,7 @@ export class ReportsService {
       const [{ next }] = (await tx.execute<{ next: number }>(sql`select coalesce(max(number), 0)::int + 1 as next from reports where site_id = ${row.siteId}`)).rows as [{ next: number }];
       const [approved] = await tx
         .update(reports)
-        .set({ status: "approved", number: next, approvedBy: env.ENGINEER_NAME, approvedAt: new Date(), approvalKey: key, updatedAt: new Date() })
+        .set({ status: "approved", number: next, approvedBy: env.ENGINEER_NAME, approvedAt: new Date(), approvalKey: key, history: [...row.history, { at: new Date().toISOString(), actor: "engineer", description: "RDO aprovado" }], updatedAt: new Date() })
         .where(and(eq(reports.id, row.id), sql`${reports.status} <> 'approved'`))
         .returning();
       if (!approved) throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report is already approved.");
@@ -152,8 +246,7 @@ export class ReportsService {
       number = next;
     }
     const questionRows = await this.db.select().from(questions).where(eq(questions.reportId, row.id)).orderBy(asc(questions.createdAt));
-    const history: Schemas["Report"]["history"] = [{ at: row.updatedAt.toISOString(), actor: "agent", description: `RDO montado a partir dos ${count} registros do dia` }];
-    if (row.approvedAt) history.push({ at: row.approvedAt.toISOString(), actor: "engineer", description: "RDO aprovado" });
+    const history = row.history;
     return {
       ...content,
       id: row.id,
