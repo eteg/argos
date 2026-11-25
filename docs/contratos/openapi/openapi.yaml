@@ -640,6 +640,35 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/Unavailable" }
+    patch:
+      operationId: updateReport
+      tags: [Reports]
+      summary: Corrige à mão campos do rascunho do RDO
+      description: >-
+        Manda só os campos que mudam. A lista inteira de um campo substitui a anterior.
+        `site` e `localDate` não mudam (vêm do cadastro e do dia). Em `photos` vão só
+        `id`, `caption` e `linkedTo`. Entra no `history`. Chamar `generateReport`
+        de novo mantém essas correções.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateReportRequest" }
+      responses:
+        "200":
+          description: O RDO com os campos novos e `missingFields` recalculado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Report" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`REPORT_ALREADY_APPROVED`."
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/reports/{reportId}/approve:
     parameters:
       - name: reportId
@@ -1200,6 +1229,34 @@ components:
         optionId: { type: string }
         text: { type: string }
         audioMediaId: { type: string, format: uuid }
+    UpdateReportRequest:
+      type: object
+      properties:
+        workday: { $ref: "#/components/schemas/Report/properties/workday" }
+        weather: { $ref: "#/components/schemas/Report/properties/weather" }
+        weatherStoppage: { $ref: "#/components/schemas/Report/properties/weatherStoppage" }
+        rainfallMm: { $ref: "#/components/schemas/Report/properties/rainfallMm" }
+        labor: { $ref: "#/components/schemas/Report/properties/labor" }
+        laborNotes: { $ref: "#/components/schemas/Report/properties/laborNotes" }
+        equipment: { $ref: "#/components/schemas/Report/properties/equipment" }
+        activities: { $ref: "#/components/schemas/Report/properties/activities" }
+        occurrences: { $ref: "#/components/schemas/Report/properties/occurrences" }
+        openItemReviews: { $ref: "#/components/schemas/Report/properties/openItemReviews" }
+        newOpenItems: { $ref: "#/components/schemas/Report/properties/newOpenItems" }
+        photos:
+          type: array
+          items:
+            type: object
+            required: [id]
+            properties:
+              id: { type: string }
+              caption: { type: [string, "null"] }
+              linkedTo:
+                type: [object, "null"]
+                required: [type, id]
+                properties:
+                  type: { type: string, enum: [activity, occurrence] }
+                  id: { type: string }
     Workday:
       type: object
       required: [startTime, endTime, breakMinutes]

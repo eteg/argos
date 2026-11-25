@@ -488,7 +488,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Corrige à mão campos do rascunho do RDO
+         * @description Manda só os campos que mudam. A lista inteira de um campo substitui a anterior. `site` e `localDate` não mudam (vêm do cadastro e do dia). Em `photos` vão só `id`, `caption` e `linkedTo`. Entra no `history`. Chamar `generateReport` de novo mantém essas correções.
+         */
+        patch: operations["updateReport"];
         trace?: never;
     };
     "/v1/reports/{reportId}/approve": {
@@ -887,6 +891,28 @@ export interface components {
             text?: string;
             /** Format: uuid */
             audioMediaId?: string;
+        };
+        UpdateReportRequest: {
+            workday?: components["schemas"]["Report"]["workday"];
+            weather?: components["schemas"]["Report"]["weather"];
+            weatherStoppage?: components["schemas"]["Report"]["weatherStoppage"];
+            rainfallMm?: components["schemas"]["Report"]["rainfallMm"];
+            labor?: components["schemas"]["Report"]["labor"];
+            laborNotes?: components["schemas"]["Report"]["laborNotes"];
+            equipment?: components["schemas"]["Report"]["equipment"];
+            activities?: components["schemas"]["Report"]["activities"];
+            occurrences?: components["schemas"]["Report"]["occurrences"];
+            openItemReviews?: components["schemas"]["Report"]["openItemReviews"];
+            newOpenItems?: components["schemas"]["Report"]["newOpenItems"];
+            photos?: {
+                id: string;
+                caption?: string | null;
+                linkedTo?: {
+                    /** @enum {string} */
+                    type: "activity" | "occurrence";
+                    id: string;
+                } | null;
+            }[];
         };
         Workday: {
             startTime: string | null;
@@ -1984,6 +2010,51 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    updateReport: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+            };
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateReportRequest"];
+            };
+        };
+        responses: {
+            /** @description O RDO com os campos novos e `missingFields` recalculado. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Report"];
+                };
+            };
+            400: components["responses"]["Validation"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description `REPORT_ALREADY_APPROVED`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             503: components["responses"]["Unavailable"];
         };
     };
