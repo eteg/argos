@@ -2,6 +2,8 @@
 
 ## 0.3.0, rascunho
 
+- M4: `listPendingDays` (`GET /v1/pending-days`) e os schemas `PendingDaysGroup` e `PendingDayDetail`. Só entram obras em andamento e dias anteriores a hoje com registro e sem RDO aprovado; só o mais antigo da obra é `isNext` (D04). O registro capturado sem internet chega com `offline` `true` e o `capturedAt`, `localDate` e `timezone` originais, e o RDO sai com a data da captura.
+
 - IA no M2: `createEntry` responde 202 com `status` `processing` quando há IA no ambiente (a API transcreve o áudio e resume o registro em segundo plano) e 201 sem IA; a web consulta `getEntry`. `generateReport` responde 202 `generating` e a IA preenche só o que está vazio, com cada lacuna obrigatória virando uma pergunta. Novo `correctReportByVoice` (`POST /v1/reports/{reportId}/voice-corrections`). Novo 409 `REPORT_NOT_READY` em `updateReport`, `approveReport` e `correctReportByVoice` enquanto o RDO está em `generating`. `answerQuestion` com opção ou texto aplica a resposta no campo da pergunta (`field`).
 
 - `updateReport` (`PATCH /v1/reports/{reportId}`): corrige campos do rascunho, grava no `history` e responde 409 `REPORT_ALREADY_APPROVED` no aprovado. `generateReport` de novo mantém as correções.
