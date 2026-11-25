@@ -8,6 +8,7 @@ import { documentTypeLabel, errorMessage, siteTypeLabel, statusLabel } from "@/l
 import { useOnline } from "@/lib/online";
 import { ApiError, unwrap, useLoad } from "@/lib/hooks";
 import { agePill, ageLabel, openItemKindLabel } from "@/lib/open-items";
+import { MainNav } from "@/components/main-nav";
 import { Page, Pill, Status } from "@/components/ui";
 
 const Row = ({ k, children }: { k: string; children: React.ReactNode }) => (
@@ -112,6 +113,7 @@ export function SiteFolder() {
           </div>
         </section>
       </div>
+      <MainNav active="none" registerHref={`/registro?id=${s.id}`} />
     </Page>
   );
 }

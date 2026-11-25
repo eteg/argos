@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export function MainNav({ active }: { active: "home" | "pending" }) {
+export function MainNav({ active, registerHref = "/registrar" }: { active: "home" | "pending" | "none"; registerHref?: string }) {
   const tone = (on: boolean) => (on ? "font-semibold text-[#1563FF]" : "font-medium text-[#5B5F6B]");
   return (
     <nav aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 mx-auto flex h-[88px] w-full max-w-[430px] items-start rounded-t-3xl bg-white px-2 shadow-[0_-8px_24px_-14px_rgba(45,45,43,0.35)]">
@@ -9,7 +9,7 @@ export function MainNav({ active }: { active: "home" | "pending" }) {
         Início
       </Link>
       <div className="flex flex-[1.2] flex-col items-center">
-        <Link href="/registrar" aria-label="Registrar o dia" className="-mt-[26px] flex size-[68px] items-center justify-center rounded-full border-[5px] border-[#F4F5F9] bg-[#1563FF] shadow-lg">
+        <Link href={registerHref} aria-label="Registrar o dia" className="-mt-[26px] flex size-[68px] items-center justify-center rounded-full border-[5px] border-[#F4F5F9] bg-[#1563FF] shadow-lg">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
         </Link>
         <span className="mt-1 text-xs font-bold text-[#1563FF]">Registrar</span>

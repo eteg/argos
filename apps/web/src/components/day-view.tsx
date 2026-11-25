@@ -8,6 +8,7 @@ import { clock, errorMessage, fullDate } from "@/lib/format";
 import { getPosition, type Position } from "@/lib/geo";
 import { useOnline } from "@/lib/online";
 import { ApiError, unwrap, useLoad } from "@/lib/hooks";
+import { MainNav } from "@/components/main-nav";
 import { Page, Status } from "@/components/ui";
 
 const tz = timezoneParams();
@@ -127,13 +128,7 @@ export function DayView() {
           </ol>
         </section>
       </div>
-      {site.status === "in_progress" && !approved && (
-        <nav aria-label="Registrar" className="fixed inset-x-0 bottom-0 mx-auto flex h-[88px] w-full max-w-[430px] items-start justify-center rounded-t-3xl bg-white shadow-[0_-8px_24px_-14px_rgba(45,45,43,0.35)]">
-          <div className="flex flex-col items-center"><Link href={`/registro?id=${siteId}`} aria-label="Novo registro por voz ou foto" className="-mt-[26px] flex size-[68px] items-center justify-center rounded-full border-[5px] border-[#F4F5F9] bg-[#1563FF] shadow-lg">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg></Link>
-            <span className="mt-1 text-xs font-semibold text-[#1563FF]">Registrar</span></div>
-        </nav>
-      )}
+      {site.status === "in_progress" && !approved && <MainNav active="none" registerHref={`/registro?id=${siteId}`} />}
     </Page>
   );
 }
