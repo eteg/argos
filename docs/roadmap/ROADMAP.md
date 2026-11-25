@@ -80,6 +80,12 @@ Decisões registradas no [guia do time], na tabela de decisões. Aqui fica só o
 | Painel do gestor | Fica no backlog. A tela `4.1` saiu do protótipo. | |
 | Stack (D01) | Monorepo TypeScript com Next.js como PWA, NestJS, Postgres e Drizzle, staging numa EC2 com Docker Compose e fluxo trunk-based. Ver o [ADR 0001](../decisoes/0001-stack-e-staging.md). | M0 |
 | Proteção da API (`RG01`, D07) | Uma chave por ambiente no cabeçalho `X-Api-Key`, que protege só de acesso casual. Login fica pra uma versão futura. Ver o [ADR 0002](../decisoes/0002-chave-da-api-sem-login.md). | M0 |
+| Status da obra nova (D02, `RG08`) | A obra nasce em andamento. | M1 |
+| Localização da obra (D09) | "Usar minha localização atual" manda a do celular. Sem ela, a API busca pelo endereço. | M1 |
+| Foto da galeria (D10, `F1RN02`) | Só câmera, com e sem internet. A `3.6` não oferece a galeria. | M1 |
+| Check-in (D12, `2.5`) | Não grava nada na API. É só a escolha da obra, e o primeiro registro abre o dia. | M1 |
+| ART a renovar (D15, `2.1`) | Fica fora do início: não há regra nem campo de validade da ART. | M1 |
+| Tempo de carro (D16, `2.1`) | O início mostra só a distância, sem serviço de rotas. | M1 |
 
 ## Decisões em aberto
 
@@ -87,20 +93,14 @@ Cada uma tem uma recomendação, que vale até o time decidir diferente. A colun
 
 | ID | Tema | Recomendação | Bloqueia |
 |---|---|---|---|
-| D02 | Status de uma obra recém-cadastrada (`RG08`) | Nasce em andamento, pra não exigir um passo a mais antes do primeiro registro. | M1 |
 | D03 | Dias até destacar um item antigo (`F1RN10`) | 4 dias, como no protótipo (`2.8`). | M3 |
 | D04 | Ordem de vários dias capturados sem internet (`RG07`) | Em ordem cronológica, pela data da captura, liberando cada RDO só depois da aprovação do anterior, como no protótipo (`2.6`). | M4 |
 | D05 | Formato e destinatários do compartilhamento (`F1RN12`) | PDF pelo compartilhamento nativo do celular, como no protótipo (`3.5`). | M5 |
 | D06 | IA perguntar sobre o que aparece na foto e não foi falado | Fica fora. A conferência entre foto e relato fica só no pitch. | M2 |
 | D08 | Status do RDO: o guia fala em rascunho, enviado e aprovado | Só rascunho e aprovado. O protótipo não tem passo de envio, e "RDO enviado" no início (`2.1`) vira "RDO aprovado". | M2 |
-| D09 | Localização da obra, pra distância e reconhecimento no canteiro | "Usar minha localização atual" manda a do celular. Sem ela, a API busca pelo endereço. | M1 |
-| D10 | Foto da galeria, que pode vir sem data e local (`F1RN02`) | Só câmera, com e sem internet. A `3.6` deixa de oferecer a galeria. | M1 |
 | D11 | Quando o RDO ganha o número | Ao ser gerado, em ordem de data. A fila de dias (D04) garante que não há salto. | M2 |
-| D12 | O check-in (`2.5`) grava algo na API? | Não. É só a escolha da obra, e o primeiro registro abre o dia. | M1 |
 | D13 | Interpretação ao vivo, durante a gravação (`3.2`) | Depois de salvar o registro. Ao vivo fica pra se sobrar tempo. | M2 |
 | D14 | Aviso de internet de volta (`2.7`) | Notificação local da web depois do envio, sem push pela API. | M4 |
-| D15 | "ART precisa de renovação" no início (`2.1`) | Tirar do protótipo: não há regra nem campo de validade da ART. | M1 |
-| D16 | Tempo de carro até a obra no início (`2.1`) | Mostrar só a distância, sem serviço de rotas. | M1 |
 | D17 | Transcrição do áudio do registro | A frente C testa no M0 se a API da Claude recebe o áudio. Se não receber, escolhe um serviço de transcrição que lide bem com português e ruído de obra, e a escolha vira ADR. | M2 |
 | D18 | Como o contrato fica `acordado` sem PR | O [README do contrato](../contratos/README.md) pede PR aprovado pela web e pela API, mas o fluxo é commit direto na `main`. A frente D sobe o contrato na `main`, as frentes A e B leem, e um commit muda a situação pra `acordado`. O README do contrato muda junto. | M1 |
 | D19 | Onde fica o código da IA | Num pacote `packages/agent`, fora do NestJS, com funções puras que a API chama. A pasta não está no [ADR 0001](../decisoes/0001-stack-e-staging.md), então pede um ADR. | M1 |
@@ -118,7 +118,7 @@ Pronto quando a web abre no celular, fala com a API de staging e uma chamada à 
 
 | Raia | Entrega | Situação | Onde |
 |---|---|---|---|
-| Contrato | Convenções e decisões do M1 | a fazer | |
+| Contrato | Convenções e decisões do M1 | pronto | |
 | Contrato | OpenAPI do M1 e servidor falso | a fazer | |
 | Web | Web PWA base | a fazer | |
 | API | API base | a fazer | |
@@ -133,7 +133,7 @@ Pronto quando a web abre no celular, fala com a API de staging e uma chamada à 
 - **Web:** início (`2.1`), cadastro de obra privada e pública (`2.2`, `2.2b`), pasta da obra (`2.3`), status da obra (`2.10`, `2.11`), check-in (`2.5`) e o registro com áudio e até 3 fotos (`3.2`, sem a parte da IA).
 - **API:** obras com os dados de `RG02` e os documentos opcionais com tipo, status da obra (`RG08`), registros por obra e por dia (`RG03`), upload do áudio e das fotos com data, hora e localização (`F1RN02`).
 - **Contrato:** obras e registro acordados no OpenAPI.
-- **Decisões antes do marco:** D02, D09, D10, D12, D15, D16, D18, D19.
+- **Decisões antes do marco:** D02, D09, D10, D12, D15 e D16 tomadas (tabela de decisões tomadas). Em aberto: D18, D19.
 
 Pronto quando o engenheiro cadastra uma obra, faz o check-in e grava registros com fotos ao longo do dia, e tudo fica guardado na obra certa.
 

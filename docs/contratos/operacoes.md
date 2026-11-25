@@ -14,7 +14,7 @@ As operações que as [telas](telas/README.md) usam. Método e rota são sugest�
 | Operação | Método e rota | Telas | Marco | Nota |
 |---|---|---|---|---|
 | `listSites` | `GET /v1/sites?status=&search=` | `2.1`, `2.5`, `2.11` | M1 | Obras resumidas, com `today`, `pendingDays` e `distanceMeters`. Sem `status`, só `in_progress`. Ordena pela distância quando vem `X-Device-Location`. |
-| `createSite` | `POST /v1/sites` | `2.2`, `2.2b` | M1 | Nasce com o status de [D02]. |
+| `createSite` | `POST /v1/sites` | `2.2`, `2.2b` | M1 | Nasce `in_progress` ([D02]). `location` é opcional na entrada: o celular manda a localização atual, e sem ela a API busca pelo endereço ([D09]). |
 | `getSite` | `GET /v1/sites/{siteId}` | `2.3` | M1 | A obra inteira, mais `today`, os itens em aberto e os 3 últimos RDOs aprovados. |
 | `updateSite` | `PATCH /v1/sites/{siteId}` | `2.2`, `2.2b` | M1 | Vale pros RDOs montados depois. Os já montados guardam a cópia do dia. |
 | `changeSiteStatus` | `PUT /v1/sites/{siteId}/status` | `2.10`, `2.11` | M1 | 409 `SITE_HAS_OPEN_REPORTS` ao concluir com RDO não aprovado (`RG08`). |
@@ -58,5 +58,6 @@ As operações que as [telas](telas/README.md) usam. Método e rota são sugest�
 
 O desfecho de um item não tem operação própria: ele vai no rascunho do RDO (`openItemReviews`) e só vale quando o RDO é aprovado (`F1RN11`, memória só do aprovado).
 
-[D02]: ../roadmap/ROADMAP.md#decisões-em-aberto
+[D02]: ../roadmap/ROADMAP.md#decisões-tomadas
+[D09]: ../roadmap/ROADMAP.md#decisões-tomadas
 [D04]: ../roadmap/ROADMAP.md#decisões-em-aberto

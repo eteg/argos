@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const siteTypeSchema = z.enum(["private", "public", "financed"]);
 export const mediaKindSchema = z.enum(["audio", "photo"]);
-export const mediaSourceSchema = z.enum(["camera", "gallery", "microphone"]);
+export const mediaSourceSchema = z.enum(["camera", "microphone"]);
 export const reportStatusSchema = z.enum(["generating", "draft", "approved"]);
 export const shiftSchema = z.enum(["morning", "afternoon"]);
 export const weatherSchema = z.enum(["good", "cloudy", "light_rain", "heavy_rain"]);

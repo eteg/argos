@@ -29,8 +29,6 @@ A lista de obras do dia a dia. Só aparecem as obras em andamento (`RG08`, statu
 
 **Pendências:**
 - "RDO enviado" deveria ser "RDO aprovado", que é o termo do resto do app ([D08], status do RDO).
-- "ART precisa de renovação" não tem regra nem campo que o sustente ([D15]).
-- O tempo de carro precisa de um serviço de rotas ([D16]).
 
 ## `2.2` e `2.2b` Cadastrar obra
 
@@ -43,7 +41,7 @@ O mesmo formulário. A `2.2b` é a obra pública ou financiada, com o grupo do c
 | `name` | "Residencial Vila Verde · Bloco B" | Obrigatório. |
 | `type` | `private` | |
 | `address` | "Rua das Acácias, 410 · Contagem, MG" | |
-| `location` | | Por "Usar minha localização atual" ou pelo endereço ([D09]). |
+| `location` | | Opcional na entrada. "Usar minha localização atual" manda a do celular, e sem ela a API busca pelo endereço ([D09]). |
 | `client.name`, `client.taxId` | "Vila Verde Empreendimentos", "00.000.000/0001-00" | |
 | `contractor.name`, `contractor.taxId` | "Construtora Horizonte", "11.111.111/0001-11" | |
 | `technicalManager.name`, `technicalManager.artNumber` | "Eng. Rafael Lima", "MG2026001234" | |
@@ -65,7 +63,7 @@ A planilha de serviços, os equipamentos e os documentos são chamadas separadas
 
 **Sem internet:** não salva. Mostra que precisa de internet.
 
-**Pendências:** [D02] (status de obra nova), [D09] (localização da obra).
+Obra nova nasce em andamento ([D02]).
 
 ## `2.3` Pasta da obra
 
@@ -119,8 +117,6 @@ A planilha de serviços, os equipamentos e os documentos são chamadas separadas
 | Começar obra, voltar a andamento | `changeSiteStatus` com `in_progress` | A obra volta pro início e pra `2.5` (`RG08`). |
 | Ver RDOs | `listReports` | |
 
-[D02]: ../../roadmap/ROADMAP.md#decisões-em-aberto
+[D02]: ../../roadmap/ROADMAP.md#decisões-tomadas
 [D08]: ../../roadmap/ROADMAP.md#decisões-em-aberto
-[D09]: ../../roadmap/ROADMAP.md#decisões-em-aberto
-[D15]: ../../roadmap/ROADMAP.md#decisões-em-aberto
-[D16]: ../../roadmap/ROADMAP.md#decisões-em-aberto
+[D09]: ../../roadmap/ROADMAP.md#decisões-tomadas

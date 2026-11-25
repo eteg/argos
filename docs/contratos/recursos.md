@@ -12,7 +12,7 @@ A coluna Origem segue a matriz de campos do [guia do time]: **Obra** é preenchi
 | `siteStatus` | `not_started`, `in_progress`, `paused`, `completed` | Obra (`RG08`) |
 | `documentType` | `architectural`, `structural`, `plumbing`, `electrical_telecom`, `hvac`, `fire_protection`, `as_built` | Documento da obra (`RG02`) |
 | `entryStatus` | `processing`, `processed`, `failed` | Registro |
-| `mediaSource` | `camera`, `gallery`, `microphone` | Mídia |
+| `mediaSource` | `camera`, `microphone` | Mídia |
 | `reportStatus` | `generating`, `draft`, `approved` | RDO ([D08]) |
 | `dayState` | `no_entries`, `in_progress`, `draft`, `approved` | Resumo do dia de uma obra |
 | `shift` | `morning`, `afternoon` | Clima |
@@ -123,7 +123,7 @@ As listas de obras (`2.1`, `2.5`, `2.11`) trazem a obra resumida, mais:
 
 | Campo | Tipo | Nota |
 |---|---|---|
-| `distanceMeters` | inteiro ou `null` | Com `X-Device-Location`. A web monta "40 m · você está aqui" e o tempo de carro [❓A confirmar a fonte do tempo de carro]. |
+| `distanceMeters` | inteiro ou `null` | Com `X-Device-Location`. A web monta "40 m · você está aqui" ([D16], sem tempo de carro). |
 | `today` | objeto | `localDate`, `state` (`dayState`), `entriesCount` e `reportId`. |
 | `pendingDays` | lista | Dias capturados sem internet que ainda não têm RDO aprovado: `localDate` e `entriesCount`, do mais antigo pro mais novo (`2.6`). |
 | `openItemsCount` | inteiro | |
@@ -164,7 +164,7 @@ Um arquivo de áudio ou foto, enviado antes do registro.
 |---|---|---|
 | `id` | texto | UUID gerado na web. |
 | `kind` | enum | `audio` ou `photo`. |
-| `source` | `mediaSource` | A foto da galeria pode vir sem local ([D10]). |
+| `source` | `mediaSource` | Só câmera, com e sem internet ([D10]). |
 | `capturedAt` | instante | |
 | `location` | localização ou `null` | |
 | `durationSeconds` | inteiro ou `null` | Só no áudio. "Áudio · 0:48". |
@@ -290,6 +290,7 @@ O que ficou pendente num RDO aprovado, por obra (`F1RN06`, `F1RN11`).
 [D03]: ../roadmap/ROADMAP.md#decisões-em-aberto
 [D04]: ../roadmap/ROADMAP.md#decisões-em-aberto
 [D08]: ../roadmap/ROADMAP.md#decisões-em-aberto
-[D09]: ../roadmap/ROADMAP.md#decisões-em-aberto
-[D10]: ../roadmap/ROADMAP.md#decisões-em-aberto
+[D09]: ../roadmap/ROADMAP.md#decisões-tomadas
+[D10]: ../roadmap/ROADMAP.md#decisões-tomadas
+[D16]: ../roadmap/ROADMAP.md#decisões-tomadas
 [D11]: ../roadmap/ROADMAP.md#decisões-em-aberto

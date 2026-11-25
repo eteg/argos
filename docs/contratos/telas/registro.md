@@ -21,7 +21,7 @@ Só entram obras `in_progress` (`RG08`).
 
 | Ação | Operação | Resultado |
 |---|---|---|
-| Escolher a obra | | Abre a `3.2` daquela obra. O check-in não chama a API ([D12]). |
+| Escolher a obra | | Abre a `3.2` daquela obra. O check-in não chama a API: é só a escolha da obra, e o primeiro registro abre o dia ([D12]). |
 | Finalizar dias sem internet | | Abre a `2.6`. |
 
 ## `3.1` RDO de hoje
@@ -90,7 +90,7 @@ A mesma captura, sem a interpretação (`RG07`). A web guarda o áudio e as foto
 
 **Mostra:** "Sem internet", "Salvando só no celular" e o aviso de que a transcrição e as perguntas aparecem quando o sinal voltar. Nenhum dado da API.
 
-**Pendências:** a tela aceita foto da galeria, que pode vir sem local ([D10]).
+**Foto:** só câmera, com e sem internet. A tela não oferece a galeria ([D10]).
 
 ## `2.7` Aviso de internet de volta
 
@@ -117,7 +117,7 @@ A mesma captura, sem a interpretação (`RG07`). A web guarda o áudio e as foto
 **Pendências:** [D04] (ordem dos dias).
 
 [D04]: ../../roadmap/ROADMAP.md#decisões-em-aberto
-[D10]: ../../roadmap/ROADMAP.md#decisões-em-aberto
-[D12]: ../../roadmap/ROADMAP.md#decisões-em-aberto
+[D10]: ../../roadmap/ROADMAP.md#decisões-tomadas
+[D12]: ../../roadmap/ROADMAP.md#decisões-tomadas
 [D13]: ../../roadmap/ROADMAP.md#decisões-em-aberto
 [D14]: ../../roadmap/ROADMAP.md#decisões-em-aberto
