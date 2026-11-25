@@ -13,9 +13,14 @@ export function Understood({ entryId, siteId, number }: { entryId: string; siteI
   const [state, reload] = useLoad(() => unwrap(api.GET("/v1/entries/{entryId}", { params: { path: { entryId }, ...tz } })), [entryId]);
   const [answered, setAnswered] = useState<string[]>([]);
   const processing = state.status === "ok" && state.data.status === "processing";
+  const [tries, setTries] = useState(0);
+  const completing = state.status === "ok" && state.data.status === "processed" && !!state.data.transcript && !state.data.title && tries < 12;
   useEffect(() => {
-    if (!processing) return;
-    const t = setTimeout(reload, 2000);
+    if (!processing && !completing) return;
+    const t = setTimeout(() => {
+      setTries((n) => n + 1);
+      reload();
+    }, 1000);
     return () => clearTimeout(t);
   });
   const entry = state.status === "ok" ? state.data : null;
