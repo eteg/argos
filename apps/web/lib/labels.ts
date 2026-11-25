@@ -34,3 +34,15 @@ export const occurrenceTypeLabel: Record<string, string> = {
   external_interference: "Interferência externa",
   other: "Outra",
 };
+
+export const openItemKindLabel: Record<string, string> = {
+  declared_pending: "Pendência declarada",
+  unresolved_occurrence: "Ocorrência sem desfecho",
+  unfinished_service: "Serviço não concluído",
+};
+export const outcomeLabel: Record<string, string> = { close: "Fechar", keep: "Manter", update: "Atualizar" };
+
+// F1RN10: item antigo ganha destaque a partir de 4 dias (D03).
+export const HIGHLIGHT_DAYS = 4;
+export const daysSince = (ymd: string, today: string) => Math.round((Date.parse(today) - Date.parse(ymd)) / 86_400_000);
+export const age = (days: number) => (days <= 0 ? "nova" : days === 1 ? "há 1 dia" : `há ${days} dias`);

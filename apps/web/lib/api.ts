@@ -65,6 +65,22 @@ export interface Question {
   kind: string;
   text: string;
   field: string | null;
+  openItemId: string | null;
+  options: { id: string; label: string }[];
+}
+
+export interface OpenItem {
+  id: string;
+  siteId: string;
+  title: string;
+  kind: "declared_pending" | "unresolved_occurrence" | "unfinished_service";
+  status: "open" | "closed";
+  openedOn: string;
+  lastUpdate: { localDate: string; note: string } | null;
+  closedOn: string | null;
+  closingNote: string | null;
+  mentionedToday?: { entryId: string; capturedAt: string } | null;
+  site?: { id: string; name: string };
 }
 
 export interface Report {
@@ -83,6 +99,9 @@ export interface Report {
   activities?: { id: string; description: string; location: string | null; status: string | null; quantity: number | null; unit: string | null }[];
   occurrences?: { id: string; type: string; description: string; startTime: string | null; endTime: string | null; status: string | null }[];
   photos: { id: string; url: string }[];
+  openItems: OpenItem[];
+  openItemReviews?: { openItemId: string; outcome: "close" | "keep" | "update"; note: string | null }[];
+  newOpenItems?: { id: string; title: string; kind: string; track: boolean }[];
   questions: Question[];
   missingFields: { field: string; questionId: string | null }[];
   approval: { approvedBy: string; approvedAt: string } | null;
@@ -98,6 +117,7 @@ export interface SiteSummary {
   address: string | null;
   distanceMeters: number | null;
   today: { localDate: string; state: string; entriesCount: number };
+  openItemsCount: number;
 }
 
 export interface Site extends SiteSummary {

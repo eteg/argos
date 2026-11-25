@@ -58,6 +58,7 @@ export const entries = pgTable("entries", {
   transcript: text("transcript"),
   title: text("title"),
   tags: jsonb("tags").$type<EntryTag[]>().notNull().default([]),
+  openItemIds: jsonb("open_item_ids").$type<string[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -95,3 +96,22 @@ export const reports = pgTable(
   },
   (t) => [unique().on(t.siteId, t.localDate)],
 );
+
+// O que ficou pendente num RDO aprovado (F1RN06). Só nasce e muda na aprovação (F1RN11).
+export const openItems = pgTable("open_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  siteId: uuid("site_id")
+    .notNull()
+    .references(() => sites.id),
+  title: text("title").notNull(),
+  kind: text("kind").notNull(),
+  status: text("status").notNull(),
+  openedOn: date("opened_on").notNull(),
+  openedInReportId: uuid("opened_in_report_id")
+    .notNull()
+    .references(() => reports.id),
+  lastUpdate: jsonb("last_update").$type<{ localDate: string; note: string }>(),
+  closedOn: date("closed_on"),
+  closingNote: text("closing_note"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

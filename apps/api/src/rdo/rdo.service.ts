@@ -6,7 +6,8 @@ import { readFileSync } from "node:fs";
 import { z } from "zod";
 import { AiService } from "../ai/ai.service";
 import { db } from "../db/db";
-import { entries, media, reports, sites, type EntryTag, type Question } from "../db/schema";
+import { entries, media, openItems, reports, sites, type EntryTag, type Question } from "../db/schema";
+import { openItemsBefore } from "../open-items/open-items";
 
 const SYSTEM = `Você é o agente do Argos, que preenche o RDO (Relatório Diário de Obra) a partir dos áudios e fotos que o engenheiro grava ao longo do dia.
 Regras:
@@ -22,6 +23,7 @@ const interpretationSchema = z.object({
       label: z.string().describe("Como 'Ocorrência: falta de material' ou 'Efetivo: 12 pedreiros'"),
     }),
   ),
+  mentionedOpenItemIds: z.array(z.string()).describe("Ids dos itens em aberto que o relato cita"),
 });
 
 const reportOutputSchema = z.object({
@@ -49,18 +51,22 @@ export class RdoService {
       }
       let title: string | null = entry.photoMediaIds.length > 0 ? `${entry.photoMediaIds.length} foto(s)` : null;
       let tags: EntryTag[] = [];
+      let openItemIds: string[] = [];
       if (transcript) {
+        const pending = await openItemsBefore(entry.siteId, entry.localDate);
         const out = await this.ai.parse({
           name: "interpretar-registro",
           system: SYSTEM,
-          prompt: `Relato do engenheiro gravado às ${entry.capturedAt.toISOString()}:\n"""${transcript}"""\n\nDê um título curto e marque o que você reconheceu.`,
+          prompt: `Itens em aberto da obra, dos dias anteriores:\n${JSON.stringify(pending.map((i) => ({ id: i.id, title: i.title, openedOn: i.openedOn })))}\n\nRelato do engenheiro gravado às ${entry.capturedAt.toISOString()}:\n"""${transcript}"""\n\nDê um título curto, marque o que você reconheceu e diga quais itens em aberto o relato cita.`,
           effort: "low",
           schema: interpretationSchema,
         });
         title = out.title;
         tags = out.tags;
+        const known = new Set(pending.map((i) => i.id));
+        openItemIds = out.mentionedOpenItemIds.filter((id) => known.has(id));
       }
-      await db.update(entries).set({ status: "processed", transcript, title, tags }).where(eq(entries.id, entryId));
+      await db.update(entries).set({ status: "processed", transcript, title, tags, openItemIds }).where(eq(entries.id, entryId));
     } catch {
       await db.update(entries).set({ status: "failed" }).where(eq(entries.id, entryId));
     }
@@ -106,6 +112,7 @@ export class RdoService {
     const relatos = fresh
       .map((e) => `- ${hhmm(e.capturedAt, e.timezone)}: ${e.transcript ?? "(sem áudio)"}${e.photoMediaIds.length ? ` [${e.photoMediaIds.length} foto(s)]` : ""}`)
       .join("\n");
+    const pending = await openItemsBefore(report.siteId, report.localDate);
     try {
       const out = await this.ai.parse({
         name: "preencher-rdo",
@@ -119,14 +126,19 @@ ${report.content ? `Rascunho atual, já revisado pelo engenheiro (mantenha o que
 Relatos do dia, em ordem:
 ${relatos}
 
+Itens em aberto que vieram dos dias anteriores (memória da obra):
+${JSON.stringify(pending.map((i) => ({ id: i.id, title: i.title, kind: i.kind, openedOn: i.openedOn, lastUpdate: i.lastUpdate })))}
+
 Preencha o RDO. Ids de atividade e ocorrência: "a1", "a2"..., "o1", "o2"...
-weather tem sempre dois itens, morning e afternoon. openItemReviews e newOpenItems ficam vazios.
+weather tem sempre dois itens, morning e afternoon.
+openItemReviews: só pros itens em aberto que os relatos citam. outcome "close" se foi resolvido, "update" se mudou mas segue aberto, "keep" se segue igual; note diz o que o engenheiro falou. Item não citado fica de fora: você vai cobrar o engenheiro por ele.
+newOpenItems: o que fica pendente pra amanhã a partir de hoje, com id "n1", "n2"... e track true. kind "unresolved_occurrence" pra ocorrência aberta, "unfinished_service" pra atividade iniciada, em andamento ou paralisada, e "declared_pending" pro que o engenheiro disse que precisa fazer. Não repita um item que já está na memória.
 Em obra pública ou financiada, também são obrigatórios: horas paradas por clima, quantidade e unidade de cada atividade, serviços afetados e documento de origem de cada ocorrência.
 Ocorrência de acidente precisa de safety (DDS e EPI em uso), e você pergunta o que não foi falado.`,
         effort: "medium",
         schema: reportOutputSchema,
       });
-      const questions = toQuestions(out.questions, out.content, site!);
+      const questions = toQuestions(out.questions, out.content, site!, pending);
       await db
         .update(reports)
         .set({
@@ -149,7 +161,7 @@ Ocorrência de acidente precisa de safety (DDS e EPI em uso), e você pergunta o
     const content = await this.ai.parse({
       name: "aplicar-resposta",
       system: SYSTEM,
-      prompt: `RDO atual:\n${JSON.stringify(report!.content)}\n\nVocê perguntou: "${question.text}" (campo ${question.field ?? "livre"}).\nO engenheiro respondeu: "${answer}".\n\nDevolva o RDO inteiro com a resposta aplicada. Não mude nada que a resposta não cobre.`,
+      prompt: `RDO atual:\n${JSON.stringify(report!.content)}\n\nVocê perguntou: "${question.text}" (${question.openItemId ? `item em aberto ${question.openItemId}: a resposta vira um openItemReviews com esse openItemId, outcome close, update ou keep, e note` : `campo ${question.field ?? "livre"}`}).\nO engenheiro respondeu: "${answer}".\n\nDevolva o RDO inteiro com a resposta aplicada. Não mude nada que a resposta não cobre.`,
       effort: "low",
       schema: reportContentSchema,
     });
@@ -159,6 +171,9 @@ Ocorrência de acidente precisa de safety (DDS e EPI em uso), e você pergunta o
         : q,
     );
     const missing = new Set(blockingFields(content, site!.type as SiteType, { hasServices: false }).map((f) => f.field));
+    for (const id of report!.questions.flatMap((q) => (q.openItemId ? [q.openItemId] : []))) {
+      if (!content.openItemReviews.some((r) => r.openItemId === id)) missing.add(`openItemReviews.${id}`);
+    }
     // Pergunta aberta cujo campo foi preenchido pela resposta sai da tela.
     const questions = answered.map((q) => (q.status === "open" && q.field && !missing.has(q.field) ? { ...q, status: "answered" as const } : q));
     await db
@@ -172,20 +187,44 @@ Ocorrência de acidente precisa de safety (DDS e EPI em uso), e você pergunta o
   }
 }
 
-function toQuestions(asked: { field: string; text: string }[], content: ReportContent, site: SiteRow): Question[] {
+type OpenItemRow = typeof openItems.$inferSelect;
+
+export const OPEN_ITEM_OPTIONS = [
+  { id: "close", label: "Resolvido, pode fechar" },
+  { id: "keep", label: "Continua igual" },
+];
+
+// F1RN08: todo item em aberto que os relatos não citaram vira cobrança.
+export function openItemQuestions(content: ReportContent, pending: OpenItemRow[]): Question[] {
+  const reviewed = new Set(content.openItemReviews.map((r) => r.openItemId));
+  return pending
+    .filter((i) => !reviewed.has(i.id))
+    .map((i) => ({
+      id: randomUUID(),
+      kind: "open_item",
+      text: `Desde ${i.openedOn.split("-").reverse().slice(0, 2).join("/")} ficou em aberto: "${i.title}"${i.lastUpdate ? ` (última: ${i.lastUpdate.note})` : ""}. Como está hoje?`,
+      field: `openItemReviews.${i.id}`,
+      openItemId: i.id,
+      options: OPEN_ITEM_OPTIONS,
+      status: "open",
+      answer: null,
+    }));
+}
+
+function toQuestions(asked: { field: string; text: string }[], content: ReportContent, site: SiteRow, pending: OpenItemRow[]): Question[] {
   const missing = findMissingFields(content, site.type as SiteType, { hasServices: false }).filter((f) => f.level !== "recommended");
   const byField = new Map(asked.map((q) => [q.field, q.text]));
   // Todo campo obrigatório vazio tem uma pergunta, mesmo que a IA tenha esquecido de fazer.
-  return missing.map((f) => ({
+  return [...openItemQuestions(content, pending), ...missing.map((f): Question => ({
     id: randomUUID(),
     kind: f.field.includes("safety") ? "safety" : "missing_field",
     text: byField.get(f.field) ?? `Você não falou ${describeField(f.field, content)}. Pode me dizer?`,
     field: f.field,
     openItemId: null,
     options: [],
-    status: "open",
+    status: "open" as const,
     answer: null,
-  }));
+  }))];
 }
 
 function snapshot(site: SiteRow) {

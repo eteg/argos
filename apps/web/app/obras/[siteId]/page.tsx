@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { ApiError, api, mediaUrl, today, type Entry, type Site, type SiteStatus } from "@/lib/api";
-import { siteStatusLabel, siteTypeLabel, time } from "@/lib/labels";
+import { ApiError, api, mediaUrl, today, type Entry, type OpenItem, type Site, type SiteStatus } from "@/lib/api";
+import { HIGHLIGHT_DAYS, age, daysSince, siteStatusLabel, siteTypeLabel, time } from "@/lib/labels";
 
 // 2.3 Pasta da obra, com os registros de hoje e o status (2.10).
 export default function SiteFolder() {
@@ -12,14 +12,16 @@ export default function SiteFolder() {
   const [site, setSite] = useState<Site | null>(null);
   const router = useRouter();
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [openItems, setOpenItems] = useState<OpenItem[]>([]);
   const [report, setReport] = useState<{ id: string; status: string; number: number } | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(() => {
     api<Site>(`/sites/${siteId}`).then(setSite).catch(() => setError("Obra não encontrada."));
-    api<{ entries: Entry[]; report: typeof report }>(`/sites/${siteId}/days/${today()}`).then((d) => {
+    api<{ entries: Entry[]; report: typeof report; openItems: OpenItem[] }>(`/sites/${siteId}/days/${today()}`).then((d) => {
       setEntries(d.entries);
+      setOpenItems(d.openItems);
       setReport(d.report);
     });
   }, [siteId]);
@@ -72,6 +74,24 @@ export default function SiteFolder() {
           Contrato nº {site.publicContract.number} · {site.publicContract.elapsedDays} dias · faltam{" "}
           {site.publicContract.remainingDays}
         </div>
+      )}
+
+      {openItems.length > 0 && (
+        <>
+          <h2>Ficou dos dias anteriores</h2>
+          {openItems.map((i) => {
+            const days = daysSince(i.openedOn, today());
+            return (
+              <div key={i.id} className="card" style={days >= HIGHLIGHT_DAYS ? { borderColor: "var(--danger)" } : undefined}>
+                <div>{i.title}</div>
+                <div className="muted">
+                  {i.mentionedToday ? `citado às ${time(i.mentionedToday.capturedAt)}` : "não citado hoje"} · {age(days)}
+                  {i.lastUpdate && ` · ${i.lastUpdate.note}`}
+                </div>
+              </div>
+            );
+          })}
+        </>
       )}
 
       <h2>Hoje</h2>

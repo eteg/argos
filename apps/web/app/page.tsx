@@ -22,6 +22,9 @@ export default function Home() {
   return (
     <main>
       <h1>Olá{me ? `, ${me.name.split(" ")[0]}` : ""}</h1>
+      <Link href="/pendencias" className="card">
+        📌 Pendências das obras
+      </Link>
       <div className="row">
         <h2>Obras em andamento</h2>
         <Link href="/obras/todas" className="muted">
@@ -39,6 +42,7 @@ export default function Home() {
           <div className="row" style={{ marginTop: 8 }}>
             <span className="tag">
               {s.today.entriesCount === 0 ? "Sem registros hoje" : `${s.today.entriesCount} registro(s) hoje`}
+              {s.openItemsCount > 0 && ` · ${s.openItemsCount} em aberto`}
             </span>
             <span className="btn primary" style={{ padding: "6px 12px" }}>
               Registrar

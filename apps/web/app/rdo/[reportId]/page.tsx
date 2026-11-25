@@ -10,6 +10,8 @@ import {
   date,
   equipmentStatusLabel,
   occurrenceTypeLabel,
+  openItemKindLabel,
+  outcomeLabel,
   siteTypeLabel,
   time,
   weatherLabel,
@@ -90,6 +92,12 @@ export default function ReportReview() {
 
   const approved = report.status === "approved";
   const photosMissing = report.missingFields.some((f) => f.field === "photos");
+  const titleOf = (id: string) => report.openItems.find((i) => i.id === id)?.title ?? "Item anterior";
+
+  async function toggleTrack(id: string) {
+    const newOpenItems = report!.newOpenItems!.map((n) => (n.id === id ? { ...n, track: !n.track } : n));
+    setReport(await api<Report>(`/reports/${reportId}`, { method: "PATCH", body: JSON.stringify({ newOpenItems }) }));
+  }
   const unanswered = report.missingFields.filter((f) => f.field !== "photos" && !f.questionId);
 
   return (
@@ -182,6 +190,45 @@ export default function ReportReview() {
         </Block>
       )}
 
+      {((report.openItemReviews?.length ?? 0) > 0 || (report.newOpenItems?.length ?? 0) > 0) && (
+        <Block title="Itens em aberto">
+          {report.openItemReviews?.map((r) => (
+            <div key={r.openItemId} style={{ marginBottom: 8 }}>
+              <div>{titleOf(r.openItemId)}</div>
+              <div className="muted">
+                <span className="tag">{outcomeLabel[r.outcome]}</span> {r.note}
+              </div>
+            </div>
+          ))}
+          {report.newOpenItems?.map((n) => (
+            <div key={n.id} className="row" style={{ marginBottom: 8, opacity: n.track ? 1 : 0.5 }}>
+              <div>
+                <div>{n.title}</div>
+                <div className="muted">
+                  <span className="tag">novo</span> {openItemKindLabel[n.kind]}
+                </div>
+              </div>
+              {!approved && (
+                <button className="btn" style={{ padding: "6px 10px" }} onClick={() => toggleTrack(n.id)}>
+                  {n.track ? "Não acompanhar" : "Acompanhar"}
+                </button>
+              )}
+            </div>
+          ))}
+        </Block>
+      )}
+
+      {approved && (report.newOpenItems?.some((n) => n.track) || report.openItemReviews?.some((r) => r.outcome !== "close")) && (
+        <Block title="Amanhã o Argos vai perguntar por">
+          {report.openItemReviews
+            ?.filter((r) => r.outcome !== "close")
+            .map((r) => <div key={r.openItemId}>• {r.note ?? "Item anterior"}</div>)}
+          {report.newOpenItems
+            ?.filter((n) => n.track)
+            .map((n) => <div key={n.id}>• {n.title}</div>)}
+        </Block>
+      )}
+
       <h2>Fotos · {report.photos.length} de 20</h2>
       {report.photos.length > 0 && (
         <div className="photos">
@@ -219,12 +266,13 @@ function QuestionCard({ question, onAnswered }: { question: Question; onAnswered
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
-  async function send() {
-    if (!text.trim()) return;
+  async function send(optionId?: string) {
+    if (!optionId && !text.trim()) return;
     setSending(true);
     setError("");
     try {
-      onAnswered(await api<Report>(`/questions/${question.id}/answer`, { method: "POST", body: JSON.stringify({ text }) }));
+      const body = optionId ? { optionId } : { text };
+      onAnswered(await api<Report>(`/questions/${question.id}/answer`, { method: "POST", body: JSON.stringify(body) }));
     } catch {
       setError("Não deu pra enviar a resposta.");
       setSending(false);
@@ -233,10 +281,19 @@ function QuestionCard({ question, onAnswered }: { question: Question; onAnswered
 
   return (
     <div className="card" style={{ marginTop: 10 }}>
-      <div>💬 {question.text}</div>
+      <div>{question.kind === "open_item" ? "📌" : "💬"} {question.text}</div>
+      {question.options.length > 0 && (
+        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+          {question.options.map((o) => (
+            <button key={o.id} className="btn" style={{ flex: 1, padding: "8px 10px" }} onClick={() => send(o.id)} disabled={sending}>
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
       <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Sua resposta" onKeyDown={(e) => e.key === "Enter" && send()} />
-        <button className="btn primary" onClick={send} disabled={sending}>
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={question.options.length > 0 ? "Ou conte o que mudou" : "Sua resposta"} onKeyDown={(e) => e.key === "Enter" && send()} />
+        <button className="btn primary" onClick={() => send()} disabled={sending}>
           {sending ? "…" : "Enviar"}
         </button>
       </div>

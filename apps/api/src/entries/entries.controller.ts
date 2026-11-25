@@ -6,6 +6,7 @@ import { db } from "../db/db";
 import { entries, reports } from "../db/schema";
 import { findMedia, toMedia } from "../media/media.controller";
 import { ProblemException } from "../problem.filter";
+import { openItemsOfDay } from "../open-items/open-items";
 import { RdoService } from "../rdo/rdo.service";
 import { findSite } from "../sites/sites.controller";
 import { locationSchema, parse } from "../validation";
@@ -40,7 +41,7 @@ async function toEntries(rows: EntryRow[]) {
     transcript: r.transcript ?? null,
     title: r.title ?? null,
     tags: r.tags,
-    openItemIds: [],
+    openItemIds: r.openItemIds,
     questions: [],
   }));
 }
@@ -125,7 +126,7 @@ export class EntriesController {
     return {
       site: { id: site.id, name: site.name, type: site.type, status: site.status, address: site.address ?? null },
       localDate,
-      openItems: [],
+      openItems: await openItemsOfDay(siteId, localDate),
       entries: await toEntries(rows),
       report: await db
         .select({ id: reports.id, status: reports.status, number: reports.number })

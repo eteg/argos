@@ -3,7 +3,8 @@ import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "../db/db";
-import { entries, reports, sites } from "../db/schema";
+import { entries, openItems, reports, sites } from "../db/schema";
+import { toOpenItem } from "../open-items/open-items";
 import { ProblemException } from "../problem.filter";
 import { locationSchema, parse, todayIn } from "../validation";
 
@@ -128,6 +129,15 @@ export class SitesController {
       filtered.map((r) => r.id),
       today,
     );
+    const openCounts = new Map(
+      (
+        await db
+          .select({ siteId: openItems.siteId, n: count() })
+          .from(openItems)
+          .where(eq(openItems.status, "open"))
+          .groupBy(openItems.siteId)
+      ).map((r) => [r.siteId, r.n]),
+    );
     const [lat, lng] = (deviceLocation ?? "").split(",").map(Number);
     const here = deviceLocation && Number.isFinite(lat) && Number.isFinite(lng) ? { lat: lat!, lng: lng! } : null;
     const items = filtered.map((r) => ({
@@ -135,7 +145,7 @@ export class SitesController {
       distanceMeters: here && r.location ? distance(here, r.location) : null,
       today: todaySummary(counts.get(r.id) ?? 0, today),
       pendingDays: [],
-      openItemsCount: 0,
+      openItemsCount: openCounts.get(r.id) ?? 0,
     }));
     if (here) items.sort((a, b) => (a.distanceMeters ?? Infinity) - (b.distanceMeters ?? Infinity));
     return { items };
@@ -174,7 +184,7 @@ export class SitesController {
       ...toSite(row, today),
       today: todaySummary(counts.get(siteId) ?? 0, today),
       pendingDays: [],
-      openItems: [],
+      openItems: (await db.select().from(openItems).where(and(eq(openItems.siteId, siteId), eq(openItems.status, "open")))).map(toOpenItem),
       recentReports: [],
       approvedReportsCount: 0,
     };

@@ -13,7 +13,7 @@ As regras de negócio ficam no [guia do time], que é a fonte da verdade. Este r
 | [M0](#m0-fundação) | Fundação | em andamento |
 | [M1](#m1-obras-e-registro) | Obras e registro | em andamento |
 | [M2](#m2-rdo-preenchido-pela-ia) | RDO preenchido pela IA | em andamento |
-| [M3](#m3-memória-entre-dias) | Memória entre dias | não iniciado |
+| [M3](#m3-memória-entre-dias) | Memória entre dias | em andamento |
 | [M4](#m4-sem-internet) | Sem internet | não iniciado |
 | [M5](#m5-compartilhar-e-consultar) | Compartilhar e consultar | não iniciado |
 | [M6](#m6-demo) | Demo | não iniciado |
@@ -139,6 +139,13 @@ Pronto quando um dia de registros vira um RDO aprovado que passa no schema, e o 
 - **Decisões antes do marco:** D03.
 
 Pronto quando o RDO do dia 2 cobra as pendências do dia 1 e cada item sai fechado, mantido ou atualizado.
+
+| Raia | Entrega | Situação | Onde |
+|---|---|---|---|
+| IA | Itens novos e desfecho dos citados no RDO, itens citados em cada registro | em revisão | testado com o áudio do dia 2 gerado por TTS |
+| API | Itens em aberto (`listOpenItems`), cobrança dos não citados, desfecho e abertura na aprovação | em revisão | a cobrança aparece na revisão do RDO, não durante o registro (`3.2`) |
+| Web | "Ficou dos dias anteriores" (`3.1`), cobranças e itens na revisão (`3.3`), pendências (`2.8`) com destaque (D03, 4 dias) | em revisão | |
+| Eval | % das pendências cobradas | a fazer | |
 
 ## M4 Sem internet
 
