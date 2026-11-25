@@ -2,10 +2,12 @@
 
 ## 0.3.0, rascunho
 
+- IA no M2: `createEntry` responde 202 com `status` `processing` quando há IA no ambiente (a API transcreve o áudio e resume o registro em segundo plano) e 201 sem IA; a web consulta `getEntry`. `generateReport` responde 202 `generating` e a IA preenche só o que está vazio, com cada lacuna obrigatória virando uma pergunta. Novo `correctReportByVoice` (`POST /v1/reports/{reportId}/voice-corrections`). Novo 409 `REPORT_NOT_READY` em `updateReport`, `approveReport` e `correctReportByVoice` enquanto o RDO está em `generating`. `answerQuestion` com opção ou texto aplica a resposta no campo da pergunta (`field`).
+
 - `updateReport` (`PATCH /v1/reports/{reportId}`): corrige campos do rascunho, grava no `history` e responde 409 `REPORT_ALREADY_APPROVED` no aprovado. `generateReport` de novo mantém as correções.
 - `answerQuestion` responde 200 com opção ou texto e 202 com áudio (sem IA ainda, só guarda a resposta). `getEntry` implementado.
 - `approveReport` responde 400 sem `Idempotency-Key` e 409 `REPORT_ALREADY_APPROVED` com outra chave.
-- Base do M2 no OpenAPI: `getEntry`, `answerQuestion`, `generateReport` (202), `getReport` e `approveReport` (com `Idempotency-Key`), mais os schemas `Report`, `Workday` e `AnswerQuestionRequest`. `Report.site` ficou igual ao `site` do `@argos/rdo-schema`. `generateReport` responde 409 `NO_ENTRIES` num dia sem registro. `listServices` e o schema `Service`. Falta `correctReportByVoice`.
+- Base do M2 no OpenAPI: `getEntry`, `answerQuestion`, `generateReport` (202), `getReport` e `approveReport` (com `Idempotency-Key`), mais os schemas `Report`, `Workday` e `AnswerQuestionRequest`. `Report.site` ficou igual ao `site` do `@argos/rdo-schema`. `generateReport` responde 409 `NO_ENTRIES` num dia sem registro. `listServices` e o schema `Service`.
 
 ## 0.2.0, acordado
 

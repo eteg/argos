@@ -458,7 +458,7 @@ export interface paths {
         put?: never;
         /**
          * Monta ou remonta o rascunho do RDO do dia
-         * @description Chamar de novo remonta o rascunho com os registros novos.
+         * @description Chamar de novo remonta o rascunho com os registros novos e mantém as correções. Com IA ligada, responde 202 com `status` `generating`; a web consulta `getReport` até `draft`. A IA só preenche o que ainda está vazio e transforma cada lacuna obrigatória em pergunta (`RG05`).
          */
         post: operations["generateReport"];
         delete?: never;
@@ -494,6 +494,34 @@ export interface paths {
          * @description Manda só os campos que mudam. A lista inteira de um campo substitui a anterior. `site` e `localDate` não mudam (vêm do cadastro e do dia). Em `photos` vão só `id`, `caption` e `linkedTo`. Entra no `history`. Chamar `generateReport` de novo mantém essas correções.
          */
         patch: operations["updateReport"];
+        trace?: never;
+    };
+    "/v1/reports/{reportId}/voice-corrections": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+            };
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Corrige o rascunho falando
+         * @description O áudio sobe antes por `uploadMedia`. A API transcreve, aplica a correção e volta o RDO a `draft`; o histórico registra a correção. Se não der pra aplicar, o RDO volta a `draft` sem mudança e o histórico diz o motivo.
+         */
+        post: operations["correctReportByVoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/reports/{reportId}/approve": {
@@ -1857,6 +1885,15 @@ export interface operations {
                     "application/json": components["schemas"]["Entry"];
                 };
             };
+            /** @description O registro gravado e em interpretação (`status` `processing`). A web consulta `getEntry` até `processed` ou `failed`. Sem IA ligada no ambiente, responde 201. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Entry"];
+                };
+            };
             400: components["responses"]["Validation"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
@@ -2091,7 +2128,59 @@ export interface operations {
             400: components["responses"]["Validation"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description `REPORT_ALREADY_APPROVED`. */
+            /** @description `REPORT_ALREADY_APPROVED` ou `REPORT_NOT_READY` (o RDO ainda está sendo montado). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    correctReportByVoice: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+            };
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    audioMediaId: string;
+                    /** @description Bloco em foco, como `workday` ou `activities`. */
+                    section?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description O RDO em `generating`. A web consulta `getReport` até `draft`. */
+            202: {
+                headers: {
+                    Location?: string;
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Report"];
+                };
+            };
+            400: components["responses"]["Validation"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description `REPORT_ALREADY_APPROVED` ou `REPORT_NOT_READY`. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2133,7 +2222,7 @@ export interface operations {
             400: components["responses"]["Validation"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description `REPORT_INCOMPLETE`, com `errors` apontando cada campo que falta (`RG06`), ou `REPORT_ALREADY_APPROVED` com outra chave. */
+            /** @description `REPORT_INCOMPLETE`, com `errors` apontando cada campo que falta (`RG06`), `REPORT_ALREADY_APPROVED` com outra chave ou `REPORT_NOT_READY`. */
             409: {
                 headers: {
                     [name: string]: unknown;

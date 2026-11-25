@@ -508,6 +508,13 @@ paths:
             examples:
               withPhotos: { $ref: "#/components/examples/CreateEntryRequest" }
       responses:
+        "202":
+          description: >-
+            O registro gravado e em interpretação (`status` `processing`). A web consulta
+            `getEntry` até `processed` ou `failed`. Sem IA ligada no ambiente, responde 201.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Entry" }
         "200":
           description: O registro já existia.
           content:
@@ -626,7 +633,10 @@ paths:
       operationId: generateReport
       tags: [Reports]
       summary: Monta ou remonta o rascunho do RDO do dia
-      description: Chamar de novo remonta o rascunho com os registros novos.
+      description: >-
+        Chamar de novo remonta o rascunho com os registros novos e mantém as correções. Com IA ligada,
+        responde 202 com `status` `generating`; a web consulta `getReport` até `draft`. A IA só preenche
+        o que ainda está vazio e transforma cada lacuna obrigatória em pergunta (`RG05`).
       responses:
         "202":
           description: O RDO em `generating`.
@@ -688,7 +698,50 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
-          description: "`REPORT_ALREADY_APPROVED`."
+          description: "`REPORT_ALREADY_APPROVED` ou `REPORT_NOT_READY` (o RDO ainda está sendo montado)."
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/reports/{reportId}/voice-corrections:
+    parameters:
+      - name: reportId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - $ref: "#/components/parameters/XTimezone"
+    post:
+      operationId: correctReportByVoice
+      tags: [Reports]
+      summary: Corrige o rascunho falando
+      description: >-
+        O áudio sobe antes por `uploadMedia`. A API transcreve, aplica a correção e volta o RDO
+        a `draft`; o histórico registra a correção. Se não der pra aplicar, o RDO volta a `draft`
+        sem mudança e o histórico diz o motivo.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [audioMediaId]
+              properties:
+                audioMediaId: { type: string, format: uuid }
+                section: { type: string, description: "Bloco em foco, como `workday` ou `activities`." }
+      responses:
+        "202":
+          description: O RDO em `generating`. A web consulta `getReport` até `draft`.
+          headers:
+            Location: { schema: { type: string } }
+            Retry-After: { schema: { type: integer } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Report" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`REPORT_ALREADY_APPROVED` ou `REPORT_NOT_READY`."
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
@@ -719,7 +772,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
-          description: "`REPORT_INCOMPLETE`, com `errors` apontando cada campo que falta (`RG06`), ou `REPORT_ALREADY_APPROVED` com outra chave."
+          description: "`REPORT_INCOMPLETE`, com `errors` apontando cada campo que falta (`RG06`), `REPORT_ALREADY_APPROVED` com outra chave ou `REPORT_NOT_READY`."
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
