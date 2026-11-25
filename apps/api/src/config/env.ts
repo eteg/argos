@@ -6,6 +6,11 @@ const envSchema = z.object({
   GIT_COMMIT: z.string().min(1).default("dev"),
   DATABASE_URL: z.string().min(1),
   API_KEY: z.string().min(1),
+  ANTHROPIC_API_KEY: z.string().min(1),
+  ANTHROPIC_MODEL: z.string().min(1),
+  LANGFUSE_PUBLIC_KEY: z.string().min(1),
+  LANGFUSE_SECRET_KEY: z.string().min(1),
+  LANGFUSE_BASE_URL: z.string().min(1),
 });
 
 export type Env = z.infer<typeof envSchema>;
