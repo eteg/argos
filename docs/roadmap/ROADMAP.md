@@ -137,6 +137,13 @@ Pronto quando a web abre no celular, fala com a API de staging e uma chamada à 
 
 Pronto quando o engenheiro cadastra uma obra, faz o check-in e grava registros com fotos ao longo do dia, e tudo fica guardado na obra certa.
 
+| Raia | Entrega | Situação | Onde |
+|---|---|---|---|
+| API | Obras, status, equipamentos, documentos e planilha de serviços | pronto | |
+| API | Upload de mídia, registros e dia (`uploadMedia`, `createEntry`, `getDay`) | pronto | |
+| Web | Início, cadastro, pasta da obra, status, fora de andamento, check-in e registro | em revisão: falta conferir no navegador | |
+| Contrato | OpenAPI do M1 `acordado` (D18) | a fazer | |
+
 ## M2 RDO preenchido pela IA
 
 - **IA:** transcrição do áudio e leitura das fotos; preenchimento dos blocos do RDO (`F1RN03`); pergunta pelo que faltou em vez de inventar (`RG05`); segurança obrigatória quando o áudio indica acidente (`F1RN04`); prompt caching entre as interações da mesma sessão.
