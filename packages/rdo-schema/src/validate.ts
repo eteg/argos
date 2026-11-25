@@ -105,11 +105,13 @@ function descend(
   walkProperties(inner, value, path, visit);
 }
 
+const PRIVATE_FORBIDDEN_PATH = "site.publicContract";
+
 function collectNotAllowed(root: JsonNode, data: unknown, siteType: SiteType) {
   const errors: ValidationItem<StructuralCode>[] = [];
   if (siteType !== "private") return errors;
   walkProperties(root, data, "", (prop, value, path) => {
-    if (prop.level !== "public_financed") return true;
+    if (prop.level !== "public_financed" || path !== PRIVATE_FORBIDDEN_PATH) return true;
     if (isEmptyValue(value)) return true;
     errors.push({ path, code: "NOT_ALLOWED_FOR_SITE_TYPE" });
     return false;

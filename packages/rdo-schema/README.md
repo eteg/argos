@@ -10,3 +10,5 @@ A fonte dos campos é o recurso `report` de `docs/contratos/recursos.md`, não a
 - `pnpm build` grava `dist/report-content.schema.json` e `dist/report.schema.json`, com os metadados (`level`, `origin`, `guideName`, `conditional`, `nonEmpty`) como palavras-chave extras.
 
 Toda atividade e ocorrência conta como relevante pra exigência de foto em obra pública ou financiada. Ponto a validar com o time.
+
+Em obra privada só o `site.publicContract` é proibido (`NOT_ALLOWED_FOR_SITE_TYPE`). Os outros campos de obra pública ou financiada, como `equipment` e `history`, não são exigidos, mas podem vir preenchidos.
