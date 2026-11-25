@@ -2,6 +2,8 @@
 
 ## 0.3.0, rascunho
 
+- M3: `listOpenItems` (`GET /v1/open-items?status=&closedSince=&siteId=`). `getSite`, `getDay` e `SiteSummary.openItemsCount` passam a vir da tabela real de itens em aberto; `Entry.openItemIds` traz os itens que o registro citou e `OpenItem.mentionedToday` o registro do dia que citou cada um. `approveReport` aplica na mesma transação o desfecho de cada `openItemReviews` (`close`, `keep` ou `update`) e abre os `newOpenItems` com `track` `true` (`F1RN09`, `F1RN11`). O agente cobra os itens não citados com perguntas `open_item` de opções `close` e `keep` (`F1RN08`), e `answerQuestion` numa pergunta `open_item` grava o desfecho no rascunho.
+
 - IA no M2: `createEntry` responde 202 com `status` `processing` quando há IA no ambiente (a API transcreve o áudio e resume o registro em segundo plano) e 201 sem IA; a web consulta `getEntry`. `generateReport` responde 202 `generating` e a IA preenche só o que está vazio, com cada lacuna obrigatória virando uma pergunta. Novo `correctReportByVoice` (`POST /v1/reports/{reportId}/voice-corrections`). Novo 409 `REPORT_NOT_READY` em `updateReport`, `approveReport` e `correctReportByVoice` enquanto o RDO está em `generating`. `answerQuestion` com opção ou texto aplica a resposta no campo da pergunta (`field`).
 
 - `updateReport` (`PATCH /v1/reports/{reportId}`): corrige campos do rascunho, grava no `history` e responde 409 `REPORT_ALREADY_APPROVED` no aprovado. `generateReport` de novo mantém as correções.
