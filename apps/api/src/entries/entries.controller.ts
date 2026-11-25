@@ -190,6 +190,13 @@ export class EntriesController {
     return (await this.toEntries([row!]))[0]!;
   }
 
+  @Get("entries/:entryId")
+  async getEntry(@Param("entryId") entryId: string): Promise<Schemas["Entry"]> {
+    const [row] = uuid.safeParse(entryId).success ? await this.db.select().from(entries).where(eq(entries.id, entryId)) : [];
+    if (!row) throw new ProblemException(404, "NOT_FOUND", "Entry not found.");
+    return (await this.toEntries([row]))[0]!;
+  }
+
   @Get("sites/:siteId/days/:localDate")
   async getDay(
     @Param("siteId") siteId: string,

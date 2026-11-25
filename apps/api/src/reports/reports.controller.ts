@@ -29,6 +29,14 @@ export class ReportsController {
     return this.reports.view(await this.reports.update(reportId, body));
   }
 
+  @Post("questions/:questionId/answer")
+  async answer(@Param("questionId") questionId: string, @Body() body: unknown, @Res({ passthrough: true }) res: Response): Promise<Schemas["Question"]> {
+    const { question, spoken } = await this.reports.answer(questionId, body);
+    if (spoken) res.status(202).setHeader("Retry-After", "2");
+    else res.status(200);
+    return question;
+  }
+
   @Post("reports/:reportId/approve")
   @HttpCode(200)
   async approve(@Param("reportId") reportId: string, @Headers("idempotency-key") key: string | undefined): Promise<Schemas["Report"]> {

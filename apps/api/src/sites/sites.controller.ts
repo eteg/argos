@@ -3,7 +3,7 @@ import {
   Body, Controller, Delete, Get, Headers, HttpCode, Param, Patch, Post, Put, Query, Res, UploadedFile, UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, ilike, or } from "drizzle-orm";
 import type { Response } from "express";
 import type { Schemas } from "@argos/contract";
 import { parseDeviceLocation, timezoneOf } from "../common/locale.js";
@@ -88,6 +88,19 @@ export class SitesController {
       await tx.update(sites).set({ servicesFileName: fileName }).where(eq(sites.id, siteId));
     });
     return { servicesCount: rows.length, servicesFileName: fileName };
+  }
+
+  @Get(":siteId/services")
+  async listServices(@Param("siteId") siteId: string, @Query("search") search?: string): Promise<{ items: Schemas["Service"][] }> {
+    await this.sitesService.requireSite(siteId);
+    const like = search ? "%" + search.replaceAll(/[%_\\]/g, "\\$&") + "%" : null;
+    const rows = await this.db
+      .select()
+      .from(services)
+      .where(and(eq(services.siteId, siteId), like ? or(ilike(services.code, like), ilike(services.description, like)) : undefined))
+      .orderBy(asc(services.code))
+      .limit(200);
+    return { items: rows.map((r) => ({ id: r.id, code: r.code, description: r.description, unit: r.unit })) };
   }
 
   @Post(":siteId/equipment")

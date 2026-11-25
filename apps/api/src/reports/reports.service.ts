@@ -211,6 +211,24 @@ export class ReportsService {
     return { content, validation };
   }
 
+  async answer(questionId: string, body: unknown) {
+    const [row] = uuid.safeParse(questionId).success ? await this.db.select().from(questions).where(eq(questions.id, questionId)) : [];
+    if (!row) throw new ProblemException(404, "NOT_FOUND", "Question not found.");
+    const input = parse(
+      z.strictObject({ optionId: z.string().optional(), text: z.string().min(1).optional(), audioMediaId: z.uuid().optional() }).refine((v) => Object.keys(v).length === 1, "One answer only."),
+      body,
+    );
+    if (input.optionId && !row.options.some((o) => o.id === input.optionId)) {
+      throw new ProblemException(400, "VALIDATION", "Unknown option.", [{ field: "optionId", code: "INVALID" }]);
+    }
+    const answer = { optionId: input.optionId ?? null, text: input.text ?? null, audioMediaId: input.audioMediaId ?? null, answeredAt: new Date().toISOString() };
+    const [updated] = await this.db.update(questions).set({ answer, status: "answered" }).where(eq(questions.id, row.id)).returning();
+    return {
+      spoken: input.audioMediaId !== undefined,
+      question: { id: updated!.id, kind: updated!.kind as Schemas["QuestionKind"], text: updated!.text, field: updated!.field, openItemId: updated!.openItemId, options: updated!.options, status: updated!.status as Schemas["QuestionStatus"], answer: updated!.answer },
+    };
+  }
+
   async approve(reportId: string, key: string | undefined) {
     if (!uuid.safeParse(key).success) {
       throw new ProblemException(400, "VALIDATION", "Idempotency-Key must be a UUID.", [{ field: "Idempotency-Key", code: key ? "INVALID" : "REQUIRED" }]);
