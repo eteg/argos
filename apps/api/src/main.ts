@@ -9,6 +9,7 @@ async function bootstrap() {
   await runMigrations();
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.set("trust proxy", true);
+  if (env.APP_ENV === "development") app.enableCors({ origin: true });
   app.setGlobalPrefix("v1");
   app.useGlobalFilters(new ProblemDetailsFilter());
   await app.listen(env.PORT);
