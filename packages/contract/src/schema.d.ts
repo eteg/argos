@@ -641,7 +641,7 @@ export interface paths {
         put?: never;
         /**
          * Aprova o RDO
-         * @description Grava o responsável e o instante (`F1RN05`) e aplica o desfecho dos itens em aberto (`F1RN11`). Repetir a chamada com a mesma chave devolve o RDO já aprovado.
+         * @description Grava o responsável e o instante (`F1RN05`), dá o número sequencial da obra e aplica o desfecho dos itens em aberto (`F1RN11`). Repetir a chamada com a mesma chave, inclusive em paralelo, devolve o RDO já aprovado com 200. A web gera uma chave por RDO e reaproveita a mesma até a aprovação dar certo. Um dia anterior da obra com registro e sem RDO aprovado bloqueia a aprovação (D04), para o número seguir a ordem das datas (D11).
          */
         post: operations["approveReport"];
         delete?: never;
@@ -2520,7 +2520,7 @@ export interface operations {
             400: components["responses"]["Validation"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description `REPORT_INCOMPLETE`, com `errors` apontando cada campo que falta (`RG06`), `REPORT_ALREADY_APPROVED` com outra chave ou `REPORT_NOT_READY`. */
+            /** @description `REPORT_INCOMPLETE`, com `errors` apontando cada campo que falta (`RG06`), `REPORT_ALREADY_APPROVED` com outra chave, `REPORT_NOT_READY` ou `PREVIOUS_DAY_PENDING`, com `errors[].field` nas datas dos dias anteriores sem RDO aprovado. */
             409: {
                 headers: {
                     [name: string]: unknown;

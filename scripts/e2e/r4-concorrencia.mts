@@ -58,6 +58,31 @@ if (totalPhotos > 20) {
   console.log("     info: getReport ->", gr2.status, gr2.json?.code ?? gr2.json?.status);
 }
 
+// PATCH concorrendo com a aprovação (B14): nunca aprova conteúdo não validado nem perde linha do histórico
+const s5 = await site("Patch " + randomUUID().slice(0, 6));
+const races: unknown[] = [];
+for (let i = 0; i < 6; i++) {
+  const d = daysAgo(8 - i);
+  await entry(s5.id, d, 3);
+  const r = (await generate(s5.id, d)).json;
+  await call("PATCH", `/v1/reports/${r.id}`, complete());
+  const [p, a] = await Promise.all([call("PATCH", `/v1/reports/${r.id}`, { labor: [], laborNotes: `corrida ${i}` }), approve(r.id)]);
+  const final = (await call("GET", `/v1/reports/${r.id}`)).json;
+  const lines = final.history.map((h: any) => h.description);
+  const bad =
+    (a.status === 200 && final.labor.length === 0) ||
+    (p.status === 200 && !lines.some((l: string) => l.startsWith("Corrigiu"))) ||
+    (a.status === 200 && !lines.includes("RDO aprovado")) ||
+    ![200, 409].includes(p.status) ||
+    ![200, 409].includes(a.status);
+  races.push({ patch: p.status, approve: a.status, approvedLabor: final.labor.length, lines: lines.length, bad });
+  if (a.status !== 200) {
+    await call("PATCH", `/v1/reports/${r.id}`, complete());
+    await approve(r.id);
+  }
+}
+check("PATCH x aprovação em paralelo: sem aprovar vazio nem perder histórico", races.every((r: any) => !r.bad), races);
+
 // aprovação fora de ordem: hoje gerado antes de chegar o registro offline de ontem
 const s4 = await site("Ordem " + randomUUID().slice(0, 6));
 await entry(s4.id, today, 3);

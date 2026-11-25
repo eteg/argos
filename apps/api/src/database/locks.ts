@@ -3,6 +3,10 @@ import type { Database } from "./database.module.js";
 
 type Executor = Pick<Database, "execute">;
 
+export async function lockSite(tx: Executor, siteId: string) {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`site:${siteId}`}))`);
+}
+
 export async function lockDay(tx: Executor, siteId: string, localDate: string) {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${siteId}), hashtext(${localDate}))`);
 }

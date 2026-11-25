@@ -7,8 +7,8 @@ import type { Schemas } from "@argos/contract";
 import { ProblemException } from "../common/problem.js";
 import { DB, type Database } from "../database/database.module.js";
 import { aiEnabled, env } from "../config/env.js";
-import { lockDay, pendingDaysBefore } from "../database/locks.js";
-import { OpenItemsService } from "../open-items/open-items.service.js";
+import { lockDay, lockSite, pendingDaysBefore } from "../database/locks.js";
+import { OpenItemsService, type Tx } from "../open-items/open-items.service.js";
 import { ProcessingService, setPath } from "../processing/processing.service.js";
 import { entries, equipment, media, questions, reports, services, sites } from "../database/schema.js";
 import { SitesService } from "../sites/sites.service.js";
@@ -137,45 +137,53 @@ export class ReportsService {
     };
   }
 
+  private async lockReport(tx: Tx, reportId: string) {
+    const [row] = await tx.select().from(reports).where(eq(reports.id, reportId)).for("update");
+    if (!row) throw new ProblemException(404, "NOT_FOUND", "Report not found.");
+    return row;
+  }
+
   private contentOf(row: ReportRow): Content {
     const content = row.content as unknown as Content;
     return content.photos.length > MAX_PHOTOS ? { ...content, photos: content.photos.slice(0, MAX_PHOTOS) } : content;
   }
 
   async update(reportId: string, body: unknown) {
-    const row = await this.find(reportId);
-    if (row.status === "approved") throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report is already approved.");
-    this.requireReady(row);
-    const { photos, ...fields } = parse(editableSchema, body);
-    const changed = [...Object.keys(fields), ...(photos ? ["photos"] : [])];
-    if (changed.length === 0) throw new ProblemException(400, "VALIDATION", "Nothing to update.", [{ field: "body", code: "REQUIRED" }]);
-    const cleared = Object.entries(fields).filter(([key, value]) => value === null && !NULLABLE_FIELDS.includes(key));
-    if (cleared.length > 0) throw new ProblemException(400, "VALIDATION", "Invalid data.", cleared.map(([key]) => ({ field: key, code: "INVALID_TYPE" })));
-    const merged: Record<string, unknown> = { ...this.contentOf(row), ...fields };
-    const content = merged as unknown as Content;
-    if (photos) {
-      const known = new Set(content.photos.map((p) => p.id));
-      const unknown = photos.filter((p) => !known.has(p.id));
-      if (unknown.length > 0) throw new ProblemException(400, "VALIDATION", "Unknown photo.", unknown.map((p) => ({ field: `photos.${p.id}`, code: "INVALID" })));
-      const patch = new Map(photos.map((p) => [p.id, p]));
-      merged.photos = content.photos.map((p) => {
-        const edit = patch.get(p.id);
-        return edit ? { ...p, ...(edit.caption !== undefined && { caption: edit.caption }), ...(edit.linkedTo !== undefined && { linkedTo: edit.linkedTo }) } : p;
-      });
-    }
-    const [site] = await this.db.select({ type: sites.type }).from(sites).where(eq(sites.id, row.siteId));
-    const check = validateReport(content, { siteType: (site?.type ?? "private") as Schemas["SiteType"], minPhotosPerReport: MIN_PHOTOS, maxPhotosPerReport: MAX_PHOTOS });
-    if (check.structuralErrors.length > 0) {
-      throw new ProblemException(400, "VALIDATION", "Invalid data.", check.structuralErrors.map((e) => ({ field: e.path, code: e.code })));
-    }
-    const description = `Corrigiu ${changed.map((k) => fieldLabels[k] ?? k).join(", ")}`;
-    const [updated] = await this.db
-      .update(reports)
-      .set({ content: merged, history: [...row.history, { at: new Date().toISOString(), actor: "engineer", description }], updatedAt: new Date() })
-      .where(and(eq(reports.id, row.id), sql`${reports.status} <> 'approved'`))
-      .returning();
-    if (!updated) throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report is already approved.");
-    return updated;
+    await this.find(reportId);
+    return this.db.transaction(async (tx) => {
+      const row = await this.lockReport(tx, reportId);
+      if (row.status === "approved") throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report is already approved.");
+      this.requireReady(row);
+      const { photos, ...fields } = parse(editableSchema, body);
+      const changed = [...Object.keys(fields), ...(photos ? ["photos"] : [])];
+      if (changed.length === 0) throw new ProblemException(400, "VALIDATION", "Nothing to update.", [{ field: "body", code: "REQUIRED" }]);
+      const cleared = Object.entries(fields).filter(([key, value]) => value === null && !NULLABLE_FIELDS.includes(key));
+      if (cleared.length > 0) throw new ProblemException(400, "VALIDATION", "Invalid data.", cleared.map(([key]) => ({ field: key, code: "INVALID_TYPE" })));
+      const merged: Record<string, unknown> = { ...this.contentOf(row), ...fields };
+      const content = merged as unknown as Content;
+      if (photos) {
+        const known = new Set(content.photos.map((p) => p.id));
+        const unknown = photos.filter((p) => !known.has(p.id));
+        if (unknown.length > 0) throw new ProblemException(400, "VALIDATION", "Unknown photo.", unknown.map((p) => ({ field: `photos.${p.id}`, code: "INVALID" })));
+        const patch = new Map(photos.map((p) => [p.id, p]));
+        merged.photos = content.photos.map((p) => {
+          const edit = patch.get(p.id);
+          return edit ? { ...p, ...(edit.caption !== undefined && { caption: edit.caption }), ...(edit.linkedTo !== undefined && { linkedTo: edit.linkedTo }) } : p;
+        });
+      }
+      const [site] = await tx.select({ type: sites.type }).from(sites).where(eq(sites.id, row.siteId));
+      const check = validateReport(content, { siteType: (site?.type ?? "private") as Schemas["SiteType"], minPhotosPerReport: MIN_PHOTOS, maxPhotosPerReport: MAX_PHOTOS });
+      if (check.structuralErrors.length > 0) {
+        throw new ProblemException(400, "VALIDATION", "Invalid data.", check.structuralErrors.map((e) => ({ field: e.path, code: e.code })));
+      }
+      const description = `Corrigiu ${changed.map((k) => fieldLabels[k] ?? k).join(", ")}`;
+      const [updated] = await tx
+        .update(reports)
+        .set({ content: merged, history: [...row.history, { at: new Date().toISOString(), actor: "engineer", description }], updatedAt: new Date() })
+        .where(eq(reports.id, row.id))
+        .returning();
+      return updated!;
+    });
   }
 
   async generate(siteId: string, localDate: string) {
@@ -256,12 +264,56 @@ export class ReportsService {
     return { content, validation };
   }
 
-  private async reportOfQuestion(q: typeof questions.$inferSelect) {
-    if (q.reportId) return (await this.db.select().from(reports).where(eq(reports.id, q.reportId)))[0];
-    if (!q.entryId) return undefined;
-    const [entry] = await this.db.select({ siteId: entries.siteId, localDate: entries.localDate }).from(entries).where(eq(entries.id, q.entryId));
-    if (!entry) return undefined;
-    return (await this.db.select().from(reports).where(and(eq(reports.siteId, entry.siteId), eq(reports.localDate, entry.localDate))))[0];
+  private async reportOfQuestion(tx: Tx, q: typeof questions.$inferSelect) {
+    let reportId = q.reportId;
+    if (!reportId && q.entryId) {
+      const [entry] = await tx.select({ siteId: entries.siteId, localDate: entries.localDate }).from(entries).where(eq(entries.id, q.entryId));
+      const [day] = entry ? await tx.select({ id: reports.id }).from(reports).where(and(eq(reports.siteId, entry.siteId), eq(reports.localDate, entry.localDate))) : [];
+      reportId = day?.id ?? null;
+    }
+    if (!reportId) return undefined;
+    return (await tx.select().from(reports).where(eq(reports.id, reportId)).for("update"))[0];
+  }
+
+  private async applyAnswer(tx: Tx, q: typeof questions.$inferSelect, input: { optionId?: string; text?: string }) {
+    const typed = input.optionId ?? input.text;
+    if (typed === undefined || q.kind === "safety") return;
+    const target = await this.reportOfQuestion(tx, q);
+    if (!target || target.status === "approved") return;
+    const content = structuredClone(this.contentOf(target)) as unknown as Record<string, unknown>;
+    let description: string;
+    if (q.kind === "open_item" && q.openItemId) {
+      if (target.status !== "draft") return;
+      const outcome = input.optionId ? (input.optionId as "close" | "keep" | "update") : "update";
+      const reviews = ((content.openItemReviews as { openItemId: string; outcome: string; note: string | null }[] | undefined) ?? []).filter((r) => r.openItemId !== q.openItemId);
+      reviews.push({ openItemId: q.openItemId, outcome, note: input.text ?? null });
+      content.openItemReviews = reviews;
+      description = `Respondeu sobre um item em aberto: ${q.text}`;
+    } else if (q.reportId && q.field) {
+      let value: unknown = typed;
+      if (q.field.endsWith(".service") && input.optionId) {
+        const [svc] = uuid.safeParse(input.optionId).success ? await tx.select().from(services).where(eq(services.id, input.optionId)) : [];
+        if (!svc) throw new ProblemException(400, "VALIDATION", "Unknown service.", [{ field: "optionId", code: "INVALID" }]);
+        value = { id: svc.id, code: svc.code, description: svc.description, unit: svc.unit };
+      } else if (typeof typed === "string") {
+        if (/Time$/.test(q.field)) {
+          const m = /(\d{1,2})\s*(?:[:h]\s*(\d{2})?)/i.exec(typed);
+          value = m ? `${m[1]!.padStart(2, "0")}:${m[2] ?? "00"}` : typed;
+        } else if (/^-?\d+([.,]\d+)?$/.test(typed.trim())) value = Number(typed.trim().replace(",", "."));
+        else if (typed === "true" || typed === "false") value = typed === "true";
+      }
+      if (!setPath(content, q.field, value)) throw new ProblemException(400, "VALIDATION", "The answer does not fit the field.", [{ field: "optionId", code: "INVALID" }]);
+      const [site] = await tx.select({ type: sites.type }).from(sites).where(eq(sites.id, target.siteId));
+      const check = validateReport(content, { siteType: (site?.type ?? "private") as Schemas["SiteType"], minPhotosPerReport: MIN_PHOTOS, maxPhotosPerReport: MAX_PHOTOS });
+      if (check.structuralErrors.length > 0) {
+        throw new ProblemException(400, "VALIDATION", "The answer does not fit the field.", [{ field: input.optionId ? "optionId" : "text", code: "INVALID" }]);
+      }
+      description = `Respondeu: ${q.text}`;
+    } else return;
+    await tx
+      .update(reports)
+      .set({ content, history: [...target.history, { at: new Date().toISOString(), actor: "engineer", description }], updatedAt: new Date() })
+      .where(eq(reports.id, target.id));
   }
 
   async answer(questionId: string, body: unknown) {
@@ -279,47 +331,8 @@ export class ReportsService {
       this.requireAi();
     }
     const answer = { optionId: input.optionId ?? null, text: input.text ?? null, audioMediaId: input.audioMediaId ?? null, answeredAt: new Date().toISOString() };
-    let applied: { reportId: string; content: Record<string, unknown>; description: string } | null = null;
-    const typed = input.optionId ?? input.text;
-    if (row.kind === "open_item" && row.openItemId && typed !== undefined) {
-      const target = await this.reportOfQuestion(row);
-      if (target && target.status === "draft") {
-        const outcome = input.optionId ? (input.optionId as "close" | "keep" | "update") : "update";
-        const content = structuredClone(target.content);
-        const reviews = ((content.openItemReviews as { openItemId: string; outcome: string; note: string | null }[] | undefined) ?? []).filter((r) => r.openItemId !== row.openItemId);
-        reviews.push({ openItemId: row.openItemId, outcome, note: input.text ?? null });
-        content.openItemReviews = reviews;
-        applied = { reportId: target.id, content, description: `Respondeu sobre um item em aberto: ${row.text}` };
-      }
-    } else if (row.reportId && row.field && typed !== undefined && row.kind !== "safety") {
-      const [report] = await this.db.select().from(reports).where(eq(reports.id, row.reportId));
-      if (report && report.status !== "approved") {
-        const content = structuredClone(report.content);
-        let value: unknown = typed;
-        if (row.field.endsWith(".service") && input.optionId) {
-          const [svc] = uuid.safeParse(input.optionId).success ? await this.db.select().from(services).where(eq(services.id, input.optionId)) : [];
-          if (!svc) throw new ProblemException(400, "VALIDATION", "Unknown service.", [{ field: "optionId", code: "INVALID" }]);
-          value = { id: svc.id, code: svc.code, description: svc.description, unit: svc.unit };
-        } else if (typeof typed === "string") {
-          if (/Time$/.test(row.field)) {
-            const m = /(\d{1,2})\s*(?:[:h]\s*(\d{2})?)/i.exec(typed);
-            value = m ? `${m[1]!.padStart(2, "0")}:${m[2] ?? "00"}` : typed;
-          } else if (/^-?\d+([.,]\d+)?$/.test(typed.trim())) value = Number(typed.trim().replace(",", "."));
-          else if (typed === "true" || typed === "false") value = typed === "true";
-        }
-        if (!setPath(content, row.field, value)) throw new ProblemException(400, "VALIDATION", "The answer does not fit the field.", [{ field: "optionId", code: "INVALID" }]);
-        const [site] = await this.db.select({ type: sites.type }).from(sites).where(eq(sites.id, report.siteId));
-        const check = validateReport(content, { siteType: (site?.type ?? "private") as Schemas["SiteType"], minPhotosPerReport: MIN_PHOTOS, maxPhotosPerReport: MAX_PHOTOS });
-        if (check.structuralErrors.length > 0) {
-          throw new ProblemException(400, "VALIDATION", "The answer does not fit the field.", [{ field: input.optionId ? "optionId" : "text", code: "INVALID" }]);
-        }
-        applied = { reportId: report.id, content, description: `Respondeu: ${row.text}` };
-      }
-    }
     const updated = await this.db.transaction(async (tx) => {
-      if (applied) {
-        await tx.update(reports).set({ content: applied.content, history: sql`${reports.history} || ${JSON.stringify([{ at: new Date().toISOString(), actor: "engineer", description: applied.description }])}::jsonb`, updatedAt: new Date() }).where(eq(reports.id, applied.reportId));
-      }
+      await this.applyAnswer(tx, row, input);
       const [q] = await tx.update(questions).set({ answer, status: "answered" }).where(eq(questions.id, row.id)).returning();
       return q;
     });
@@ -334,28 +347,41 @@ export class ReportsService {
     if (!uuid.safeParse(key).success) {
       throw new ProblemException(400, "VALIDATION", "Idempotency-Key must be a UUID.", [{ field: "Idempotency-Key", code: key ? "INVALID" : "REQUIRED" }]);
     }
-    const row = await this.find(reportId);
-    if (row.status === "approved") {
-      if (row.approvalKey === key) return row;
-      throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report is already approved.");
-    }
-    this.requireReady(row);
-    const { validation } = await this.validate(row);
-    if (validation.missingFields.length > 0) {
-      throw new ProblemException(409, "REPORT_INCOMPLETE", `${validation.missingFields.length} required field(s) are missing.`, validation.missingFields.map((m) => ({ field: m.path, code: m.code })));
-    }
+    const found = await this.find(reportId);
     return this.db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${row.siteId}))`);
+      await lockSite(tx, found.siteId);
+      await lockDay(tx, found.siteId, found.localDate);
+      const row = await this.lockReport(tx, reportId);
+      if (row.status === "approved") {
+        if (row.approvalKey === key) return row;
+        throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report is already approved.");
+      }
+      this.requireReady(row);
+      const previous = await pendingDaysBefore(tx, row.siteId, row.localDate);
+      if (previous.length > 0) {
+        throw new ProblemException(409, "PREVIOUS_DAY_PENDING", "A previous day has no approved report.", previous.map((d) => ({ field: d, code: "REPORT_NOT_APPROVED" })));
+      }
+      const { content, validation } = await this.validate(row);
+      if (validation.missingFields.length > 0) {
+        throw new ProblemException(409, "REPORT_INCOMPLETE", `${validation.missingFields.length} required field(s) are missing.`, validation.missingFields.map((m) => ({ field: m.path, code: m.code })));
+      }
       const [{ next }] = (await tx.execute<{ next: number }>(sql`select coalesce(max(number), 0)::int + 1 as next from reports where site_id = ${row.siteId}`)).rows as [{ next: number }];
       const [approved] = await tx
         .update(reports)
-        .set({ status: "approved", number: next, approvedBy: env.ENGINEER_NAME, approvedAt: new Date(), approvalKey: key, history: [...row.history, { at: new Date().toISOString(), actor: "engineer", description: "RDO aprovado" }], updatedAt: new Date() })
-        .where(and(eq(reports.id, row.id), sql`${reports.status} <> 'approved'`))
+        .set({
+          status: "approved",
+          number: next,
+          content,
+          approvedBy: env.ENGINEER_NAME,
+          approvedAt: new Date(),
+          approvalKey: key,
+          history: [...row.history, { at: new Date().toISOString(), actor: "engineer", description: "RDO aprovado" }],
+          updatedAt: new Date(),
+        })
+        .where(eq(reports.id, row.id))
         .returning();
-      if (!approved) throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report is already approved.");
-      const content = approved.content as { openItemReviews?: { openItemId: string; outcome: "close" | "keep" | "update" | null; note: string | null }[]; newOpenItems?: { title: string | null; kind: string | null; track: boolean | null }[] };
-      await this.openItemsService.applyApproval(tx, { siteId: row.siteId, reportId: row.id, localDate: row.localDate, reviews: content.openItemReviews ?? [], newItems: content.newOpenItems ?? [] });
-      return approved;
+      await this.openItemsService.applyApproval(tx, { siteId: row.siteId, reportId: row.id, localDate: row.localDate, reviews: content.openItemReviews, newItems: content.newOpenItems });
+      return approved!;
     });
   }
 

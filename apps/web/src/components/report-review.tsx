@@ -26,6 +26,23 @@ const missingField = "!border-[#A673D6] !bg-[#F7F0FD]";
 const rotulo = "text-[13px] text-[#5B5F6B]";
 const hint = "text-[13px] leading-[1.45] text-[#4A2470]";
 
+function readSession(name: string) {
+  try {
+    return sessionStorage.getItem(name);
+  } catch {
+    return null;
+  }
+}
+
+function writeSession(name: string, value: string | null) {
+  try {
+    if (value === null) sessionStorage.removeItem(name);
+    else sessionStorage.setItem(name, value);
+  } catch {
+    return;
+  }
+}
+
 const joinList = (items: string[]) => (items.length <= 1 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} e ${items.at(-1)}`);
 const clock = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
@@ -160,6 +177,7 @@ export function ReportReview() {
   const generating = current?.status === "generating";
   const [dayState] = useLoad(async () => (current ? unwrap(api.GET("/v1/sites/{siteId}/days/{localDate}", { params: { path: { siteId: current.siteId, localDate: current.localDate }, ...tz } })) : null), [current?.siteId, current?.localDate]);
   const voice = useVoiceCorrection(id, setReport, setError);
+  const approvalKeys = useRef<Record<string, string>>({});
   useEffect(() => {
     if (!generating) return;
     const t = setInterval(() => {
@@ -213,11 +231,23 @@ export function ReportReview() {
     const others = r.openItemReviews.filter((x) => x.openItemId !== openItemId);
     return patch({ openItemReviews: outcome ? [...others, { openItemId, outcome: outcome as "close" | "keep" | "update", note }] : others });
   }
+  function approvalKey() {
+    const name = `argos:approval-key:${id}`;
+    const key = approvalKeys.current[id] ?? readSession(name) ?? crypto.randomUUID();
+    approvalKeys.current[id] = key;
+    writeSession(name, key);
+    return key;
+  }
+  function forgetApprovalKey() {
+    delete approvalKeys.current[id];
+    writeSession(`argos:approval-key:${id}`, null);
+  }
   async function approve() {
     setBusy(true);
     setError(null);
     try {
-      await unwrap(api.POST("/v1/reports/{reportId}/approve", { params: { path: { reportId: id }, header: { ...tz.header, "Idempotency-Key": crypto.randomUUID() } } }));
+      await unwrap(api.POST("/v1/reports/{reportId}/approve", { params: { path: { reportId: id }, header: { ...tz.header, "Idempotency-Key": approvalKey() } } }));
+      forgetApprovalKey();
       return router.push(`/rdo/aprovado?id=${id}`);
     } catch (e) {
       const err = e instanceof ApiError ? e : new ApiError("UNAVAILABLE");
