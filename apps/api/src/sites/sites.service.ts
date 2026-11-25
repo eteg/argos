@@ -7,6 +7,7 @@ import { ProblemException } from "../common/problem.js";
 import { parse } from "../common/validate.js";
 import { DB, type Database } from "../database/database.module.js";
 import { documents, entries, equipment, reports, sites, type PublicContractRow } from "../database/schema.js";
+import { OpenItemsService } from "../open-items/open-items.service.js";
 import { StorageService } from "../storage/storage.service.js";
 import { createSiteSchema, siteStatus, updateSiteSchema, uuid } from "./sites.schemas.js";
 import type { z } from "zod";
@@ -21,6 +22,7 @@ export class SitesService {
   constructor(
     @Inject(DB) readonly db: Database,
     private readonly storage: StorageService,
+    private readonly openItemsService: OpenItemsService,
   ) {}
 
   async requireSite(siteId: string) {
@@ -96,7 +98,8 @@ export class SitesService {
           .where(inArray(reports.siteId, siteIds))
       : [];
     const approved = new Set(reportRows.filter((r) => r.status === "approved").map((r) => `${r.siteId}|${r.localDate}`));
-    return { today, rows, openRows: rows.filter((r) => !approved.has(`${r.siteId}|${r.localDate}`)), reports: reportRows };
+    const openItemCounts = await this.openItemsService.countOpen(siteIds);
+    return { today, openItemCounts, rows, openRows: rows.filter((r) => !approved.has(`${r.siteId}|${r.localDate}`)), reports: reportRows };
   }
 
   summarize(
@@ -133,7 +136,7 @@ export class SitesService {
         .filter((r) => r.offline && r.localDate < stats.today)
         .sort((a, b) => a.localDate.localeCompare(b.localDate))
         .map((r) => ({ localDate: r.localDate, entriesCount: r.count })),
-      openItemsCount: 0,
+      openItemsCount: stats.openItemCounts.get(row.id) ?? 0,
     };
   }
 
@@ -186,7 +189,7 @@ export class SitesService {
       ...(await this.toSite(row, timezone)),
       today: summary.today,
       pendingDays: summary.pendingDays,
-      openItems: [],
+      openItems: await this.openItemsService.listForSite(row.id, summary.today.localDate),
       ...(await this.approvedReports(row.id)),
     };
   }
