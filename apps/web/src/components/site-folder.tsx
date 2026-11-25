@@ -41,8 +41,8 @@ export function SiteFolder() {
         {s.status === "in_progress" && (
           <Link href={`/dia?id=${s.id}`} className="flex items-center gap-3 rounded-2xl border-[1.5px] border-[#1563FF] bg-white px-4 py-3.5">
             <div className="flex flex-1 flex-col gap-0.5"><span className="text-[15px] font-semibold">RDO de hoje</span>
-              <span className="text-[13px] text-[#5B5F6B]">{s.today.entriesCount === 0 ? "Nenhum registro ainda" : `${s.today.entriesCount} ${s.today.entriesCount === 1 ? "registro" : "registros"} · falta fechar o dia`}</span></div>
-            <span className="rounded-full bg-[#1563FF] px-3.5 py-2.5 text-[13px] font-semibold text-white">{s.today.entriesCount === 0 ? "Registrar" : "Continuar"}</span>
+              <span className="text-[13px] text-[#5B5F6B]">{s.today.state === "approved" ? "Aprovado e salvo na obra" : s.today.entriesCount === 0 ? "Nenhum registro ainda" : `${s.today.entriesCount} ${s.today.entriesCount === 1 ? "registro" : "registros"} · falta fechar o dia`}</span></div>
+            <span className="rounded-full bg-[#1563FF] px-3.5 py-2.5 text-[13px] font-semibold text-white">{s.today.state === "approved" ? "Ver" : s.today.entriesCount === 0 ? "Registrar" : "Continuar"}</span>
           </Link>
         )}
         {s.pendingDays.length > 0 && <Pill tone="amber">{s.pendingDays.length} dia(s) capturado(s) sem internet</Pill>}
