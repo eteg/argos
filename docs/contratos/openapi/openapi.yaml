@@ -1,0 +1,1285 @@
+openapi: 3.1.0
+info:
+  title: Argos API
+  version: 0.2.0
+  summary: Contrato entre a web e a API do Argos, M1 mais health e diagnóstico da IA.
+  description: >-
+    Fonte da verdade do contrato. As camadas de texto estão em docs/contratos:
+    convenções, recursos, operações e telas. Todo nome é em inglês e camelCase.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: http://localhost:3001
+    description: API local
+security:
+  - apiKey: []
+tags:
+  - name: Health
+    description: Estado da API.
+  - name: Engineer
+    description: Engenheiro configurado no ambiente e configuração.
+  - name: Sites
+    description: Obras, equipamentos, documentos e serviços.
+  - name: Entries
+    description: Mídia e registros do dia.
+  - name: AI
+    description: Diagnóstico da IA.
+paths:
+  /v1/health:
+    get:
+      operationId: getHealth
+      tags: [Health]
+      summary: Estado da API e do banco
+      security: []
+      responses:
+        "200":
+          description: A API e o banco respondem.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+              examples:
+                ok: { $ref: "#/components/examples/HealthOk" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/me:
+    get:
+      operationId: getMe
+      tags: [Engineer]
+      summary: Engenheiro configurado no ambiente
+      parameters:
+        - $ref: "#/components/parameters/XTimezone"
+      responses:
+        "200":
+          description: O engenheiro.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Engineer" }
+              examples:
+                rafael: { $ref: "#/components/examples/Engineer" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/config:
+    get:
+      operationId: getConfig
+      tags: [Engineer]
+      summary: Limites que as regras deixam no ambiente
+      parameters:
+        - $ref: "#/components/parameters/XTimezone"
+      responses:
+        "200":
+          description: A configuração.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Config" }
+              examples:
+                default: { $ref: "#/components/examples/Config" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/diagnostics/ai:
+    post:
+      operationId: runAiDiagnostic
+      tags: [AI]
+      summary: Faz uma chamada de teste à IA
+      parameters:
+        - $ref: "#/components/parameters/XTimezone"
+      responses:
+        "200":
+          description: A resposta da IA e o consumo da chamada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AiDiagnostic" }
+              examples:
+                ok: { $ref: "#/components/examples/AiDiagnostic" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/sites:
+    get:
+      operationId: listSites
+      tags: [Sites]
+      summary: Lista as obras
+      description: >-
+        Sem `status`, só `in_progress`. Ordena pela distância quando vem
+        `X-Device-Location`.
+      parameters:
+        - $ref: "#/components/parameters/XTimezone"
+        - $ref: "#/components/parameters/XDeviceLocation"
+        - name: status
+          in: query
+          description: Lista de `siteStatus` separada por vírgula.
+          schema: { type: string }
+          example: not_started,paused,completed
+        - name: search
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Obras resumidas.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/SiteSummary" }
+              examples:
+                nearby: { $ref: "#/components/examples/SiteList" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: createSite
+      tags: [Sites]
+      summary: Cadastra uma obra
+      description: >-
+        A obra nasce `in_progress` (D02). `location` é opcional: sem ela, a API
+        busca pelo endereço (D09). `publicContract` é obrigatório em `public` e
+        `financed`, e ignorado em `private`.
+      parameters:
+        - $ref: "#/components/parameters/XTimezone"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateSiteRequest" }
+            examples:
+              private: { $ref: "#/components/examples/CreateSiteRequest" }
+      responses:
+        "201":
+          description: A obra criada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Site" }
+              examples:
+                created: { $ref: "#/components/examples/Site" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/sites/{siteId}:
+    parameters:
+      - $ref: "#/components/parameters/SiteId"
+      - $ref: "#/components/parameters/XTimezone"
+    get:
+      operationId: getSite
+      tags: [Sites]
+      summary: A obra inteira, mais o que a pasta da obra mostra
+      responses:
+        "200":
+          description: A obra.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SiteDetail" }
+              examples:
+                vilaVerde: { $ref: "#/components/examples/SiteDetail" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    patch:
+      operationId: updateSite
+      tags: [Sites]
+      summary: Edita a obra
+      description: Vale pros RDOs montados depois. Os já montados guardam a cópia do dia.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateSiteRequest" }
+            examples:
+              rename: { value: { name: "Residencial Vila Verde · Bloco B" } }
+      responses:
+        "200":
+          description: A obra atualizada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Site" }
+              examples:
+                updated: { $ref: "#/components/examples/Site" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/sites/{siteId}/status:
+    parameters:
+      - $ref: "#/components/parameters/SiteId"
+      - $ref: "#/components/parameters/XTimezone"
+    put:
+      operationId: changeSiteStatus
+      tags: [Sites]
+      summary: Muda o status da obra
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChangeSiteStatusRequest" }
+            examples:
+              complete: { value: { status: completed } }
+      responses:
+        "200":
+          description: A obra com o novo status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Site" }
+              examples:
+                changed: { $ref: "#/components/examples/Site" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: >-
+            A obra tem RDO não aprovado e não pode ser concluída (`RG08`).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples:
+                openReports: { $ref: "#/components/examples/SiteHasOpenReports" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/sites/{siteId}/services:
+    parameters:
+      - $ref: "#/components/parameters/SiteId"
+      - $ref: "#/components/parameters/XTimezone"
+    put:
+      operationId: importServices
+      tags: [Sites]
+      summary: Importa a planilha de serviços da obra
+      description: >-
+        Substitui a lista de serviços. Aceita `.xlsx` e `.csv` até 10 MB.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, contentEncoding: base64, description: A planilha. }
+      responses:
+        "200":
+          description: A quantidade importada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImportServicesResult" }
+              examples:
+                imported: { value: { servicesCount: 148, servicesFileName: planilha-vila-verde.xlsx } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/FileTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedFile" }
+        "422":
+          description: A planilha não tem código e descrição.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples:
+                unreadable: { $ref: "#/components/examples/SpreadsheetUnreadable" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/sites/{siteId}/equipment:
+    parameters:
+      - $ref: "#/components/parameters/SiteId"
+      - $ref: "#/components/parameters/XTimezone"
+    post:
+      operationId: addEquipment
+      tags: [Sites]
+      summary: Adiciona um equipamento à obra
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EquipmentRequest" }
+            examples:
+              guindaste: { value: { name: Guindaste 30 t, identifier: ABC-1D23 } }
+      responses:
+        "201":
+          description: O equipamento criado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Equipment" }
+              examples:
+                created: { $ref: "#/components/examples/Equipment" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/sites/{siteId}/equipment/{equipmentId}:
+    parameters:
+      - $ref: "#/components/parameters/SiteId"
+      - $ref: "#/components/parameters/EquipmentId"
+      - $ref: "#/components/parameters/XTimezone"
+    patch:
+      operationId: updateEquipment
+      tags: [Sites]
+      summary: Edita um equipamento da obra
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateEquipmentRequest" }
+            examples:
+              rename: { value: { name: Betoneira 2 } }
+      responses:
+        "200":
+          description: O equipamento atualizado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Equipment" }
+              examples:
+                updated: { $ref: "#/components/examples/Equipment" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: removeEquipment
+      tags: [Sites]
+      summary: Remove um equipamento da obra
+      description: Some dos RDOs seguintes, não dos já montados.
+      responses:
+        "204":
+          description: Removido.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/sites/{siteId}/documents:
+    parameters:
+      - $ref: "#/components/parameters/SiteId"
+      - $ref: "#/components/parameters/XTimezone"
+    post:
+      operationId: uploadSiteDocument
+      tags: [Sites]
+      summary: Envia um documento da obra
+      description: PDF ou imagem, até 50 MB.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, type]
+              properties:
+                file: { type: string, contentEncoding: base64 }
+                type: { $ref: "#/components/schemas/DocumentType" }
+      responses:
+        "201":
+          description: O documento criado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SiteDocument" }
+              examples:
+                created: { $ref: "#/components/examples/SiteDocument" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/FileTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedFile" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/sites/{siteId}/documents/{documentId}:
+    parameters:
+      - $ref: "#/components/parameters/SiteId"
+      - $ref: "#/components/parameters/DocumentId"
+      - $ref: "#/components/parameters/XTimezone"
+    patch:
+      operationId: updateSiteDocument
+      tags: [Sites]
+      summary: Troca o tipo de um documento da obra
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateSiteDocumentRequest" }
+            examples:
+              retype: { value: { type: structural } }
+      responses:
+        "200":
+          description: O documento atualizado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SiteDocument" }
+              examples:
+                updated: { $ref: "#/components/examples/SiteDocument" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: removeSiteDocument
+      tags: [Sites]
+      summary: Remove um documento da obra
+      responses:
+        "204":
+          description: Removido.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/media/{mediaId}:
+    parameters:
+      - name: mediaId
+        in: path
+        required: true
+        description: UUID gerado na web.
+        schema: { type: string, format: uuid }
+      - $ref: "#/components/parameters/XTimezone"
+    put:
+      operationId: uploadMedia
+      tags: [Entries]
+      summary: Envia um áudio ou uma foto
+      description: >-
+        Um arquivo por chamada. Se o mesmo `mediaId` chegar de novo, a API
+        devolve o que já foi gravado, com 200. Áudio até 10 MB, foto até 15 MB.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, kind, source, capturedAt]
+              properties:
+                file: { type: string, contentEncoding: base64 }
+                kind: { $ref: "#/components/schemas/MediaKind" }
+                source: { $ref: "#/components/schemas/MediaSource" }
+                capturedAt: { type: string, format: date-time }
+                location: { $ref: "#/components/schemas/Location" }
+            encoding:
+              location: { contentType: application/json }
+      responses:
+        "200":
+          description: A mídia já existia.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Media" }
+              examples:
+                photo: { $ref: "#/components/examples/MediaPhoto" }
+        "201":
+          description: A mídia gravada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Media" }
+              examples:
+                photo: { $ref: "#/components/examples/MediaPhoto" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "413": { $ref: "#/components/responses/FileTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedFile" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/sites/{siteId}/entries:
+    parameters:
+      - $ref: "#/components/parameters/SiteId"
+      - $ref: "#/components/parameters/XTimezone"
+    post:
+      operationId: createEntry
+      tags: [Entries]
+      summary: Salva um registro do dia
+      description: >-
+        Um áudio e até 3 fotos já enviados por `uploadMedia`. No M1 o registro
+        ainda não passa pela IA e responde 201; a partir do M2 vira operação
+        demorada e responde 202. Se o mesmo `id` chegar de novo, devolve o que
+        já foi gravado, com 200.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateEntryRequest" }
+            examples:
+              withPhotos: { $ref: "#/components/examples/CreateEntryRequest" }
+      responses:
+        "200":
+          description: O registro já existia.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Entry" }
+              examples:
+                entry: { $ref: "#/components/examples/Entry" }
+        "201":
+          description: O registro gravado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Entry" }
+              examples:
+                entry: { $ref: "#/components/examples/Entry" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: O estado atual impede o registro.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              examples:
+                siteNotInProgress: { $ref: "#/components/examples/SiteNotInProgress" }
+                photoLimitEntry: { $ref: "#/components/examples/PhotoLimitEntry" }
+                photoLimitReport: { $ref: "#/components/examples/PhotoLimitReport" }
+                reportAlreadyApproved: { $ref: "#/components/examples/ReportAlreadyApproved" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/sites/{siteId}/days/{localDate}:
+    parameters:
+      - $ref: "#/components/parameters/SiteId"
+      - name: localDate
+        in: path
+        required: true
+        schema: { type: string, format: date }
+        example: "2026-11-25"
+      - $ref: "#/components/parameters/XTimezone"
+    get:
+      operationId: getDay
+      tags: [Entries]
+      summary: O dia de uma obra
+      responses:
+        "200":
+          description: Os registros do dia, os itens em aberto e o RDO, se existir.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Day" }
+              examples:
+                today: { $ref: "#/components/examples/Day" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+      description: Chave do ambiente. Protege só de acesso casual (ADR 0002).
+  parameters:
+    XTimezone:
+      name: X-Timezone
+      in: header
+      required: true
+      description: Fuso IANA do celular. A API usa pra calcular "hoje".
+      schema: { type: string }
+      example: America/Sao_Paulo
+    XDeviceLocation:
+      name: X-Device-Location
+      in: header
+      description: "`lat,lng`, só quando a pessoa permitiu a localização."
+      schema: { type: string }
+      example: "-19.9319,-44.0539"
+    SiteId:
+      name: siteId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      example: 5b1f0a52-6d0e-4a55-9a0b-1d4c2f6e8a01
+    EquipmentId:
+      name: equipmentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      example: 7c2d9e10-3b4a-4f6e-8d21-0a9b8c7d6e51
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      example: 9d3e0f21-4c5b-4a7f-9e32-1b0a9c8d7e62
+  responses:
+    Unauthorized:
+      description: Sem chave ou com chave errada.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          examples:
+            unauthorized: { $ref: "#/components/examples/Unauthorized" }
+    Validation:
+      description: Campo inválido.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          examples:
+            validation: { $ref: "#/components/examples/Validation" }
+    NotFound:
+      description: O recurso não existe.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          examples:
+            notFound: { $ref: "#/components/examples/NotFound" }
+    FileTooLarge:
+      description: Arquivo acima do limite do upload.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          examples:
+            fileTooLarge: { $ref: "#/components/examples/FileTooLarge" }
+    UnsupportedFile:
+      description: Tipo de arquivo não aceito.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          examples:
+            unsupportedFile: { $ref: "#/components/examples/UnsupportedFile" }
+    RateLimited:
+      description: Acima do limite de chamadas.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          examples:
+            rateLimited: { $ref: "#/components/examples/RateLimited" }
+    Unavailable:
+      description: Falha da API.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          examples:
+            unavailable: { $ref: "#/components/examples/Unavailable" }
+  schemas:
+    Problem:
+      type: object
+      description: Problem Details (RFC 9457) com `code` estável.
+      required: [type, title, status, code, detail]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        code: { type: string }
+        detail: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            required: [field, code]
+            properties:
+              field: { type: string }
+              code: { type: string }
+    Health:
+      type: object
+      required: [status, environment, version, database]
+      properties:
+        status: { type: string, enum: [ok] }
+        environment: { type: string }
+        version: { type: string, description: O commit. }
+        database: { type: string, enum: [up] }
+    AiDiagnostic:
+      type: object
+      required: [model, output, inputTokens, outputTokens, cacheReadInputTokens, cacheCreationInputTokens, latencyMs, traceId]
+      properties:
+        model: { type: string }
+        output: { type: string }
+        inputTokens: { type: integer }
+        outputTokens: { type: integer }
+        cacheReadInputTokens: { type: integer }
+        cacheCreationInputTokens: { type: integer }
+        latencyMs: { type: integer }
+        traceId: { type: string }
+    Location:
+      type: object
+      required: [lat, lng, accuracyMeters]
+      properties:
+        lat: { type: number }
+        lng: { type: number }
+        accuracyMeters: { type: [number, "null"] }
+    LocationInput:
+      type: object
+      required: [lat, lng]
+      properties:
+        lat: { type: number }
+        lng: { type: number }
+        accuracyMeters: { type: number }
+    SiteType: { type: string, enum: [private, public, financed] }
+    SiteStatus: { type: string, enum: [not_started, in_progress, paused, completed] }
+    DocumentType:
+      type: string
+      enum: [architectural, structural, plumbing, electrical_telecom, hvac, fire_protection, as_built]
+    EntryStatus: { type: string, enum: [processing, processed, failed] }
+    MediaKind: { type: string, enum: [audio, photo] }
+    MediaSource: { type: string, enum: [camera, microphone] }
+    DayState: { type: string, enum: [no_entries, in_progress, draft, approved] }
+    ReportStatus: { type: string, enum: [generating, draft, approved] }
+    OpenItemKind: { type: string, enum: [declared_pending, unresolved_occurrence, unfinished_service] }
+    OpenItemStatus: { type: string, enum: [open, closed] }
+    QuestionKind: { type: string, enum: [missing_field, open_item, service_match, safety] }
+    QuestionStatus: { type: string, enum: [open, answered] }
+    TagKind: { type: string, enum: [activity, occurrence, labor, equipment, weather, safety] }
+    Engineer:
+      type: object
+      required: [id, name, title, company]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        title: { type: string }
+        company: { type: string }
+    Config:
+      type: object
+      required: [maxPhotosPerEntry, minPhotosPerReport, maxPhotosPerReport, openItemHighlightDays, geofenceRadiusMeters]
+      properties:
+        maxPhotosPerEntry: { type: integer }
+        minPhotosPerReport: { type: integer }
+        maxPhotosPerReport: { type: integer }
+        openItemHighlightDays: { type: integer }
+        geofenceRadiusMeters: { type: integer }
+    Party:
+      type: object
+      required: [name, taxId]
+      properties:
+        name: { type: string }
+        taxId: { type: string, description: CNPJ. }
+    TechnicalManager:
+      type: object
+      required: [name, artNumber]
+      properties:
+        name: { type: string }
+        artNumber: { type: string }
+    Amendment:
+      type: object
+      required: [id, description, addedDays, signedOn]
+      properties:
+        id: { type: string }
+        description: { type: string }
+        addedDays: { type: integer }
+        signedOn: { type: string, format: date }
+    AmendmentInput:
+      type: object
+      required: [description, addedDays, signedOn]
+      properties:
+        description: { type: string }
+        addedDays: { type: integer }
+        signedOn: { type: string, format: date }
+    PublicContract:
+      type: object
+      required: [number, commitmentOrAgreement, inspectorName, serviceOrderDate, durationDays, amendments, elapsedDays, remainingDays]
+      properties:
+        number: { type: string }
+        commitmentOrAgreement: { type: string }
+        inspectorName: { type: string }
+        serviceOrderDate: { type: string, format: date }
+        durationDays: { type: integer }
+        amendments:
+          type: array
+          items: { $ref: "#/components/schemas/Amendment" }
+        elapsedDays: { type: integer, description: Calculado pela API. }
+        remainingDays: { type: integer, description: Calculado pela API. }
+    PublicContractInput:
+      type: object
+      required: [number, commitmentOrAgreement, inspectorName, serviceOrderDate, durationDays]
+      properties:
+        number: { type: string }
+        commitmentOrAgreement: { type: string }
+        inspectorName: { type: string }
+        serviceOrderDate: { type: string, format: date }
+        durationDays: { type: integer }
+        amendments:
+          type: array
+          items: { $ref: "#/components/schemas/AmendmentInput" }
+    Equipment:
+      type: object
+      required: [id, name, identifier]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        identifier: { type: [string, "null"], description: Prefixo ou placa. }
+    EquipmentRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        identifier: { type: [string, "null"] }
+    UpdateEquipmentRequest:
+      type: object
+      properties:
+        name: { type: string }
+        identifier: { type: [string, "null"] }
+    SiteDocument:
+      type: object
+      required: [id, fileName, type, url]
+      properties:
+        id: { type: string, format: uuid }
+        fileName: { type: string }
+        type: { $ref: "#/components/schemas/DocumentType" }
+        url: { type: string, description: Link temporário pra abrir. }
+    UpdateSiteDocumentRequest:
+      type: object
+      required: [type]
+      properties:
+        type: { $ref: "#/components/schemas/DocumentType" }
+    ImportServicesResult:
+      type: object
+      required: [servicesCount, servicesFileName]
+      properties:
+        servicesCount: { type: integer }
+        servicesFileName: { type: string }
+    DaySummary:
+      type: object
+      required: [localDate, state, entriesCount, reportId]
+      properties:
+        localDate: { type: string, format: date }
+        state: { $ref: "#/components/schemas/DayState" }
+        entriesCount: { type: integer }
+        reportId: { type: [string, "null"] }
+    PendingDay:
+      type: object
+      required: [localDate, entriesCount]
+      properties:
+        localDate: { type: string, format: date }
+        entriesCount: { type: integer }
+    OpenItem:
+      type: object
+      required: [id, siteId, title, kind, status, openedOn, openedInReportId, lastUpdate, closedOn, closingNote, mentionedToday]
+      properties:
+        id: { type: string }
+        siteId: { type: string }
+        title: { type: string }
+        kind: { $ref: "#/components/schemas/OpenItemKind" }
+        status: { $ref: "#/components/schemas/OpenItemStatus" }
+        openedOn: { type: string, format: date }
+        openedInReportId: { type: string }
+        lastUpdate:
+          type: [object, "null"]
+          required: [localDate, note]
+          properties:
+            localDate: { type: string, format: date }
+            note: { type: string }
+        closedOn: { type: [string, "null"], format: date }
+        closingNote: { type: [string, "null"] }
+        mentionedToday:
+          type: [object, "null"]
+          description: Só no resumo do dia.
+          required: [entryId, capturedAt]
+          properties:
+            entryId: { type: string }
+            capturedAt: { type: string, format: date-time }
+    RecentReport:
+      type: object
+      required: [id, number, localDate, approvedAt, occurrencesCount]
+      properties:
+        id: { type: string }
+        number: { type: integer }
+        localDate: { type: string, format: date }
+        approvedAt: { type: string, format: date-time }
+        occurrencesCount: { type: integer }
+    Site:
+      type: object
+      required: [id, name, type, status, statusChangedOn, address, location, client, contractor, technicalManager, publicContract, servicesCount, servicesFileName, equipment, documents, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        type: { $ref: "#/components/schemas/SiteType" }
+        status: { $ref: "#/components/schemas/SiteStatus" }
+        statusChangedOn: { type: [string, "null"], format: date }
+        address: { type: string }
+        location:
+          oneOf:
+            - $ref: "#/components/schemas/Location"
+            - type: "null"
+        client: { $ref: "#/components/schemas/Party" }
+        contractor: { $ref: "#/components/schemas/Party" }
+        technicalManager: { $ref: "#/components/schemas/TechnicalManager" }
+        publicContract:
+          oneOf:
+            - $ref: "#/components/schemas/PublicContract"
+            - type: "null"
+        servicesCount: { type: integer }
+        servicesFileName: { type: [string, "null"] }
+        equipment:
+          type: array
+          items: { $ref: "#/components/schemas/Equipment" }
+        documents:
+          type: array
+          items: { $ref: "#/components/schemas/SiteDocument" }
+        createdAt: { type: string, format: date-time }
+    SiteSummary:
+      type: object
+      required: [id, name, type, status, statusChangedOn, address, location, servicesCount, distanceMeters, today, pendingDays, openItemsCount]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        type: { $ref: "#/components/schemas/SiteType" }
+        status: { $ref: "#/components/schemas/SiteStatus" }
+        statusChangedOn: { type: [string, "null"], format: date }
+        address: { type: string }
+        location:
+          oneOf:
+            - $ref: "#/components/schemas/Location"
+            - type: "null"
+        servicesCount: { type: integer }
+        distanceMeters: { type: [integer, "null"], description: Com `X-Device-Location`. }
+        today: { $ref: "#/components/schemas/DaySummary" }
+        pendingDays:
+          type: array
+          items: { $ref: "#/components/schemas/PendingDay" }
+        openItemsCount: { type: integer }
+    SiteDetail:
+      allOf:
+        - $ref: "#/components/schemas/Site"
+        - type: object
+          required: [today, pendingDays, openItems, recentReports, approvedReportsCount]
+          properties:
+            today: { $ref: "#/components/schemas/DaySummary" }
+            pendingDays:
+              type: array
+              items: { $ref: "#/components/schemas/PendingDay" }
+            openItems:
+              type: array
+              items: { $ref: "#/components/schemas/OpenItem" }
+            recentReports:
+              type: array
+              description: Os 3 últimos RDOs aprovados.
+              items: { $ref: "#/components/schemas/RecentReport" }
+            approvedReportsCount: { type: integer }
+    CreateSiteRequest:
+      type: object
+      required: [name, type, address, client, contractor, technicalManager]
+      properties:
+        name: { type: string }
+        type: { $ref: "#/components/schemas/SiteType" }
+        address: { type: string }
+        location: { $ref: "#/components/schemas/LocationInput" }
+        client: { $ref: "#/components/schemas/Party" }
+        contractor: { $ref: "#/components/schemas/Party" }
+        technicalManager: { $ref: "#/components/schemas/TechnicalManager" }
+        publicContract: { $ref: "#/components/schemas/PublicContractInput" }
+    UpdateSiteRequest:
+      type: object
+      properties:
+        name: { type: string }
+        type: { $ref: "#/components/schemas/SiteType" }
+        address: { type: string }
+        location: { $ref: "#/components/schemas/LocationInput" }
+        client: { $ref: "#/components/schemas/Party" }
+        contractor: { $ref: "#/components/schemas/Party" }
+        technicalManager: { $ref: "#/components/schemas/TechnicalManager" }
+        publicContract: { $ref: "#/components/schemas/PublicContractInput" }
+    ChangeSiteStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status: { $ref: "#/components/schemas/SiteStatus" }
+    Media:
+      type: object
+      required: [id, kind, source, capturedAt, location, durationSeconds, url]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { $ref: "#/components/schemas/MediaKind" }
+        source: { $ref: "#/components/schemas/MediaSource" }
+        capturedAt: { type: string, format: date-time }
+        location:
+          oneOf:
+            - $ref: "#/components/schemas/Location"
+            - type: "null"
+        durationSeconds: { type: [integer, "null"], description: Só no áudio. }
+        url: { type: string, description: Link temporário. }
+    Question:
+      type: object
+      required: [id, kind, text, field, openItemId, options, status, answer]
+      properties:
+        id: { type: string }
+        kind: { $ref: "#/components/schemas/QuestionKind" }
+        text: { type: string }
+        field: { type: [string, "null"] }
+        openItemId: { type: [string, "null"] }
+        options:
+          type: array
+          items:
+            type: object
+            required: [id, label]
+            properties:
+              id: { type: string }
+              label: { type: string }
+        status: { $ref: "#/components/schemas/QuestionStatus" }
+        answer:
+          type: [object, "null"]
+          required: [optionId, text, audioMediaId, answeredAt]
+          properties:
+            optionId: { type: [string, "null"] }
+            text: { type: [string, "null"] }
+            audioMediaId: { type: [string, "null"] }
+            answeredAt: { type: string, format: date-time }
+    Entry:
+      type: object
+      required: [id, siteId, capturedAt, localDate, timezone, location, offline, audio, photos, status, transcript, title, tags, openItemIds, questions]
+      properties:
+        id: { type: string, format: uuid }
+        siteId: { type: string, format: uuid }
+        capturedAt: { type: string, format: date-time }
+        localDate: { type: string, format: date }
+        timezone: { type: string }
+        location:
+          oneOf:
+            - $ref: "#/components/schemas/Location"
+            - type: "null"
+        offline: { type: boolean }
+        audio:
+          oneOf:
+            - $ref: "#/components/schemas/Media"
+            - type: "null"
+        photos:
+          type: array
+          items: { $ref: "#/components/schemas/Media" }
+        status: { $ref: "#/components/schemas/EntryStatus" }
+        transcript: { type: [string, "null"] }
+        title: { type: [string, "null"] }
+        tags:
+          type: array
+          items:
+            type: object
+            required: [kind, label]
+            properties:
+              kind: { $ref: "#/components/schemas/TagKind" }
+              label: { type: string }
+        openItemIds:
+          type: array
+          items: { type: string }
+        questions:
+          type: array
+          items: { $ref: "#/components/schemas/Question" }
+    CreateEntryRequest:
+      type: object
+      required: [id, capturedAt, localDate, timezone, audioMediaId]
+      properties:
+        id: { type: string, format: uuid, description: UUID gerado na web. }
+        capturedAt: { type: string, format: date-time, description: Quando a gravação começou. }
+        localDate: { type: string, format: date }
+        timezone: { type: string }
+        location: { $ref: "#/components/schemas/LocationInput" }
+        offline: { type: boolean, description: Capturado sem internet. }
+        audioMediaId: { type: string, format: uuid }
+        photoMediaIds:
+          type: array
+          maxItems: 3
+          items: { type: string, format: uuid }
+    Day:
+      type: object
+      required: [site, localDate, openItems, entries, report]
+      properties:
+        site: { $ref: "#/components/schemas/SiteSummary" }
+        localDate: { type: string, format: date }
+        openItems:
+          type: array
+          items: { $ref: "#/components/schemas/OpenItem" }
+        entries:
+          type: array
+          description: Do mais novo pro mais antigo.
+          items: { $ref: "#/components/schemas/Entry" }
+        report:
+          type: [object, "null"]
+          required: [id, status]
+          properties:
+            id: { type: string }
+            status: { $ref: "#/components/schemas/ReportStatus" }
+  examples:
+    HealthOk:
+      value: { status: ok, environment: staging, version: 90303ab, database: up }
+    Engineer:
+      value: { id: 3f0c1b2a-8d4e-4f60-9a71-2b3c4d5e6f70, name: Rafael Lima, title: Eng. Rafael Lima, company: Construtora Horizonte }
+    Config:
+      value: { maxPhotosPerEntry: 3, minPhotosPerReport: 3, maxPhotosPerReport: 20, openItemHighlightDays: 4, geofenceRadiusMeters: 150 }
+    AiDiagnostic:
+      value:
+        model: claude-sonnet-5-5
+        output: "Argos funcionando."
+        inputTokens: 42
+        outputTokens: 6
+        cacheReadInputTokens: 0
+        cacheCreationInputTokens: 0
+        latencyMs: 812
+        traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+    Equipment:
+      value: { id: 7c2d9e10-3b4a-4f6e-8d21-0a9b8c7d6e51, name: Betoneira 2, identifier: BT-02 }
+    SiteDocument:
+      value: { id: 9d3e0f21-4c5b-4a7f-9e32-1b0a9c8d7e62, fileName: vila-verde-arquitetonico-r2.pdf, type: architectural, url: "https://files.example.test/documents/9d3e0f21?expires=1795700000" }
+    Site:
+      value:
+        id: 5b1f0a52-6d0e-4a55-9a0b-1d4c2f6e8a01
+        name: Residencial Vila Verde · Bloco B
+        type: private
+        status: in_progress
+        statusChangedOn: null
+        address: Rua das Acácias, 410 · Contagem, MG
+        location: { lat: -19.9319, lng: -44.0539, accuracyMeters: null }
+        client: { name: Vila Verde Empreendimentos, taxId: 00.000.000/0001-00 }
+        contractor: { name: Construtora Horizonte, taxId: 11.111.111/0001-11 }
+        technicalManager: { name: Eng. Rafael Lima, artNumber: MG2026001234 }
+        publicContract: null
+        servicesCount: 148
+        servicesFileName: planilha-vila-verde.xlsx
+        equipment:
+          - { id: 7c2d9e10-3b4a-4f6e-8d21-0a9b8c7d6e51, name: Betoneira 2, identifier: BT-02 }
+        documents:
+          - { id: 9d3e0f21-4c5b-4a7f-9e32-1b0a9c8d7e62, fileName: vila-verde-arquitetonico-r2.pdf, type: architectural, url: "https://files.example.test/documents/9d3e0f21?expires=1795700000" }
+        createdAt: "2026-11-01T12:00:00Z"
+    SiteList:
+      value:
+        items:
+          - id: 5b1f0a52-6d0e-4a55-9a0b-1d4c2f6e8a01
+            name: Residencial Vila Verde · Bloco B
+            type: private
+            status: in_progress
+            statusChangedOn: null
+            address: Rua das Acácias, 410 · Contagem, MG
+            location: { lat: -19.9319, lng: -44.0539, accuracyMeters: null }
+            servicesCount: 148
+            distanceMeters: 40
+            today: { localDate: "2026-11-25", state: in_progress, entriesCount: 3, reportId: null }
+            pendingDays: []
+            openItemsCount: 3
+    SiteDetail:
+      value:
+        id: 5b1f0a52-6d0e-4a55-9a0b-1d4c2f6e8a01
+        name: Residencial Vila Verde · Bloco B
+        type: private
+        status: in_progress
+        statusChangedOn: null
+        address: Rua das Acácias, 410 · Contagem, MG
+        location: { lat: -19.9319, lng: -44.0539, accuracyMeters: null }
+        client: { name: Vila Verde Empreendimentos, taxId: 00.000.000/0001-00 }
+        contractor: { name: Construtora Horizonte, taxId: 11.111.111/0001-11 }
+        technicalManager: { name: Eng. Rafael Lima, artNumber: MG2026001234 }
+        publicContract: null
+        servicesCount: 148
+        servicesFileName: planilha-vila-verde.xlsx
+        equipment:
+          - { id: 7c2d9e10-3b4a-4f6e-8d21-0a9b8c7d6e51, name: Betoneira 2, identifier: BT-02 }
+        documents: []
+        createdAt: "2026-11-01T12:00:00Z"
+        today: { localDate: "2026-11-25", state: in_progress, entriesCount: 3, reportId: null }
+        pendingDays: []
+        openItems:
+          - id: 1a2b3c4d-0001-4000-8000-000000000001
+            siteId: 5b1f0a52-6d0e-4a55-9a0b-1d4c2f6e8a01
+            title: Infiltração no subsolo do bloco A
+            kind: unresolved_occurrence
+            status: open
+            openedOn: "2026-11-21"
+            openedInReportId: 8e1d2c3b-0001-4000-8000-000000000084
+            lastUpdate: { localDate: "2026-11-24", note: aguardando impermeabilizante }
+            closedOn: null
+            closingNote: null
+            mentionedToday: null
+        recentReports:
+          - { id: 8e1d2c3b-0001-4000-8000-000000000087, number: 87, localDate: "2026-11-24", approvedAt: "2026-11-24T20:20:00Z", occurrencesCount: 1 }
+        approvedReportsCount: 87
+    CreateSiteRequest:
+      value:
+        name: Residencial Vila Verde · Bloco B
+        type: private
+        address: Rua das Acácias, 410 · Contagem, MG
+        location: { lat: -19.9319, lng: -44.0539, accuracyMeters: 12 }
+        client: { name: Vila Verde Empreendimentos, taxId: 00.000.000/0001-00 }
+        contractor: { name: Construtora Horizonte, taxId: 11.111.111/0001-11 }
+        technicalManager: { name: Eng. Rafael Lima, artNumber: MG2026001234 }
+    MediaPhoto:
+      value:
+        id: c0a80001-1111-4222-8333-444455556666
+        kind: photo
+        source: camera
+        capturedAt: "2026-11-25T18:30:00Z"
+        location: { lat: -19.9319, lng: -44.0539, accuracyMeters: 12 }
+        durationSeconds: null
+        url: "https://files.example.test/media/c0a80001?expires=1795700000"
+    CreateEntryRequest:
+      value:
+        id: d1b90002-2222-4333-8444-555566667777
+        capturedAt: "2026-11-25T18:30:00Z"
+        localDate: "2026-11-25"
+        timezone: America/Sao_Paulo
+        location: { lat: -19.9319, lng: -44.0539, accuracyMeters: 12 }
+        offline: false
+        audioMediaId: e2ca0003-3333-4444-8555-666677778888
+        photoMediaIds: [c0a80001-1111-4222-8333-444455556666]
+    Entry:
+      value:
+        id: d1b90002-2222-4333-8444-555566667777
+        siteId: 5b1f0a52-6d0e-4a55-9a0b-1d4c2f6e8a01
+        capturedAt: "2026-11-25T18:30:00Z"
+        localDate: "2026-11-25"
+        timezone: America/Sao_Paulo
+        location: { lat: -19.9319, lng: -44.0539, accuracyMeters: 12 }
+        offline: false
+        audio:
+          id: e2ca0003-3333-4444-8555-666677778888
+          kind: audio
+          source: microphone
+          capturedAt: "2026-11-25T18:30:00Z"
+          location: null
+          durationSeconds: 48
+          url: "https://files.example.test/media/e2ca0003?expires=1795700000"
+        photos:
+          - id: c0a80001-1111-4222-8333-444455556666
+            kind: photo
+            source: camera
+            capturedAt: "2026-11-25T18:30:00Z"
+            location: { lat: -19.9319, lng: -44.0539, accuracyMeters: 12 }
+            durationSeconds: null
+            url: "https://files.example.test/media/c0a80001?expires=1795700000"
+        status: processing
+        transcript: null
+        title: null
+        tags: []
+        openItemIds: []
+        questions: []
+    Day:
+      value:
+        site:
+          id: 5b1f0a52-6d0e-4a55-9a0b-1d4c2f6e8a01
+          name: Residencial Vila Verde · Bloco B
+          type: private
+          status: in_progress
+          statusChangedOn: null
+          address: Rua das Acácias, 410 · Contagem, MG
+          location: { lat: -19.9319, lng: -44.0539, accuracyMeters: null }
+          servicesCount: 148
+          distanceMeters: 40
+          today: { localDate: "2026-11-25", state: in_progress, entriesCount: 1, reportId: null }
+          pendingDays: []
+          openItemsCount: 1
+        localDate: "2026-11-25"
+        openItems:
+          - id: 1a2b3c4d-0001-4000-8000-000000000001
+            siteId: 5b1f0a52-6d0e-4a55-9a0b-1d4c2f6e8a01
+            title: Infiltração no subsolo do bloco A
+            kind: unresolved_occurrence
+            status: open
+            openedOn: "2026-11-21"
+            openedInReportId: 8e1d2c3b-0001-4000-8000-000000000084
+            lastUpdate: { localDate: "2026-11-24", note: aguardando impermeabilizante }
+            closedOn: null
+            closingNote: null
+            mentionedToday: null
+        entries:
+          - id: d1b90002-2222-4333-8444-555566667777
+            siteId: 5b1f0a52-6d0e-4a55-9a0b-1d4c2f6e8a01
+            capturedAt: "2026-11-25T18:30:00Z"
+            localDate: "2026-11-25"
+            timezone: America/Sao_Paulo
+            location: { lat: -19.9319, lng: -44.0539, accuracyMeters: 12 }
+            offline: false
+            audio: null
+            photos: []
+            status: processing
+            transcript: null
+            title: null
+            tags: []
+            openItemIds: []
+            questions: []
+        report: null
+    Unauthorized:
+      value: { type: "https://argos.eteg.com.br/errors/unauthorized", title: Unauthorized, status: 401, code: UNAUTHORIZED, detail: Missing or invalid API key. }
+    Validation:
+      value:
+        type: "https://argos.eteg.com.br/errors/validation"
+        title: Invalid data
+        status: 400
+        code: VALIDATION
+        detail: The name field is required.
+        errors: [{ field: name, code: REQUIRED }]
+    NotFound:
+      value: { type: "https://argos.eteg.com.br/errors/not-found", title: Not found, status: 404, code: NOT_FOUND, detail: The resource does not exist. }
+    FileTooLarge:
+      value: { type: "https://argos.eteg.com.br/errors/file-too-large", title: File too large, status: 413, code: FILE_TOO_LARGE, detail: The file is above the upload limit. }
+    UnsupportedFile:
+      value: { type: "https://argos.eteg.com.br/errors/unsupported-file", title: Unsupported file, status: 415, code: UNSUPPORTED_FILE, detail: The file type is not accepted. }
+    RateLimited:
+      value: { type: "https://argos.eteg.com.br/errors/rate-limited", title: Too many requests, status: 429, code: RATE_LIMITED, detail: Too many calls. Try again shortly. }
+    Unavailable:
+      value: { type: "https://argos.eteg.com.br/errors/unavailable", title: Service unavailable, status: 503, code: UNAVAILABLE, detail: The API could not complete the request. }
+    SiteHasOpenReports:
+      value: { type: "https://argos.eteg.com.br/errors/site-has-open-reports", title: Site has open reports, status: 409, code: SITE_HAS_OPEN_REPORTS, detail: "1 day has no approved report.", errors: [{ field: "2026-11-25", code: REPORT_NOT_APPROVED }] }
+    SpreadsheetUnreadable:
+      value: { type: "https://argos.eteg.com.br/errors/spreadsheet-unreadable", title: Spreadsheet unreadable, status: 422, code: SPREADSHEET_UNREADABLE, detail: The spreadsheet has no code and description columns. }
+    SiteNotInProgress:
+      value: { type: "https://argos.eteg.com.br/errors/site-not-in-progress", title: Site not in progress, status: 409, code: SITE_NOT_IN_PROGRESS, detail: Only sites in progress accept entries. }
+    PhotoLimitEntry:
+      value: { type: "https://argos.eteg.com.br/errors/photo-limit-entry", title: Photo limit per entry, status: 409, code: PHOTO_LIMIT_ENTRY, detail: An entry takes at most 3 photos. }
+    PhotoLimitReport:
+      value: { type: "https://argos.eteg.com.br/errors/photo-limit-report", title: Photo limit per report, status: 409, code: PHOTO_LIMIT_REPORT, detail: The day would go over 20 photos. }
+    ReportAlreadyApproved:
+      value: { type: "https://argos.eteg.com.br/errors/report-already-approved", title: Report already approved, status: 409, code: REPORT_ALREADY_APPROVED, detail: The report of the day is already approved. }

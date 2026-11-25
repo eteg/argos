@@ -19,4 +19,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm build
-      # Lint do OpenAPI e tipos gerados em dia entram aqui; depois, a validação dos gabaritos.
+      - run: pnpm contract:lint
+      - run: pnpm contract:types
+      - run: git diff --exit-code packages/contract/src/schema.d.ts
+      # A validação dos gabaritos entra aqui na fase 09.

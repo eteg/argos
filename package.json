@@ -10,12 +10,18 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "contract:lint": "redocly lint --config docs/contratos/openapi/redocly.yaml docs/contratos/openapi/openapi.yaml",
+    "contract:types": "openapi-typescript docs/contratos/openapi/openapi.yaml -o packages/contract/src/schema.d.ts",
+    "mock": "prism mock -h 0.0.0.0 -p 4010 docs/contratos/openapi/openapi.yaml"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
+    "@redocly/cli": "2.83.0",
+    "@stoplight/prism-cli": "5.16.0",
     "eslint": "9.39.5",
     "globals": "17.14.0",
+    "openapi-typescript": "7.13.0",
     "prettier": "3.10.1",
     "turbo": "2.11.13",
     "typescript": "6.0.3",

@@ -3,6 +3,7 @@ packages:
   - packages/*
 
 allowBuilds:
+  "@scarf/scarf": false
   esbuild: false
   sharp: false
   unrs-resolver: false
@@ -13,3 +14,6 @@ minimumReleaseAgeExclude:
   - '@nestjs/platform-express@12.6.2'
   - '@types/node@26.6.10'
   - '@types/react@19.3.3'
+
+overrides:
+  supports-color: 7.2.0
