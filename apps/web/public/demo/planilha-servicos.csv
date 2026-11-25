@@ -1,0 +1,31 @@
+code,description,unit
+01.01,Mobilização e instalação do canteiro,vb
+01.02,Placa de obra,m²
+02.01,Locação da obra,m²
+02.02,Limpeza do terreno,m²
+02.03,Escavação manual de vala,m³
+02.05,Escavação da fundação,m³
+02.06,Reaterro compactado,m³
+03.01,Lastro de concreto magro,m³
+03.02,Forma de madeira para vigas baldrame,m²
+03.04,Concreto fck 25 MPa para sapatas,m³
+03.05,Concreto fck 25 MPa para pilares,m³
+03.06,Concreto fck 25 MPa para lajes,m³
+04.01,Armação de sapatas CA-50,kg
+04.02,Armação de pilares CA-50,kg
+04.03,Armação de vigas baldrame CA-50,kg
+04.04,Armação de lajes CA-50,kg
+05.01,Alvenaria de embasamento,m²
+05.02,Alvenaria de vedação em bloco cerâmico,m²
+06.01,Instalação hidráulica de água fria,m
+06.02,Instalação de esgoto sanitário,m
+07.01,Eletroduto embutido,m
+07.02,Fiação de circuitos,m
+08.01,Chapisco,m²
+08.02,Emboço,m²
+08.03,Reboco,m²
+09.01,Contrapiso,m²
+09.02,Revestimento cerâmico de piso,m²
+10.01,Impermeabilização de subsolo,m²
+11.01,Esquadria de alumínio,m²
+12.01,Pintura acrílica,m²
