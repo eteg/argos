@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { api, timezoneParams } from "@/lib/api";
-import { documentTypeLabel, siteTypeLabel, statusLabel } from "@/lib/format";
-import { unwrap, useLoad } from "@/lib/hooks";
+import { documentTypeLabel, errorMessage, siteTypeLabel, statusLabel } from "@/lib/format";
+import { ApiError, unwrap, useLoad } from "@/lib/hooks";
 import { Page, Pill, Status } from "@/components/ui";
 
 const Row = ({ k, children }: { k: string; children: React.ReactNode }) => (
@@ -12,7 +13,9 @@ const Row = ({ k, children }: { k: string; children: React.ReactNode }) => (
 );
 
 export function SiteFolder() {
+  const router = useRouter();
   const id = useSearchParams().get("id") ?? "";
+  const [genError, setGenError] = useState<string | null>(null);
   const [state, retry] = useLoad(() => unwrap(api.GET("/v1/sites/{siteId}", { params: { path: { siteId: id }, ...timezoneParams() } })), [id]);
   if (state.status !== "ok") return <Page><Status state={state} retry={retry} /></Page>;
   const s = state.data;
@@ -33,6 +36,19 @@ export function SiteFolder() {
               <span className="text-[13px] text-[#5B5F6B]">{s.today.entriesCount === 0 ? "Nenhum registro ainda" : `${s.today.entriesCount} ${s.today.entriesCount === 1 ? "registro" : "registros"} · falta fechar o dia`}</span></div>
             <span className="rounded-full bg-[#1563FF] px-3.5 py-2.5 text-[13px] font-semibold text-white">Registrar</span>
           </Link>
+        )}
+        {s.status === "in_progress" && (s.today.entriesCount > 0 || s.today.reportId) && (
+          <>
+            <button type="button" onClick={() => void (async () => {
+              setGenError(null);
+              if (s.today.state === "approved" && s.today.reportId) return router.push(`/rdo?id=${s.today.reportId}`);
+              try {
+                const report = await unwrap(api.POST("/v1/sites/{siteId}/days/{localDate}/report", { params: { path: { siteId: s.id, localDate: s.today.localDate }, ...timezoneParams() } }));
+                router.push(`/rdo?id=${report.id}`);
+              } catch (e) { setGenError(errorMessage(e instanceof ApiError ? e.code : "UNAVAILABLE")); }
+            })()} className="flex min-h-[52px] items-center justify-center rounded-[14px] bg-[#2D2D2B] text-[15px] font-semibold text-white">{s.today.state === "approved" ? "Ver RDO de hoje" : "Gerar RDO"}</button>
+            {genError && <div role="alert" className="rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">{genError}</div>}
+          </>
         )}
         {s.pendingDays.length > 0 && <Pill tone="amber">{s.pendingDays.length} dia(s) capturado(s) sem internet</Pill>}
         <section className="flex flex-col gap-2.5">
