@@ -22,7 +22,7 @@ Os termos do domínio têm um nome só, usado em todas as camadas:
 
 - HTTPS, JSON em UTF-8 e prefixo de versão na rota: `/v1/...`.
 - Três ambientes: desenvolvimento (a web usa um servidor falso gerado do contrato), staging e produção.
-- Sem login (`RG01`, acesso): nenhuma chamada leva token. A API atende o engenheiro configurado no ambiente. Como proteger a API de staging está em aberto ([D07]).
+- Sem login (`RG01`, acesso): nenhuma chamada leva token. A API atende o engenheiro configurado no ambiente. Cada ambiente tem uma chave, enviada em `X-Api-Key` em toda rota menos `getHealth`. A chave protege só de acesso casual e não identifica a pessoa ([ADR 0002](../decisoes/0002-chave-da-api-sem-login.md)).
 
 ## Nomes e tipos
 
@@ -49,6 +49,7 @@ Texto que a tela monta a partir dos dados, como "há 4 dias", "Quarta, 25 de nov
 
 | Cabeçalho | Em quais chamadas | Valor |
 |---|---|---|
+| `X-Api-Key` | Todas, menos `getHealth` | A chave do ambiente. |
 | `X-Timezone` | Todas | Fuso IANA do celular, como `America/Sao_Paulo`. A API usa pra calcular "hoje". |
 | `X-Device-Location` | Listas que ordenam por distância | `lat,lng`, só quando a pessoa permitiu a localização. |
 | `Idempotency-Key` | Escritas que não podem duplicar e não têm `id` gerado na web, como aprovar o RDO | UUID gerado na web. |
@@ -87,11 +88,13 @@ A web decide o texto da tela a partir do `code`. `title` e `detail` servem pra l
 | HTTP | `code` | Quando | O que a web faz |
 |---|---|---|---|
 | 400 | `VALIDATION` | Campo inválido. `errors` diz qual e por quê. | Mostra a mensagem abaixo de cada campo. |
+| 401 | `UNAUTHORIZED` | Sem chave ou com chave errada. | Mostra que o app está mal configurado. |
 | 404 | `NOT_FOUND` | O recurso não existe. | Tira o item da tela e avisa. |
 | 409 | Específico da operação | O estado atual impede a operação, como concluir obra com RDO em aberto. | Conforme a tela. |
 | 413 | `FILE_TOO_LARGE` | Arquivo acima do limite do upload. | Avisa o limite. |
-| 422 | Específico da operação | O arquivo chegou, mas o conteúdo não serve, como uma planilha sem código e descrição. | Conforme a tela. |
 | 415 | `UNSUPPORTED_FILE` | Tipo de arquivo não aceito. | Avisa os tipos aceitos. |
+| 422 | Específico da operação | O arquivo chegou, mas o conteúdo não serve, como uma planilha sem código e descrição. | Conforme a tela. |
+| 429 | `RATE_LIMITED` | Acima do limite de chamadas. | Pede pra tentar daqui a pouco. |
 | 5xx | `UNAVAILABLE` | Falha da API. | Mostra que não deu pra concluir agora, com a opção de tentar de novo. |
 
 ## Upload
@@ -100,10 +103,10 @@ A web decide o texto da tela a partir do `code`. `title` e `detail` servem pra l
 
 | Arquivo | Tipos | Limite |
 |---|---|---|
-| Áudio do registro | `audio/webm`, `audio/mp4`, `audio/mpeg` | [❓A confirmar], cerca de 2 minutos |
-| Foto | `image/jpeg`, `image/png`, `image/heic` | [❓A confirmar] |
-| Documento da obra | `application/pdf`, imagens | [❓A confirmar] |
-| Planilha de serviços | `.xlsx`, `.csv` | [❓A confirmar] |
+| Áudio do registro | `audio/webm`, `audio/mp4`, `audio/mpeg` | 10 MB, cerca de 2 minutos |
+| Foto | `image/jpeg`, `image/png`, `image/heic` | 15 MB |
+| Documento da obra | `application/pdf`, imagens | 50 MB |
+| Planilha de serviços | `.xlsx`, `.csv` | 10 MB |
 
 ## Escrita sem internet
 
@@ -122,5 +125,3 @@ A interpretação de um registro, a montagem do RDO e a correção falando passa
 Dentro de uma versão da API, o contrato só cresce: campo novo na resposta, campo opcional novo na entrada, operação nova e valor novo de enum. Remover, renomear, mudar tipo ou tornar obrigatório um campo de entrada exige `/v2`.
 
 O contrato tem versão `MAJOR.MINOR.PATCH`, e toda mudança entra no [CHANGELOG](CHANGELOG.md).
-
-[D07]: ../roadmap/ROADMAP.md#decisões-em-aberto

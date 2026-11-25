@@ -17,7 +17,7 @@ As rotas e os nomes das camadas de cima são sugestões. O que vale é o OpenAPI
 
 ## Situação
 
-Um contrato passa por quatro situações: `rascunho` (escrito, ainda não aprovado), `acordado` (PR aprovado pela web e pela API), `no backend` (implementado em staging) e `integrado` (a web usa em staging).
+Um contrato passa por quatro situações: `rascunho` (escrito, ainda não aprovado), `acordado` (revisado pela web e pela API e registrado no CHANGELOG com quem aprovou), `no backend` (implementado em staging) e `integrado` (a web usa em staging).
 
 | Módulo | Telas | Marco | Situação |
 |---|---|---|---|
@@ -29,4 +29,4 @@ Um contrato passa por quatro situações: `rascunho` (escrito, ainda não aprova
 
 ## Como mudar o contrato
 
-Toda mudança vai num PR que atualiza a camada certa e o [CHANGELOG](CHANGELOG.md), revisado pelo outro lado. O contrato de um marco fica `acordado` antes de o marco começar, e a web desenvolve contra um servidor falso gerado do OpenAPI enquanto a API implementa.
+Toda mudança atualiza a camada certa e o [CHANGELOG](CHANGELOG.md), entra na `main` depois da revisão do outro lado, e o CHANGELOG registra quem revisou. O contrato de um marco fica `acordado` antes de o marco começar, e a web desenvolve contra um servidor falso gerado do OpenAPI enquanto a API implementa.
