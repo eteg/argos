@@ -130,7 +130,10 @@ export function Home() {
           </Link>
           <span className="mt-1 text-[11px] font-bold text-[#1563FF]">Registrar</span>
         </div>
-        <span className="flex-1" />
+        <Link href="/pendencias" className="flex min-h-11 flex-1 flex-col items-center gap-1 pt-3 text-[11px] font-medium text-[#5B5F6B]">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11" /><path d="M4 6h.01M4 12h.01M4 18h.01" /></svg>
+          Pendências
+        </Link>
       </nav>
     </Page>
   );

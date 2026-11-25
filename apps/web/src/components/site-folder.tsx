@@ -7,6 +7,7 @@ import { api, timezoneParams } from "@/lib/api";
 import { documentTypeLabel, errorMessage, siteTypeLabel, statusLabel } from "@/lib/format";
 import { useOnline } from "@/lib/online";
 import { ApiError, unwrap, useLoad } from "@/lib/hooks";
+import { agePill, ageLabel, openItemKindLabel } from "@/lib/open-items";
 import { Page, Pill, Status } from "@/components/ui";
 
 const Row = ({ k, children }: { k: string; children: React.ReactNode }) => (
@@ -19,6 +20,7 @@ export function SiteFolder() {
   const id = useSearchParams().get("id") ?? "";
   const [genError, setGenError] = useState<string | null>(null);
   const [state, retry] = useLoad(() => unwrap(api.GET("/v1/sites/{siteId}", { params: { path: { siteId: id }, ...timezoneParams() } })), [id]);
+  const [cfg] = useLoad(() => unwrap(api.GET("/v1/config", { params: timezoneParams() })), []);
   if (state.status !== "ok") return <Page><Status state={state} retry={retry} /></Page>;
   const s = state.data;
   const city = s.address.split("·").pop()?.trim() ?? s.address;
@@ -53,6 +55,18 @@ export function SiteFolder() {
           </>
         )}
         {s.pendingDays.length > 0 && <Pill tone="amber">{s.pendingDays.length} dia(s) capturado(s) sem internet</Pill>}
+        <section className="flex flex-col gap-2.5" aria-labelledby="s-aberto">
+          <div className="flex items-baseline justify-between px-0.5"><h2 id="s-aberto" className="m-0 text-[15px] font-semibold">Em aberto nesta obra</h2><Link href="/pendencias" className="py-3 text-[13px] font-semibold text-[#1563FF]">Ver pendências</Link></div>
+          <ul className={`m-0 list-none rounded-2xl bg-white px-3.5 py-0.5 ${s.openItems.length > 0 ? "border-[1.5px] border-[#CCA6ED]" : ""}`}>
+            {s.openItems.length === 0 && <li className="py-3.5 text-[13px] text-[#5B5F6B]">Nada em aberto.</li>}
+            {s.openItems.map((i) => (
+              <li key={i.id} className="flex min-h-14 items-center gap-3 border-b border-[#E3E5EE] last:border-b-0">
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5 py-2.5"><span className="text-[15px] font-medium">{i.title}</span><span className="text-[13px] text-[#5B5F6B]">{i.lastUpdate?.note ?? openItemKindLabel[i.kind]}</span></div>
+                <span className={`flex-none rounded-full px-[9px] py-1 text-xs font-semibold ${agePill(i.openedOn, s.today.localDate, cfg.status === "ok" ? cfg.data.openItemHighlightDays : 4)}`}>{ageLabel(i.openedOn, s.today.localDate)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
         <section className="flex flex-col gap-2.5">
           <div className="flex items-baseline justify-between px-0.5"><h2 className="m-0 text-[15px] font-semibold">RDOs aprovados</h2><span className="text-[13px] text-[#5B5F6B]">{s.approvedReportsCount} no total</span></div>
           {s.recentReports.length === 0 ? (

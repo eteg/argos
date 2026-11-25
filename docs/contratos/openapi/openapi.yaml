@@ -23,6 +23,8 @@ tags:
     description: Obras, equipamentos, documentos e serviços.
   - name: Entries
     description: Mídia e registros do dia.
+  - name: OpenItems
+    description: Itens em aberto entre os dias.
   - name: Reports
     description: RDO, perguntas do agente e aprovação.
   - name: AI
@@ -591,6 +593,44 @@ paths:
                   items:
                     type: array
                     items: { $ref: "#/components/schemas/PendingDaysGroup" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/open-items:
+    get:
+      operationId: listOpenItems
+      tags: [OpenItems]
+      summary: Lista os itens em aberto, de todas as obras
+      description: >-
+        Sem `status`, só os abertos, do mais antigo pro mais novo. Com `closed`, do fechado mais
+        recentemente pro mais antigo. `closedSince` só vale com `closed`. Só entra o que foi
+        aprovado num RDO (`F1RN11`). `mentionedToday` vem sempre `null` aqui; o resumo do dia
+        (`getDay`) e a pasta da obra (`getSite`) preenchem.
+      parameters:
+        - $ref: "#/components/parameters/XTimezone"
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/OpenItemStatus" }
+        - name: closedSince
+          in: query
+          description: Só fechados desde esta data (inclusive).
+          schema: { type: string, format: date }
+        - name: siteId
+          in: query
+          description: Só os itens desta obra.
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Os itens.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/OpenItem" }
+        "400": { $ref: "#/components/responses/Validation" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "503": { $ref: "#/components/responses/Unavailable" }
   /v1/entries/{entryId}:

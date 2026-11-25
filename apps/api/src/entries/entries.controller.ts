@@ -10,6 +10,7 @@ import { parse } from "../common/validate.js";
 import { DB, type Database } from "../database/database.module.js";
 import { entries, media, questions, reports } from "../database/schema.js";
 import { aiEnabled } from "../config/env.js";
+import { OpenItemsService } from "../open-items/open-items.service.js";
 import { ProcessingService } from "../processing/processing.service.js";
 import { SitesService } from "../sites/sites.service.js";
 import { uuid } from "../sites/sites.schemas.js";
@@ -55,6 +56,7 @@ export class EntriesController {
     private readonly sites: SitesService,
     private readonly storage: StorageService,
     private readonly processing: ProcessingService,
+    private readonly openItemsService: OpenItemsService,
   ) {}
 
   private location(row: { lat: number | null; lng: number | null; accuracyMeters: number | null }): Schemas["Location"] | null {
@@ -92,7 +94,7 @@ export class EntriesController {
       transcript: row.transcript,
       title: row.title,
       tags: row.tags.map((t) => ({ kind: t.kind as Schemas["TagKind"], label: t.label })),
-      openItemIds: [],
+      openItemIds: row.openItemIds,
       questions: questionRows
         .filter((q) => q.entryId === row.id)
         .map((q) => ({ id: q.id, kind: q.kind as Schemas["QuestionKind"], text: q.text, field: q.field, openItemId: q.openItemId, options: q.options, status: q.status as Schemas["QuestionStatus"], answer: q.answer })),
@@ -224,7 +226,7 @@ export class EntriesController {
     return {
       site: await this.sites.summaryOf(site, timezoneOf(tz)),
       localDate,
-      openItems: [],
+      openItems: await this.openItemsService.listForSite(siteId, localDate),
       entries: await this.toEntries(rows),
       report: report ? { id: report.id, status: report.status as Schemas["ReportStatus"] } : null,
     };

@@ -23,6 +23,8 @@ export interface OpenItemInput {
   title: string;
   kind: string;
   openedOn: string;
+  lastUpdate?: string | null;
+  cited?: boolean;
 }
 
 export interface EntryText {
@@ -46,6 +48,7 @@ export type AgentQuestion = z.infer<typeof questionSchema>;
 const interpretSchema = z.object({
   title: z.string().min(1),
   tags: z.array(z.object({ kind: z.enum(["activity", "occurrence", "labor", "equipment", "weather", "safety"]), label: z.string().min(1) })).default([]),
+  openItemIds: z.array(z.string()).default([]),
 });
 export type InterpretEntryResult = z.infer<typeof interpretSchema>;
 
@@ -99,6 +102,7 @@ newOpenItems: [{ id: "n1", title, kind: "declared_pending"|"unresolved_occurrenc
 export interface InterpretEntryInput {
   transcript: string;
   services: ServiceInput[];
+  openItems?: OpenItemInput[];
 }
 
 export function interpretEntry(model: AgentModel, input: InterpretEntryInput): Promise<InterpretEntryResult> {
@@ -108,9 +112,12 @@ export function interpretEntry(model: AgentModel, input: InterpretEntryInput): P
       name: "interpret-entry",
       maxTokens: 500,
       system: `Você ajuda um engenheiro de obra. Leia a transcrição de um registro de áudio do dia e resuma.
-Responda só com JSON: {"title": "até 6 palavras, ex.: Chuva parou a concretagem", "tags": [{"kind": "activity"|"occurrence"|"labor"|"equipment"|"weather"|"safety", "label": "ex.: Ocorrência: falta de material"}]}
-Use só o que foi dito. Sem tags se nada for reconhecido.`,
-      user: `Transcrição:\n${input.transcript}`,
+Responda só com JSON: {"title": "até 6 palavras, ex.: Chuva parou a concretagem", "tags": [{"kind": "activity"|"occurrence"|"labor"|"equipment"|"weather"|"safety", "label": "ex.: Ocorrência: falta de material"}], "openItemIds": ["id de cada item em aberto citado ou atualizado neste registro"]}
+Use só o que foi dito. Sem tags se nada for reconhecido. Em openItemIds só entram ids da lista de itens em aberto abaixo e só os que o engenheiro realmente citou; lista vazia se nenhum.`,
+      user: `Itens em aberto da obra (id | título):
+${(input.openItems ?? []).map((i) => `${i.id} | ${i.title}`).join("\n") || "(nenhum)"}
+
+Transcrição:\n${input.transcript}`,
     },
     (value) => interpretSchema.parse(value),
   );
@@ -152,7 +159,8 @@ ${RULES}
 - Efetivo terceirizado exige company; se não foi dita, company null e pergunte.
 - Equipamento: só os da lista da obra, pelo equipmentId. Informe status se foi dito.
 - ${publicRules}
-- Se houver itens em aberto, proponha o desfecho só dos que foram citados (close, keep ou update com note).
+- Itens em aberto de dias anteriores (F1RN09): para cada item da lista marcado como citado hoje, proponha o desfecho em "openItemReviews": "close" se o engenheiro disse que resolveu/voltou/terminou; "update" com "note" curta se ele deu uma novidade; "keep" se continua igual. Item não citado: NÃO inclua em openItemReviews (o app pergunta por ele).
+- Itens novos (F1RN06): em "newOpenItems" crie um item para (a) ocorrência sem desfecho (kind "unresolved_occurrence", ex.: falta de material sem previsão, parada que continua), (b) serviço não concluído que segue amanhã (kind "unfinished_service") e (c) pendência declarada pelo engenheiro, como "preciso pedir X até sexta" (kind "declared_pending"). track true por padrão. NÃO crie item novo para algo que já está na lista de itens em aberto.
 Responda só com JSON: {"fields": {...}, "questions": [{"kind": "missing_field"|"open_item"|"service_match"|"safety", "text": "...", "field": "caminho"|null, "options": [{"id": "...", "label": "..."}]}]}
 
 ${SCHEMA_TEXT}`,
@@ -164,8 +172,8 @@ ${servicesText(input.services) || "(nenhum)"}
 Equipamentos da obra:
 ${input.equipment.map((e) => `${e.equipmentId} | ${e.name} | ${e.identifier ?? ""}`).join("\n") || "(nenhum)"}
 
-Itens em aberto de dias anteriores:
-${input.openItems.map((i) => `${i.id} | ${i.title} | aberto em ${i.openedOn}`).join("\n") || "(nenhum)"}
+Itens em aberto de dias anteriores (id | título | aberto em | última atualização | citado hoje?):
+${input.openItems.map((i) => `${i.id} | ${i.title} | aberto em ${i.openedOn} | ${i.lastUpdate ?? "sem atualização"} | ${i.cited ? "sim" : "não"}`).join("\n") || "(nenhum)"}
 
 Registros do dia, em ordem (momento em UTC):
 ${input.entries.map((e, i) => `Registro ${i + 1} (${e.capturedAt}):\n${e.transcript}`).join("\n\n")}`,

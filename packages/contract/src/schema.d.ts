@@ -404,6 +404,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/open-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista os itens em aberto, de todas as obras
+         * @description Sem `status`, só os abertos, do mais antigo pro mais novo. Com `closed`, do fechado mais recentemente pro mais antigo. `closedSince` só vale com `closed`. Só entra o que foi aprovado num RDO (`F1RN11`). `mentionedToday` vem sempre `null` aqui; o resumo do dia (`getDay`) e a pasta da obra (`getSite`) preenchem.
+         */
+        get: operations["listOpenItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/entries/{entryId}": {
         parameters: {
             query?: never;
@@ -2078,6 +2098,43 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listOpenItems: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["OpenItemStatus"];
+                /** @description Só fechados desde esta data (inclusive). */
+                closedSince?: string;
+                /** @description Só os itens desta obra. */
+                siteId?: string;
+            };
+            header: {
+                /**
+                 * @description Fuso IANA do celular. A API usa pra calcular "hoje".
+                 * @example America/Sao_Paulo
+                 */
+                "X-Timezone": components["parameters"]["XTimezone"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Os itens. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["OpenItem"][];
+                    };
+                };
+            };
+            400: components["responses"]["Validation"];
             401: components["responses"]["Unauthorized"];
             503: components["responses"]["Unavailable"];
         };
