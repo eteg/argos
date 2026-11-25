@@ -10,6 +10,7 @@ import { parse } from "../common/validate.js";
 import { DB, type Database } from "../database/database.module.js";
 import { entries, media, questions, reports } from "../database/schema.js";
 import { aiEnabled } from "../config/env.js";
+import { lockDay } from "../database/locks.js";
 import { OpenItemsService } from "../open-items/open-items.service.js";
 import { ProcessingService } from "../processing/processing.service.js";
 import { SitesService } from "../sites/sites.service.js";
@@ -141,9 +142,14 @@ export class EntriesController {
         accuracyMeters: location?.accuracyMeters ?? null,
         durationSeconds: form.kind === "audio" ? (form.durationSeconds ?? null) : null,
       })
+      .onConflictDoNothing({ target: media.id })
       .returning();
+    if (!row) {
+      const [winner] = await this.db.select().from(media).where(eq(media.id, mediaId));
+      return this.toMedia(winner!);
+    }
     res.status(201);
-    return this.toMedia(row!);
+    return this.toMedia(row);
   }
 
   @Post("sites/:siteId/entries")
@@ -151,53 +157,65 @@ export class EntriesController {
     const site = await this.sites.requireSite(siteId);
     const input = parse(entrySchema, body);
     timezoneOf(input.timezone);
-    const [existing] = await this.db.select().from(entries).where(eq(entries.id, input.id));
-    if (existing) {
-      if (existing.siteId !== siteId) throw new ProblemException(409, "ENTRY_ID_IN_USE", "The id belongs to another site.");
+    const existingOf = async (row: EntryRow) => {
+      if (row.siteId !== siteId) throw new ProblemException(409, "ENTRY_ID_IN_USE", "The id belongs to another site.");
       res.status(200);
-      return (await this.toEntries([existing]))[0]!;
-    }
-    const [approved] = await this.db.select({ id: reports.id }).from(reports).where(and(eq(reports.siteId, siteId), eq(reports.localDate, input.localDate), eq(reports.status, "approved")));
-    if (approved) throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report of the day is already approved.");
-    if (site.status !== "in_progress") throw new ProblemException(409, "SITE_NOT_IN_PROGRESS", "Only sites in progress accept entries.");
+      return (await this.toEntries([row]))[0]!;
+    };
+    const [existing] = await this.db.select().from(entries).where(eq(entries.id, input.id));
+    if (existing) return existingOf(existing);
     const photoIds = [...new Set(input.photoMediaIds ?? [])];
-    if (photoIds.length > MAX_PHOTOS_PER_ENTRY) throw new ProblemException(409, "PHOTO_LIMIT_ENTRY", `An entry takes at most ${MAX_PHOTOS_PER_ENTRY} photos.`);
-    const found = await this.db.select().from(media).where(inArray(media.id, [input.audioMediaId, ...photoIds]));
-    const foundById = new Map(found.map((m) => [m.id, m]));
-    if (foundById.get(input.audioMediaId)?.kind !== "audio") {
-      throw new ProblemException(400, "VALIDATION", "Audio not found.", [{ field: "audioMediaId", code: "INVALID" }]);
-    }
-    if (photoIds.some((id) => foundById.get(id)?.kind !== "photo")) {
-      throw new ProblemException(400, "VALIDATION", "Photo not found.", [{ field: "photoMediaIds", code: "INVALID" }]);
-    }
-    const [{ photos }] = (
-      await this.db.execute<{ photos: number }>(
-        sql`select coalesce(sum(cardinality(photo_media_ids)), 0)::int as photos from entries where site_id = ${siteId} and local_date = ${input.localDate}`,
-      )
-    ).rows as [{ photos: number }];
-    if (photos + photoIds.length > MAX_PHOTOS_PER_REPORT) {
-      throw new ProblemException(409, "PHOTO_LIMIT_REPORT", `The day would go over ${MAX_PHOTOS_PER_REPORT} photos.`);
-    }
-    const [row] = await this.db
-      .insert(entries)
-      .values({
-        id: input.id,
-        siteId,
-        capturedAt: new Date(input.capturedAt),
-        localDate: input.localDate,
-        timezone: input.timezone,
-        lat: input.location?.lat ?? null,
-        lng: input.location?.lng ?? null,
-        accuracyMeters: input.location?.accuracyMeters ?? null,
-        offline: input.offline ?? false,
-        audioMediaId: input.audioMediaId,
-        photoMediaIds: photoIds,
-        status: aiEnabled() ? "processing" : "processed",
-      })
-      .returning();
-    if (row!.status === "processing") void this.processing.processEntry(row!.id);
-    res.status(row!.status === "processing" ? 202 : 201);
-    return (await this.toEntries([row!]))[0]!;
+    const outcome = await this.db.transaction(async (tx) => {
+      await lockDay(tx, siteId, input.localDate);
+      const [again] = await tx.select().from(entries).where(eq(entries.id, input.id));
+      if (again) return { row: again, created: false };
+      const [approved] = await tx.select({ id: reports.id }).from(reports).where(and(eq(reports.siteId, siteId), eq(reports.localDate, input.localDate), eq(reports.status, "approved")));
+      if (approved) throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report of the day is already approved.");
+      if (site.status !== "in_progress") throw new ProblemException(409, "SITE_NOT_IN_PROGRESS", "Only sites in progress accept entries.");
+      if (photoIds.length > MAX_PHOTOS_PER_ENTRY) throw new ProblemException(409, "PHOTO_LIMIT_ENTRY", `An entry takes at most ${MAX_PHOTOS_PER_ENTRY} photos.`);
+      const found = await tx.select().from(media).where(inArray(media.id, [input.audioMediaId, ...photoIds]));
+      const foundById = new Map(found.map((m) => [m.id, m]));
+      if (foundById.get(input.audioMediaId)?.kind !== "audio") {
+        throw new ProblemException(400, "VALIDATION", "Audio not found.", [{ field: "audioMediaId", code: "INVALID" }]);
+      }
+      if (photoIds.some((id) => foundById.get(id)?.kind !== "photo")) {
+        throw new ProblemException(400, "VALIDATION", "Photo not found.", [{ field: "photoMediaIds", code: "INVALID" }]);
+      }
+      const [{ photos }] = (
+        await tx.execute<{ photos: number }>(
+          sql`select coalesce(sum(cardinality(photo_media_ids)), 0)::int as photos from entries where site_id = ${siteId} and local_date = ${input.localDate}`,
+        )
+      ).rows as [{ photos: number }];
+      if (photos + photoIds.length > MAX_PHOTOS_PER_REPORT) {
+        throw new ProblemException(409, "PHOTO_LIMIT_REPORT", `The day would go over ${MAX_PHOTOS_PER_REPORT} photos.`);
+      }
+      const [row] = await tx
+        .insert(entries)
+        .values({
+          id: input.id,
+          siteId,
+          capturedAt: new Date(input.capturedAt),
+          localDate: input.localDate,
+          timezone: input.timezone,
+          lat: input.location?.lat ?? null,
+          lng: input.location?.lng ?? null,
+          accuracyMeters: input.location?.accuracyMeters ?? null,
+          offline: input.offline ?? false,
+          audioMediaId: input.audioMediaId,
+          photoMediaIds: photoIds,
+          status: aiEnabled() ? "processing" : "processed",
+        })
+        .onConflictDoNothing({ target: entries.id })
+        .returning();
+      if (row) return { row, created: true };
+      const [other] = await tx.select().from(entries).where(eq(entries.id, input.id));
+      return { row: other!, created: false };
+    });
+    if (!outcome.created) return existingOf(outcome.row);
+    const row = outcome.row;
+    if (row.status === "processing") void this.processing.processEntry(row.id);
+    res.status(row.status === "processing" ? 202 : 201);
+    return (await this.toEntries([row]))[0]!;
   }
 
   @Get("entries/:entryId")

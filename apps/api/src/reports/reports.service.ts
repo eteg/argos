@@ -7,6 +7,7 @@ import type { Schemas } from "@argos/contract";
 import { ProblemException } from "../common/problem.js";
 import { DB, type Database } from "../database/database.module.js";
 import { aiEnabled, env } from "../config/env.js";
+import { lockDay, pendingDaysBefore } from "../database/locks.js";
 import { OpenItemsService } from "../open-items/open-items.service.js";
 import { ProcessingService, setPath } from "../processing/processing.service.js";
 import { entries, equipment, media, questions, reports, services, sites } from "../database/schema.js";
@@ -69,7 +70,7 @@ export class ReportsService {
 
   private async assemble(site: typeof sites.$inferSelect, localDate: string, dayEntries: (typeof entries.$inferSelect)[]): Promise<Content> {
     const equipmentRows = await this.db.select().from(equipment).where(eq(equipment.siteId, site.id)).orderBy(asc(equipment.createdAt));
-    const photoIds = dayEntries.flatMap((e) => e.photoMediaIds);
+    const photoIds = [...new Set(dayEntries.flatMap((e) => e.photoMediaIds))].slice(0, MAX_PHOTOS);
     const photoRows = photoIds.length ? await this.db.select().from(media).where(inArray(media.id, photoIds)) : [];
     const byId = new Map(photoRows.map((m) => [m.id, m]));
     const photos = photoIds.flatMap((id) => {
@@ -136,6 +137,11 @@ export class ReportsService {
     };
   }
 
+  private contentOf(row: ReportRow): Content {
+    const content = row.content as unknown as Content;
+    return content.photos.length > MAX_PHOTOS ? { ...content, photos: content.photos.slice(0, MAX_PHOTOS) } : content;
+  }
+
   async update(reportId: string, body: unknown) {
     const row = await this.find(reportId);
     if (row.status === "approved") throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report is already approved.");
@@ -145,7 +151,7 @@ export class ReportsService {
     if (changed.length === 0) throw new ProblemException(400, "VALIDATION", "Nothing to update.", [{ field: "body", code: "REQUIRED" }]);
     const cleared = Object.entries(fields).filter(([key, value]) => value === null && !NULLABLE_FIELDS.includes(key));
     if (cleared.length > 0) throw new ProblemException(400, "VALIDATION", "Invalid data.", cleared.map(([key]) => ({ field: key, code: "INVALID_TYPE" })));
-    const merged: Record<string, unknown> = { ...row.content, ...fields };
+    const merged: Record<string, unknown> = { ...this.contentOf(row), ...fields };
     const content = merged as unknown as Content;
     if (photos) {
       const known = new Set(content.photos.map((p) => p.id));
@@ -174,32 +180,36 @@ export class ReportsService {
 
   async generate(siteId: string, localDate: string) {
     const site = await this.sitesService.requireSite(siteId);
-    const [existing] = await this.db.select().from(reports).where(and(eq(reports.siteId, siteId), eq(reports.localDate, localDate)));
-    if (existing?.status === "approved") throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report of the day is already approved.");
-    if (existing?.status === "generating" && !this.processing.isStale(existing.updatedAt)) return existing;
-    const dayEntries = await this.db.select().from(entries).where(and(eq(entries.siteId, siteId), eq(entries.localDate, localDate))).orderBy(asc(entries.capturedAt));
-    if (dayEntries.length === 0) throw new ProblemException(409, "NO_ENTRIES", "The day has no entries.");
-    const previous = await this.db.execute<{ local_date: string }>(sql`
-      select distinct e.local_date::text as local_date from entries e
-      where e.site_id = ${siteId} and e.local_date < ${localDate}
-        and not exists (select 1 from reports r where r.site_id = e.site_id and r.local_date = e.local_date and r.status = 'approved')
-      order by 1`);
-    if (previous.rows.length > 0) {
-      throw new ProblemException(409, "PREVIOUS_DAY_PENDING", "A previous day has no approved report.", previous.rows.map((r) => ({ field: r.local_date, code: "REPORT_NOT_APPROVED" })));
-    }
-    const fresh = await this.assemble(site, localDate, dayEntries);
-    const content = existing ? this.keepEdits(fresh, existing.content as unknown as Content) : fresh;
-    const history = [
-      ...(existing?.history ?? []),
-      { at: new Date().toISOString(), actor: "agent" as const, description: `RDO ${existing ? "remontado" : "montado"} a partir dos ${dayEntries.length} registros do dia` },
-    ];
     const useAi = aiEnabled();
-    const values = { content: content as unknown as Record<string, unknown>, siteSnapshot: content.site as unknown as Record<string, unknown>, status: useAi ? "generating" : "draft", history, updatedAt: new Date() };
-    const [row] = existing
-      ? await this.db.update(reports).set(values).where(eq(reports.id, existing.id)).returning()
-      : await this.db.insert(reports).values({ siteId, localDate, ...values }).returning();
-    if (useAi) void this.processing.buildReport(row!.id);
-    return row!;
+    const { row, build } = await this.db.transaction(async (tx) => {
+      await lockDay(tx, siteId, localDate);
+      const [existing] = await tx.select().from(reports).where(and(eq(reports.siteId, siteId), eq(reports.localDate, localDate)));
+      if (existing?.status === "approved") throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report of the day is already approved.");
+      if (existing?.status === "generating" && !this.processing.isStale(existing.updatedAt)) return { row: existing, build: false };
+      const dayEntries = await tx.select().from(entries).where(and(eq(entries.siteId, siteId), eq(entries.localDate, localDate))).orderBy(asc(entries.capturedAt));
+      if (dayEntries.length === 0) throw new ProblemException(409, "NO_ENTRIES", "The day has no entries.");
+      const previous = await pendingDaysBefore(tx, siteId, localDate);
+      if (previous.length > 0) {
+        throw new ProblemException(409, "PREVIOUS_DAY_PENDING", "A previous day has no approved report.", previous.map((d) => ({ field: d, code: "REPORT_NOT_APPROVED" })));
+      }
+      const fresh = await this.assemble(site, localDate, dayEntries);
+      const content = existing ? this.keepEdits(fresh, existing.content as unknown as Content) : fresh;
+      const photosCount = new Set(dayEntries.flatMap((e) => e.photoMediaIds)).size;
+      const leftOut = photosCount > MAX_PHOTOS ? `; ${photosCount - MAX_PHOTOS} foto(s) ficaram de fora porque o RDO leva no máximo ${MAX_PHOTOS}` : "";
+      const history = [
+        ...(existing?.history ?? []),
+        { at: new Date().toISOString(), actor: "agent" as const, description: `RDO ${existing ? "remontado" : "montado"} a partir dos ${dayEntries.length} registros do dia${leftOut}` },
+      ];
+      const values = { content: content as unknown as Record<string, unknown>, siteSnapshot: content.site as unknown as Record<string, unknown>, status: useAi ? "generating" : "draft", history, updatedAt: new Date() };
+      const [saved] = await tx
+        .insert(reports)
+        .values({ siteId, localDate, ...values })
+        .onConflictDoUpdate({ target: [reports.siteId, reports.localDate], set: values })
+        .returning();
+      return { row: saved!, build: useAi };
+    });
+    if (build) void this.processing.buildReport(row.id);
+    return row;
   }
 
   private requireReady(row: ReportRow) {
@@ -236,7 +246,7 @@ export class ReportsService {
   }
 
   private async validate(row: ReportRow) {
-    const content = row.content as unknown as Content;
+    const content = this.contentOf(row);
     const [site] = await this.db.select({ type: sites.type }).from(sites).where(eq(sites.id, row.siteId));
     const validation = validateReport(content, { siteType: (site?.type ?? "private") as Schemas["SiteType"], minPhotosPerReport: MIN_PHOTOS, maxPhotosPerReport: MAX_PHOTOS });
     if (validation.structuralErrors.length > 0) {

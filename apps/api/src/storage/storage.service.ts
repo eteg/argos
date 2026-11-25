@@ -1,5 +1,5 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { Injectable } from "@nestjs/common";
 import { env } from "../config/env.js";
@@ -12,7 +12,10 @@ export class StorageService {
 
   async save(scope: string, id: string, data: Buffer) {
     await mkdir(join(this.root, scope), { recursive: true });
-    await writeFile(join(this.root, scope, id), data);
+    const target = join(this.root, scope, id);
+    const temp = `${target}.${randomUUID()}.tmp`;
+    await writeFile(temp, data);
+    await rename(temp, target);
   }
 
   read(scope: string, id: string) {
