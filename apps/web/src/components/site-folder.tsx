@@ -1,12 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { api, timezoneParams } from "@/lib/api";
-import { documentTypeLabel, errorMessage, siteTypeLabel, statusLabel } from "@/lib/format";
-import { useOnline } from "@/lib/online";
-import { ApiError, unwrap, useLoad } from "@/lib/hooks";
+import { documentTypeLabel, siteTypeLabel, statusLabel } from "@/lib/format";
+import { unwrap, useLoad } from "@/lib/hooks";
 import { agePill, ageLabel, openItemKindLabel } from "@/lib/open-items";
 import { MainNav } from "@/components/main-nav";
 import { Page, Pill, Status } from "@/components/ui";
@@ -16,22 +14,27 @@ const Row = ({ k, children }: { k: string; children: React.ReactNode }) => (
 );
 
 export function SiteFolder() {
-  const router = useRouter();
-  const online = useOnline();
   const id = useSearchParams().get("id") ?? "";
-  const [genError, setGenError] = useState<string | null>(null);
   const [state, retry] = useLoad(() => unwrap(api.GET("/v1/sites/{siteId}", { params: { path: { siteId: id }, ...timezoneParams() } })), [id]);
   const [cfg] = useLoad(() => unwrap(api.GET("/v1/config", { params: timezoneParams() })), []);
   if (state.status !== "ok") return <Page><Status state={state} retry={retry} /></Page>;
   const s = state.data;
   const city = s.address.split("·").pop()?.trim() ?? s.address;
+  const [title = s.name, ...rest] = s.name.split(" · ");
   return (
     <Page>
       <div className="flex flex-col gap-4 rounded-b-[28px] bg-[#2D2D2B] px-[18px] pb-[22px] pt-[18px] text-white">
-        <Link href="/" aria-label="Voltar para suas obras" className="flex size-11 items-center justify-center rounded-full bg-[#3A3A37]">←</Link>
+        <div className="flex items-center justify-between">
+          <Link href="/" aria-label="Voltar para suas obras" className="flex size-11 items-center justify-center rounded-full bg-[#3A3A37]">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+          </Link>
+          <Link href="/menu" aria-label="Abrir menu" className="flex size-11 items-center justify-center rounded-full bg-[#3A3A37]">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+          </Link>
+        </div>
         <div className="flex flex-col gap-1">
-          <h1 className="m-0 font-[family-name:var(--font-anybody)] text-[26px] font-bold leading-[1.15]">{s.name}</h1>
-          <span className="text-[13px] text-[#CFCFCB]">{city} · {siteTypeLabel[s.type]}</span>
+          <h1 className="m-0 font-[family-name:var(--font-anybody)] text-[26px] font-bold leading-[1.15] tracking-[-0.02em]">{title}</h1>
+          <span className="text-[13px] text-[#CFCFCB]">{[...rest, city, siteTypeLabel[s.type]].join(" · ")}</span>
         </div>
       </div>
       <div className="flex flex-col gap-6 px-4 pb-32 pt-5">
@@ -41,19 +44,6 @@ export function SiteFolder() {
               <span className="text-[13px] text-[#5B5F6B]">{s.today.entriesCount === 0 ? "Nenhum registro ainda" : `${s.today.entriesCount} ${s.today.entriesCount === 1 ? "registro" : "registros"} · falta fechar o dia`}</span></div>
             <span className="rounded-full bg-[#1563FF] px-3.5 py-2.5 text-[13px] font-semibold text-white">{s.today.entriesCount === 0 ? "Registrar" : "Continuar"}</span>
           </Link>
-        )}
-        {s.status === "in_progress" && (s.today.entriesCount > 0 || s.today.reportId) && (
-          <>
-            <button type="button" disabled={!online} onClick={() => void (async () => {
-              setGenError(null);
-              if (s.today.state === "approved" && s.today.reportId) return router.push(`/rdo?id=${s.today.reportId}`);
-              try {
-                const report = await unwrap(api.POST("/v1/sites/{siteId}/days/{localDate}/report", { params: { path: { siteId: s.id, localDate: s.today.localDate }, ...timezoneParams() } }));
-                router.push(`/rdo?id=${report.id}`);
-              } catch (e) { setGenError(errorMessage(e instanceof ApiError ? e.code : "UNAVAILABLE")); }
-            })()} className="flex min-h-[52px] items-center justify-center rounded-[14px] bg-[#2D2D2B] text-[15px] font-semibold text-white">{s.today.state === "approved" ? "Ver RDO de hoje" : "Gerar RDO"}</button>
-            {genError && <div role="alert" className="rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">{genError}</div>}
-          </>
         )}
         {s.pendingDays.length > 0 && <Pill tone="amber">{s.pendingDays.length} dia(s) capturado(s) sem internet</Pill>}
         <section className="flex flex-col gap-2.5" aria-labelledby="s-aberto">
@@ -87,7 +77,7 @@ export function SiteFolder() {
                         <span className="text-[15px] font-medium">Nº {String(r.number).padStart(3, "0")} · {weekday}, {short}</span>
                         <span className="text-[13px] text-[#5B5F6B]">Aprovado às {time} · {r.occurrencesCount === 0 ? "sem ocorrências" : `${r.occurrencesCount} ${r.occurrencesCount === 1 ? "ocorrência" : "ocorrências"}`}</span>
                       </div>
-                      <span aria-hidden="true" className="text-[#9AA3B8]">›</span>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B5F6B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
                     </Link>
                   </li>
                 );
@@ -101,13 +91,13 @@ export function SiteFolder() {
             <Link href={`/obra/editar?id=${s.id}`} className="py-3 text-[13px] font-semibold text-[#1563FF]">Editar</Link></div>
           <div className="rounded-2xl bg-white px-3.5 py-0.5">
             <Row k="Status"><span className="flex items-center justify-between">{statusLabel[s.status]}<Link href={`/obra/status?id=${s.id}`} className="py-3 text-[13px] font-semibold text-[#1563FF]">Alterar</Link></span></Row>
-            <Row k="Tipo">{siteTypeLabel[s.type]}</Row>
+            <Row k="Tipo">{{ private: "Privada", public: "Pública", financed: "Financiada" }[s.type]}</Row>
             <Row k="Endereço">{s.address}</Row>
             <Row k="Contratante">{s.client.name}</Row>
             <Row k="Contratada">{s.contractor.name}</Row>
             <Row k="Responsável">{s.technicalManager.name} · ART {s.technicalManager.artNumber}</Row>
             {s.publicContract && <Row k="Contrato">{s.publicContract.number} · restam {s.publicContract.remainingDays} dias</Row>}
-            <Row k="Serviços">{s.servicesCount}{s.servicesFileName && `, de ${s.servicesFileName}`}</Row>
+            <Row k="Serviços">{s.servicesCount}, da planilha orçamentária</Row>
             <Row k="Equipamentos">{s.equipment.length ? s.equipment.map((e) => e.name).join(", ") : "Nenhum"}</Row>
             <Row k="Documentos">{s.documents.length ? s.documents.map((d) => (<a key={d.id} href={d.url} target="_blank" rel="noreferrer" className="block text-[#1563FF]">{documentTypeLabel[d.type]}</a>)) : "Nenhum"}</Row>
           </div>

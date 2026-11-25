@@ -5,10 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import type { Schemas } from "@argos/contract";
 import { api, timezoneParams } from "@/lib/api";
-import { errorMessage, fullDate, statusLabel } from "@/lib/format";
+import { errorMessage, shortDate, statusLabel } from "@/lib/format";
 import { useOnline } from "@/lib/online";
 import { ApiError, unwrap, useLoad } from "@/lib/hooks";
-import { Page, Primary, Status } from "@/components/ui";
+import { Page, Primary, Sheet, Status } from "@/components/ui";
 
 const hints: Record<Schemas["SiteStatus"], string> = {
   not_started: "A obra ainda não começou. Não aparece na hora de registrar o dia.",
@@ -28,7 +28,10 @@ export function SiteStatus() {
   const choice = picked ?? site?.status ?? null;
   if (!site || !choice) return <Page><Status state={state.status === "ok" ? { status: "loading" } : state} retry={retry} /></Page>;
 
-  const openDays = [...site.pendingDays.map((d) => d.localDate), ...(site.today.entriesCount > 0 ? [site.today.localDate] : [])];
+  const openDays = [
+    ...site.pendingDays.map((d) => ({ localDate: d.localDate, entriesCount: d.entriesCount })),
+    ...(site.today.entriesCount > 0 ? [{ localDate: site.today.localDate, entriesCount: site.today.entriesCount }] : []),
+  ];
   const blocked = choice === "completed" && openDays.length > 0;
 
   async function save() {
@@ -42,8 +45,8 @@ export function SiteStatus() {
   }
 
   return (
-    <Page>
-      <div className="flex flex-1 flex-col gap-3.5 px-4 pb-6 pt-6">
+    <Sheet closeHref={`/obra?id=${siteId}`}>
+      <div className="flex flex-col gap-3.5">
         <div className="flex flex-col gap-1 px-1">
           <h1 className="m-0 font-[family-name:var(--font-anybody)] text-2xl font-extrabold">Status da obra</h1>
           <span className="text-[13px] text-[#5B5F6B]">{site.name} · hoje {statusLabel[site.status].toLowerCase()}</span>
@@ -62,7 +65,15 @@ export function SiteStatus() {
           <div className="flex flex-col gap-1 rounded-[14px] bg-white px-3.5 py-3">
             <span className="text-[15px] font-semibold">Falta finalizar {openDays.length} RDO para concluir</span>
             <span className="text-[13px] text-[#5B5F6B]">A obra só pode ser concluída sem RDO em aberto.</span>
-            {openDays.map((d) => <span key={d} className="text-[15px]">RDO de {fullDate(d)}</span>)}
+            {openDays.map((d) => (
+              <Link key={d.localDate} href={`/dia?id=${siteId}&date=${d.localDate}`} className="flex items-start gap-2.5 pt-2.5 text-[#2D2D2B]">
+                <svg className="mt-px flex-none" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5B5F6B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.1" /></svg>
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-[15px]">{d.localDate === site.today.localDate ? `RDO de hoje, ${shortDate(d.localDate)}` : `RDO de ${shortDate(d.localDate)}`}</span>
+                  <span className="text-[13px] text-[#5B5F6B]">{d.entriesCount} {d.entriesCount === 1 ? "registro" : "registros"} · ainda não finalizado</span>
+                </span>
+              </Link>
+            ))}
           </div>
         )}
         {error && <div role="alert" className="rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">{errorMessage(error.code)}</div>}
@@ -71,6 +82,6 @@ export function SiteStatus() {
           <Link href={`/obra?id=${siteId}`} className="flex min-h-11 items-center justify-center text-[15px] font-semibold">Cancelar</Link>
         </div>
       </div>
-    </Page>
+    </Sheet>
   );
 }
