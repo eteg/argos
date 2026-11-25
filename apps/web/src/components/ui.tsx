@@ -58,3 +58,15 @@ export function Status({ state, retry }: { state: { status: "loading" } | { stat
     </div>
   );
 }
+
+export function Sheet({ closeHref, children }: { closeHref: string; children: ReactNode }) {
+  return (
+    <main className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col bg-[#8E9099] font-[family-name:var(--font-inter)] text-[#2D2D2B]">
+      <Link href={closeHref} aria-label="Fechar" className="min-h-10 flex-1" />
+      <div role="dialog" className="flex max-h-[90dvh] flex-col gap-3 overflow-y-auto rounded-t-[28px] bg-[#F4F5F9] px-4 pb-6 pt-2.5">
+        <span aria-hidden="true" className="h-[5px] w-11 flex-none self-center rounded-[3px] bg-[#CDD1DD]" />
+        {children}
+      </div>
+    </main>
+  );
+}
