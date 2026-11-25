@@ -2,7 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { startObservation } from "@langfuse/tracing";
 import { Inject, Injectable, Logger, OnApplicationShutdown } from "@nestjs/common";
 import { ProblemException } from "../common/problem.js";
-import { aiEnabled, env } from "../config/env.js";
+import { aiEnabled, aiFake, env } from "../config/env.js";
+import { fakeComplete } from "./fake-ai.js";
 import { LANGFUSE } from "./langfuse.provider.js";
 import type { LangfuseSpanProcessor } from "@langfuse/otel";
 
@@ -38,6 +39,7 @@ export class AiClientService implements OnApplicationShutdown {
 
   async run(input: AiRunInput): Promise<AiRunResult> {
     if (!aiEnabled()) throw new ProblemException(409, "AI_DISABLED", "The AI is turned off in this environment.");
+    if (aiFake()) return this.fake(input);
     const model = env.ANTHROPIC_MODEL;
     const generation = startObservation(
       input.name,
@@ -83,6 +85,13 @@ export class AiClientService implements OnApplicationShutdown {
       this.logger.error(`AI call "${input.name}" failed: ${message}`);
       throw new ProblemException(503, "UNAVAILABLE", "The AI call could not be completed.");
     }
+  }
+
+  private async fake(input: AiRunInput): Promise<AiRunResult> {
+    const startedAt = Date.now();
+    const user = input.messages.map((m) => (typeof m.content === "string" ? m.content : "")).join("\n");
+    const output = await fakeComplete(input.name, user);
+    return { model: "fake", output, usage: { inputTokens: 0, outputTokens: 0, cacheReadInputTokens: 0, cacheCreationInputTokens: 0 }, latencyMs: Date.now() - startedAt, traceId: "fake" };
   }
 
   async onApplicationShutdown() {

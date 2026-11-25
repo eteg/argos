@@ -14,6 +14,7 @@ const envSchema = z.object({
   ENGINEER_COMPANY: z.string().min(1).default("Construtora Horizonte"),
   ANTHROPIC_API_KEY: z.string().min(1),
   AI_ENABLED: z.enum(["true", "false"]).default("true"),
+  AI_FAKE: z.enum(["true", "false"]).default("false"),
   GEMINI_API_KEY: z.string().min(1).optional(),
   GEMINI_MODEL: z.string().min(1).default("gemini-3.1-flash-lite"),
   GEMINI_FALLBACK_MODELS: z.string().default("gemini-flash-lite-latest,gemini-3.5-flash-lite,gemini-3.6-flash"),
@@ -27,11 +28,16 @@ export type Env = z.infer<typeof envSchema>;
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const parsed = envSchema.safeParse(source);
-  if (parsed.success) return parsed.data;
+  if (parsed.success) {
+    if (parsed.data.AI_FAKE === "true" && parsed.data.APP_ENV === "production") throw new Error("AI_FAKE is for tests and cannot run in production.");
+    return parsed.data;
+  }
   const missing = parsed.error.issues.map((issue) => issue.path.join(".")).join(", ");
   throw new Error(`Invalid environment, check: ${missing}`);
 }
 
 export const env = loadEnv();
 
-export const aiEnabled = () => env.AI_ENABLED === "true" && env.GEMINI_API_KEY !== undefined && env.ANTHROPIC_API_KEY !== "dummy";
+export const aiFake = () => env.AI_FAKE === "true";
+
+export const aiEnabled = () => env.AI_ENABLED === "true" && (aiFake() || (env.GEMINI_API_KEY !== undefined && env.ANTHROPIC_API_KEY !== "dummy"));

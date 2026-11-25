@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ProblemException } from "../common/problem.js";
-import { aiEnabled, env } from "../config/env.js";
+import { aiEnabled, aiFake, env } from "../config/env.js";
+import { fakeTranscript } from "./fake-ai.js";
 
 const PROMPT = `Transcreva fielmente o áudio, em português do Brasil, de um engenheiro falando num canteiro de obras.
 - Escreva só o que foi dito, sem completar, resumir nem corrigir.
@@ -34,6 +35,7 @@ export class TranscriptionService {
   // Dispara o modelo principal e, se ele demorar ou falhar, o próximo em paralelo: vale a primeira resposta.
   async transcribe(audio: Buffer, mimeType: string): Promise<string> {
     if (!aiEnabled()) throw new ProblemException(409, "AI_DISABLED", "The AI is turned off in this environment.");
+    if (aiFake()) return fakeTranscript(audio);
     if (!env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
     const models = [env.GEMINI_MODEL, ...env.GEMINI_FALLBACK_MODELS.split(",").map((m) => m.trim()).filter(Boolean)];
     const attempts = [...models, ...models];
