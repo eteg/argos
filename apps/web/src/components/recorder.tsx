@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api, timezoneParams } from "@/lib/api";
-import { clock } from "@/lib/format";
+import { clock, localDateAt } from "@/lib/format";
 import { getPosition, type Position } from "@/lib/geo";
 import { ApiError, unwrap, useLoad } from "@/lib/hooks";
 import { useOnline } from "@/lib/online";
@@ -26,8 +26,6 @@ function Waveform({ height }: { height: number }) {
 const CameraIcon = ({ size = 20, color = "#FFFFFF" }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
 );
-
-const localDateNow = (tz: string) => new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date());
 
 export function Recorder() {
   const router = useRouter();
@@ -112,7 +110,7 @@ export function Recorder() {
     setSaving(true);
     setError(null);
     setFailure(null);
-    const localDate = localDateNow(timezone);
+    const localDate = localDateAt(startedAt.current, timezone);
     try {
       const result = await sendEntry({
         id: entryId.current, siteId, siteName: resolved.siteName, capturedAt: startedAt.current, localDate, timezone, location: position,

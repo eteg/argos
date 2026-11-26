@@ -81,3 +81,5 @@ export function errorMessage(code: string, errors: { field: string }[] = []) {
   if (days.length > 0) return `Falta aprovar o RDO de ${joinWithAnd(days.map(shortDate))} antes deste dia.`;
   return errorText[code] ?? "Não deu pra concluir agora. Tente de novo.";
 }
+
+export const localDateAt = (iso: string, timeZone: string) => new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date(iso));
