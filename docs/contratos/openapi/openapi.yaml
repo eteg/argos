@@ -710,9 +710,11 @@ paths:
       tags: [Reports]
       summary: Monta ou remonta o rascunho do RDO do dia
       description: >-
-        Chamar de novo remonta o rascunho com os registros novos e mantém as correções. Com IA ligada,
-        responde 202 com `status` `generating`; a web consulta `getReport` até `draft`. A IA só preenche
-        o que ainda está vazio e transforma cada lacuna obrigatória em pergunta (`RG05`).
+        Chamar de novo remonta o rascunho com os registros novos. A API guarda quais campos o engenheiro
+        corrigiu à mão (`updateReport`, resposta a pergunta ou correção falada): esses ficam como estão, e a
+        IA recalcula todo o resto a partir de todos os registros do dia, inclusive listas inteiras (atividades,
+        ocorrências, efetivo). Com IA ligada, responde 202 com `status` `generating`; a web consulta
+        `getReport` até `draft`. Cada lacuna obrigatória vira pergunta (`RG05`).
       responses:
         "202":
           description: O RDO em `generating`.

@@ -9,6 +9,7 @@ import { DB, type Database } from "../database/database.module.js";
 import { aiEnabled, env } from "../config/env.js";
 import { lockDay, lockSite, pendingDaysBefore } from "../database/locks.js";
 import { OpenItemsService, type Tx } from "../open-items/open-items.service.js";
+import { dropDanglingLinks, editedKeys, keepEdited, keepPhotoEdits, mergeEdited } from "./report-edits.js";
 import { ProcessingService, setPath } from "../processing/processing.service.js";
 import { entries, equipment, media, questions, reports, services, sites } from "../database/schema.js";
 import { SitesService } from "../sites/sites.service.js";
@@ -130,26 +131,6 @@ export class ReportsService {
     };
   }
 
-  private keepEdits(fresh: Content, old: Content): Content {
-    const oldPhotos = new Map(old.photos.map((p) => [p.id, p]));
-    const oldEquipment = new Map(old.equipment.map((e) => [e.equipmentId, e]));
-    return {
-      ...fresh,
-      workday: old.workday,
-      weather: old.weather,
-      weatherStoppage: old.weatherStoppage,
-      rainfallMm: old.rainfallMm,
-      labor: old.labor,
-      laborNotes: old.laborNotes,
-      activities: old.activities,
-      occurrences: old.occurrences,
-      openItemReviews: old.openItemReviews,
-      newOpenItems: old.newOpenItems,
-      equipment: fresh.equipment.map((e) => ({ ...e, status: oldEquipment.get(e.equipmentId)?.status ?? null, operatingHours: oldEquipment.get(e.equipmentId)?.operatingHours ?? null })),
-      photos: fresh.photos.map((p) => ({ ...p, caption: oldPhotos.get(p.id)?.caption ?? null, linkedTo: oldPhotos.get(p.id)?.linkedTo ?? null })),
-    };
-  }
-
   private async lockReport(tx: Tx, reportId: string) {
     const [row] = await tx.select().from(reports).where(eq(reports.id, reportId)).for("update");
     if (!row) throw new ProblemException(404, "NOT_FOUND", "Report not found.");
@@ -189,9 +170,10 @@ export class ReportsService {
         throw new ProblemException(400, "VALIDATION", "Invalid data.", check.structuralErrors.map((e) => ({ field: e.path, code: e.code })));
       }
       const description = `Corrigiu ${changed.map((k) => fieldLabels[k] ?? k).join(", ")}`;
+      const editedPaths = mergeEdited(row.editedPaths, editedKeys(this.contentOf(row), merged));
       const [updated] = await tx
         .update(reports)
-        .set({ content: merged, history: [...row.history, { at: new Date().toISOString(), actor: "engineer", description }], updatedAt: new Date() })
+        .set({ content: merged, editedPaths, history: [...row.history, { at: new Date().toISOString(), actor: "engineer", description }], updatedAt: new Date() })
         .where(eq(reports.id, row.id))
         .returning();
       return updated!;
@@ -213,7 +195,7 @@ export class ReportsService {
         throw new ProblemException(409, "PREVIOUS_DAY_PENDING", "A previous day has no approved report.", previous.map((d) => ({ field: d, code: "REPORT_NOT_APPROVED" })));
       }
       const fresh = await this.assemble(site, localDate, dayEntries);
-      const content = existing ? this.keepEdits(fresh, existing.content as unknown as Content) : fresh;
+      const content = existing ? dropDanglingLinks(keepPhotoEdits(keepEdited(fresh, existing.content, existing.editedPaths), existing.content)) : fresh;
       const photosCount = new Set(dayEntries.flatMap((e) => e.photoMediaIds)).size;
       const leftOut = photosCount > MAX_PHOTOS ? `; ${photosCount - MAX_PHOTOS} foto(s) ficaram de fora porque o RDO leva no máximo ${MAX_PHOTOS}` : "";
       const history = [
@@ -291,7 +273,8 @@ export class ReportsService {
     if (typed === undefined || q.kind === "safety") return;
     const target = await this.reportOfQuestion(tx, q);
     if (!target || target.status === "approved") return;
-    const content = structuredClone(this.contentOf(target)) as unknown as Record<string, unknown>;
+    const before = this.contentOf(target) as unknown as Record<string, unknown>;
+    const content = structuredClone(before);
     let description: string;
     if (q.kind === "open_item" && q.openItemId) {
       if (target.status !== "draft") return;
@@ -321,7 +304,7 @@ export class ReportsService {
     } else return;
     await tx
       .update(reports)
-      .set({ content, history: [...target.history, { at: new Date().toISOString(), actor: "engineer", description }], updatedAt: new Date() })
+      .set({ content, editedPaths: mergeEdited(target.editedPaths, editedKeys(before, content)), history: [...target.history, { at: new Date().toISOString(), actor: "engineer", description }], updatedAt: new Date() })
       .where(eq(reports.id, target.id));
   }
 

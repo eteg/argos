@@ -38,8 +38,9 @@ function assemble(user: string) {
   const fields: Record<string, unknown> = {};
   const questions: { kind: string; text: string; field: string | null; options: { id: string; label: string }[] }[] = [];
 
-  const workday = /jornada (\d{1,2})[:h](\d{2})? (?:às|a|até) (\d{1,2})[:h](\d{2})?/.exec(all);
-  const pause = /intervalo de (\d+) min/.exec(all);
+  const last = (pattern: RegExp) => [...all.matchAll(pattern)].at(-1);
+  const workday = last(/jornada (\d{1,2})[:h](\d{2})? (?:às|a|até) (\d{1,2})[:h](\d{2})?/g);
+  const pause = last(/intervalo de (\d+) min/g);
   if (workday || pause) {
     fields.workday = {
       startTime: workday ? hhmm(workday[1]!, workday[2]) : null,
@@ -58,7 +59,7 @@ function assemble(user: string) {
     { test: /(\d+) pedreiros?/, role: "Pedreiro" },
     { test: /(\d+) serventes?/, role: "Servente" },
   ].flatMap((l) => {
-    const match = l.test.exec(all);
+    const match = last(new RegExp(l.test.source, "g"));
     return match ? [{ role: l.role, count: Number(match[1]), employment: "own", company: null, category: null }] : [];
   });
   if (labor.length > 0) fields.labor = labor;
@@ -72,23 +73,19 @@ function assemble(user: string) {
     .map((a, i) => ({ id: `a${i + 1}`, description: a.description, service: null, location: null, status: "in_progress", quantity: null, unit: null, cumulativeProgressPercent: null, executor: null }));
   if (activities.length > 0) fields.activities = activities;
 
-  const occurrences = entries
-    .filter((e) => /acidente/i.test(e.transcript))
-    .map((e, i) => ({
-      id: `o${i + 1}`,
-      type: "accident",
-      description: e.transcript.split("\n").find((line) => /acidente/i.test(line))?.trim() ?? "Acidente",
-      startTime: clockIn(e.capturedAt, timeZone),
-      endTime: null,
-      status: "open",
-      affectedServiceIds: [],
-      source: null,
-      safety: null,
-      materials: null,
-    }));
+  const kinds = [
+    { test: /acidente/i, type: "accident" },
+    { test: /falt(?:a|ou) (?:de )?(?:cimento|material)/i, type: "material_shortage" },
+  ];
+  const occurrences = entries.flatMap((e) =>
+    e.transcript.split("\n").flatMap((line) => {
+      const kind = kinds.find((k) => k.test.test(line));
+      return kind ? [{ type: kind.type, description: line.trim(), startTime: clockIn(e.capturedAt, timeZone) }] : [];
+    }),
+  ).map((o, i) => ({ id: `o${i + 1}`, ...o, endTime: null, status: "open", affectedServiceIds: [], source: null, safety: null, materials: null }));
   if (occurrences.length > 0) fields.occurrences = occurrences;
-  occurrences.forEach((_, i) => {
-    questions.push({ kind: "safety", text: "Houve acidente: qual o tipo, teve DDS e o EPI estava em uso?", field: `occurrences.${i}.safety`, options: [] });
+  occurrences.forEach((o, i) => {
+    if (o.type === "accident") questions.push({ kind: "safety", text: "Houve acidente: qual o tipo, teve DDS e o EPI estava em uso?", field: `occurrences.${i}.safety`, options: [] });
   });
   return { fields, questions };
 }

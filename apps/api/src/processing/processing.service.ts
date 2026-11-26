@@ -8,6 +8,7 @@ import { TranscriptionService } from "../ai/transcription.service.js";
 import { DB, type Database } from "../database/database.module.js";
 import { entries, equipment, media, questions, reports, services, sites } from "../database/schema.js";
 import { OpenItemsService } from "../open-items/open-items.service.js";
+import { dropDanglingLinks, editedKeys, keepEdited, mergeEdited } from "../reports/report-edits.js";
 import { StorageService } from "../storage/storage.service.js";
 
 type Content = Record<string, unknown> & {
@@ -148,38 +149,29 @@ export class ProcessingService {
     }
   }
 
-  private fill(base: Content, fields: ReportFields, serviceIds: Set<string>, equipmentIds: Set<string>, openIds: Set<string>, openTitles: Set<string>): Content {
-    const next: Content = { ...base };
-    const incoming = fields as Record<string, unknown> & ReportFields;
-    if (incoming.workday) next.workday = { startTime: base.workday.startTime ?? incoming.workday.startTime ?? null, endTime: base.workday.endTime ?? incoming.workday.endTime ?? null, breakMinutes: base.workday.breakMinutes ?? incoming.workday.breakMinutes ?? null };
-    if (incoming.weather) {
-      next.weather = base.weather.map((w) => {
-        const ai = incoming.weather?.find((x) => x.shift === w.shift);
-        return { ...w, weather: w.weather ?? ai?.weather ?? null, condition: w.condition ?? ai?.condition ?? null };
-      });
-    }
-    if (emptyObject(base.weatherStoppage) && incoming.weatherStoppage) next.weatherStoppage = { hours: incoming.weatherStoppage.hours, serviceIds: (incoming.weatherStoppage.serviceIds ?? []).filter((id) => serviceIds.has(id)) };
-    if (base.rainfallMm === null && incoming.rainfallMm !== undefined) next.rainfallMm = incoming.rainfallMm;
-    if (base.laborNotes === null && incoming.laborNotes !== undefined) next.laborNotes = incoming.laborNotes;
-    if (base.labor.length === 0 && incoming.labor) next.labor = incoming.labor;
-    if (incoming.equipment) {
-      next.equipment = base.equipment.map((e) => {
-        const ai = incoming.equipment?.find((x) => x.equipmentId === e.equipmentId && equipmentIds.has(x.equipmentId ?? ""));
-        return { ...e, status: e.status ?? ai?.status ?? null, operatingHours: e.operatingHours ?? ai?.operatingHours ?? null };
-      });
-    }
+  private applyAi(base: Content, fields: ReportFields, serviceIds: Set<string>, equipmentIds: Set<string>, openIds: Set<string>, openTitles: Set<string>): Content {
+    const ai = fields as Record<string, unknown> & ReportFields;
     const cleanServices = (list: string[] | null | undefined) => (list ?? []).filter((id) => serviceIds.has(id));
-    if (base.activities.length === 0 && incoming.activities) {
-      next.activities = incoming.activities.map((a) => ({ ...a, id: randomUUID(), service: a.service && serviceIds.has(a.service.id ?? "") ? a.service : null }));
-    }
-    if (base.occurrences.length === 0 && incoming.occurrences) {
-      next.occurrences = incoming.occurrences.map((o) => ({ ...o, id: randomUUID(), affectedServiceIds: cleanServices(o.affectedServiceIds) })) as unknown as Content["occurrences"];
-    }
-    if (base.openItemReviews.length === 0 && incoming.openItemReviews) next.openItemReviews = incoming.openItemReviews.filter((r) => openIds.has(r.openItemId ?? ""));
-    if (base.newOpenItems.length === 0 && incoming.newOpenItems) {
-      next.newOpenItems = incoming.newOpenItems.filter((n) => !openTitles.has((n.title ?? "").trim().toLowerCase())).map((n) => ({ ...n, id: randomUUID() }));
-    }
-    return next;
+    return {
+      ...base,
+      workday: { startTime: ai.workday?.startTime ?? null, endTime: ai.workday?.endTime ?? null, breakMinutes: ai.workday?.breakMinutes ?? null },
+      weather: base.weather.map((w) => {
+        const shift = ai.weather?.find((x) => x.shift === w.shift);
+        return { ...w, weather: shift?.weather ?? null, condition: shift?.condition ?? null };
+      }),
+      weatherStoppage: ai.weatherStoppage && !emptyObject(ai.weatherStoppage) ? { hours: ai.weatherStoppage.hours, serviceIds: cleanServices(ai.weatherStoppage.serviceIds) } : null,
+      rainfallMm: ai.rainfallMm ?? null,
+      laborNotes: ai.laborNotes ?? null,
+      labor: ai.labor ?? [],
+      equipment: base.equipment.map((e) => {
+        const found = ai.equipment?.find((x) => x.equipmentId === e.equipmentId && equipmentIds.has(x.equipmentId ?? ""));
+        return { ...e, status: found?.status ?? null, operatingHours: found?.operatingHours ?? null };
+      }),
+      activities: (ai.activities ?? []).map((a) => ({ ...a, id: randomUUID(), service: a.service && serviceIds.has(a.service.id ?? "") ? a.service : null })),
+      occurrences: (ai.occurrences ?? []).map((o) => ({ ...o, id: randomUUID(), affectedServiceIds: cleanServices(o.affectedServiceIds) })) as unknown as Content["occurrences"],
+      openItemReviews: (ai.openItemReviews ?? []).filter((r) => openIds.has(r.openItemId ?? "")),
+      newOpenItems: (ai.newOpenItems ?? []).filter((n) => !openTitles.has((n.title ?? "").trim().toLowerCase())).map((n) => ({ ...n, id: randomUUID() })),
+    };
   }
 
   private check(content: Content) {
@@ -252,7 +244,8 @@ export class ProcessingService {
           equipment: equipmentRows.map((e) => ({ equipmentId: e.id, name: e.name, identifier: e.identifier })),
           openItems: openRows.map((o) => ({ id: o.id, title: o.title, kind: o.kind, openedOn: o.openedOn, lastUpdate: o.lastUpdate ? `${o.lastUpdate.localDate}: ${o.lastUpdate.note}` : null, cited: citedIds.has(o.id) })),
         });
-        let merged = this.fill(base, result.fields, new Set(serviceRows.map((s) => s.id)), new Set(equipmentRows.map((e) => e.id)), openIds, openTitles);
+        const filled = this.applyAi(base, result.fields, new Set(serviceRows.map((s) => s.id)), new Set(equipmentRows.map((e) => e.id)), openIds, openTitles);
+        let merged = dropDanglingLinks(keepEdited(filled, base, row.editedPaths));
         const structural = this.check(merged).structuralErrors;
         if (structural.length > 0) {
           const bad = new Set(structural.map((e) => e.path.split(".")[0]));
@@ -313,6 +306,7 @@ export class ProcessingService {
   async voiceCorrection(reportId: string, audioMediaId: string, section: string | null) {
     let description = "Não deu pra aplicar a correção falada: tente de novo ou corrija à mão";
     let content: Content | null = null;
+    let editedPaths: string[] | null = null;
     try {
       const [row] = await this.db.select().from(reports).where(eq(reports.id, reportId));
       if (!row) return;
@@ -338,6 +332,7 @@ export class ProcessingService {
         candidate.newOpenItems = (candidate.newOpenItems as unknown as { id?: string }[]).map((n) => ({ ...n, id: idOf(n) }));
         if (this.check(candidate).structuralErrors.length === 0) {
           content = candidate;
+          editedPaths = mergeEdited(row.editedPaths, editedKeys(base, candidate));
           description = `Corrigiu por voz${section ? ` (${section})` : ""}: ${result.summary || instruction.slice(0, 120)}`;
         } else {
           description = "A correção falada gerou dados inválidos e não foi aplicada";
@@ -348,7 +343,7 @@ export class ProcessingService {
     }
     await this.db
       .update(reports)
-      .set({ ...(content ? { content: content } : {}), status: "draft", history: sql`${reports.history} || ${JSON.stringify([{ at: new Date().toISOString(), actor: "engineer", description }])}::jsonb`, updatedAt: new Date() })
+      .set({ ...(content ? { content: content } : {}), ...(editedPaths ? { editedPaths } : {}), status: "draft", history: sql`${reports.history} || ${JSON.stringify([{ at: new Date().toISOString(), actor: "engineer", description }])}::jsonb`, updatedAt: new Date() })
       .where(eq(reports.id, reportId));
   }
 

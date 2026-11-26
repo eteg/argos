@@ -35,3 +35,4 @@ E2E_AI=fake pnpm exec tsx scripts/e2e/<script>.mts    # API com AI_FAKE=true
 | `r5-regras` | desligada | Códigos de erro das regras e troca do tipo da obra |
 | `web-datas` | sem API | Dia local da gravação e mensagem de dia anterior pendente da web |
 | `ia-falsa` | falsa | Registro, montagem e correção falada com `AI_FAKE` |
+| `ia-regenerar` | falsa | Gerar de novo recalcula o que não foi editado e mantém o editado |

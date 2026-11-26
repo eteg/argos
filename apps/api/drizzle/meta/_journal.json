@@ -43,6 +43,13 @@
       "when": 1795638711606,
       "tag": "0005_happy_scarecrow",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795664590866,
+      "tag": "0006_opposite_captain_universe",
+      "breakpoints": true
     }
   ]
 }
