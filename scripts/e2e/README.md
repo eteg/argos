@@ -36,4 +36,5 @@ E2E_AI=fake pnpm exec tsx scripts/e2e/<script>.mts    # API com AI_FAKE=true
 | `web-datas` | sem API | Dia local da gravação e mensagem de dia anterior pendente da web |
 | `ia-falsa` | falsa | Registro, montagem e correção falada com `AI_FAKE` |
 | `ia-regenerar` | falsa | Gerar de novo recalcula o que não foi editado e mantém o editado |
+| `ia-reinicio` | falsa | Registro e montagem presos por um reinício da API (duas fases: `preparar`, reiniciar, `conferir`) |
 | `ia-atraso` | falsa | Montagem atrasada não grava por cima de aprovado, de geração nova nem de correção |

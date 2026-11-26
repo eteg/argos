@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger, type OnApplicationBootstrap } from "@nestjs/common";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { assembleReport, correctReport, interpretEntry, type AgentModel, type AgentQuestion, type ReportFields } from "@argos/agent";
 import { validateReport } from "@argos/rdo-schema";
 import { AiClientService } from "../ai/ai-client.service.js";
 import { TranscriptionService } from "../ai/transcription.service.js";
+import { aiEnabled } from "../config/env.js";
 import { DB, type Database } from "../database/database.module.js";
 import { entries, equipment, media, questions, reports, services, sites } from "../database/schema.js";
 import { OpenItemsService, type Tx } from "../open-items/open-items.service.js";
@@ -57,7 +58,7 @@ export function setPath(target: Record<string, unknown>, path: string, value: un
 const emptyObject = (value: unknown) => value === null || (typeof value === "object" && Object.values(value).every((v) => v === null));
 
 @Injectable()
-export class ProcessingService {
+export class ProcessingService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ProcessingService.name);
   private readonly model: AgentModel;
 
@@ -72,6 +73,28 @@ export class ProcessingService {
       complete: async (request) =>
         (await ai.run({ name: request.name, system: request.system, messages: [{ role: "user", content: request.user }], documents: [], maxTokens: request.maxTokens, timeoutMs: 120_000 })).output,
     };
+  }
+
+  async onApplicationBootstrap() {
+    const stuck = await this.db.select({ id: entries.id }).from(entries).where(eq(entries.status, "processing"));
+    if (stuck.length > 0 && aiEnabled()) {
+      this.logger.warn(`Resuming ${stuck.length} entr(ies) left in processing by the last run.`);
+      for (const entry of stuck) void this.processEntry(entry.id);
+    } else if (stuck.length > 0) {
+      this.logger.warn(`Marking ${stuck.length} entr(ies) left in processing as failed: the AI is off.`);
+      await this.db.update(entries).set({ status: "failed" }).where(eq(entries.status, "processing"));
+    }
+    const interrupted = await this.db
+      .update(reports)
+      .set({
+        status: "draft",
+        generation: sql`${reports.generation} + 1`,
+        history: this.historyLine("A montagem com a IA foi interrompida porque a API reiniciou: gere de novo ou corrija à mão"),
+        updatedAt: new Date(),
+      })
+      .where(eq(reports.status, "generating"))
+      .returning({ id: reports.id });
+    if (interrupted.length > 0) this.logger.warn(`Returned ${interrupted.length} report(s) left in generating to draft.`);
   }
 
   private async transcribeMedia(mediaId: string): Promise<string> {
@@ -240,6 +263,8 @@ export class ProcessingService {
         this.db.select().from(services).where(eq(services.siteId, site.id)).orderBy(asc(services.code)),
         this.db.select().from(equipment).where(eq(equipment.siteId, site.id)),
       ]);
+      const [{ total }] = (await this.db.execute<{ total: number }>(sql`select count(*)::int as total from entries where site_id = ${row.siteId} and local_date = ${row.localDate}`)).rows as [{ total: number }];
+      const leftOut = total - spoken.length;
       let result: Awaited<ReturnType<typeof assembleReport>> | null = null;
       if (spoken.length === 0) {
         note = "Nenhum registro pôde ser transcrito: preencha o RDO à mão";
@@ -253,6 +278,7 @@ export class ProcessingService {
           equipment: equipmentRows.map((e) => ({ equipmentId: e.id, name: e.name, identifier: e.identifier })),
           openItems: openRows.map((o) => ({ id: o.id, title: o.title, kind: o.kind, openedOn: o.openedOn, lastUpdate: o.lastUpdate ? `${o.lastUpdate.localDate}: ${o.lastUpdate.note}` : null, cited: citedIds.has(o.id) })),
         });
+        if (leftOut > 0) note += `; ${leftOut} registro(s) ficaram de fora porque não foram transcritos (falha ou ainda processando)`;
       }
       const answeredRows = await this.db
         .select()
