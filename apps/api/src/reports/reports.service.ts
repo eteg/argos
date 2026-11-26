@@ -9,7 +9,7 @@ import { DB, type Database } from "../database/database.module.js";
 import { aiEnabled, env } from "../config/env.js";
 import { lockDay, lockSite, pendingDaysBefore } from "../database/locks.js";
 import { OpenItemsService, type Tx } from "../open-items/open-items.service.js";
-import { dropDanglingLinks, editedKeys, keepEdited, keepPhotoEdits, mergeEdited } from "./report-edits.js";
+import { dropDanglingLinks, editedKeys, keepAll, keepPhotoEdits, mergeEdited } from "./report-edits.js";
 import { ProcessingService, setPath } from "../processing/processing.service.js";
 import { entries, equipment, media, questions, reports, services, sites } from "../database/schema.js";
 import { SitesService } from "../sites/sites.service.js";
@@ -173,7 +173,13 @@ export class ReportsService {
       const editedPaths = mergeEdited(row.editedPaths, editedKeys(this.contentOf(row), merged));
       const [updated] = await tx
         .update(reports)
-        .set({ content: merged, editedPaths, history: [...row.history, { at: new Date().toISOString(), actor: "engineer", description }], updatedAt: new Date() })
+        .set({
+          content: merged,
+          editedPaths,
+          history: [...row.history, { at: new Date().toISOString(), actor: "engineer", description }],
+          ...(row.status === "generating" && { status: "draft", generation: row.generation + 1 }),
+          updatedAt: new Date(),
+        })
         .where(eq(reports.id, row.id))
         .returning();
       return updated!;
@@ -195,7 +201,7 @@ export class ReportsService {
         throw new ProblemException(409, "PREVIOUS_DAY_PENDING", "A previous day has no approved report.", previous.map((d) => ({ field: d, code: "REPORT_NOT_APPROVED" })));
       }
       const fresh = await this.assemble(site, localDate, dayEntries);
-      const content = existing ? dropDanglingLinks(keepPhotoEdits(keepEdited(fresh, existing.content, existing.editedPaths), existing.content)) : fresh;
+      const content = existing ? dropDanglingLinks(keepPhotoEdits(keepAll(fresh, existing.content), existing.content)) : fresh;
       const photosCount = new Set(dayEntries.flatMap((e) => e.photoMediaIds)).size;
       const leftOut = photosCount > MAX_PHOTOS ? `; ${photosCount - MAX_PHOTOS} foto(s) ficaram de fora porque o RDO leva no máximo ${MAX_PHOTOS}` : "";
       const history = [
@@ -205,12 +211,12 @@ export class ReportsService {
       const values = { content: content as unknown as Record<string, unknown>, siteSnapshot: content.site as unknown as Record<string, unknown>, status: useAi ? "generating" : "draft", history, updatedAt: new Date() };
       const [saved] = await tx
         .insert(reports)
-        .values({ siteId, localDate, ...values })
-        .onConflictDoUpdate({ target: [reports.siteId, reports.localDate], set: values })
+        .values({ siteId, localDate, ...values, generation: 1 })
+        .onConflictDoUpdate({ target: [reports.siteId, reports.localDate], set: { ...values, generation: sql`${reports.generation} + 1` } })
         .returning();
       return { row: saved!, build: useAi };
     });
-    if (build) void this.processing.buildReport(row.id);
+    if (build) void this.processing.buildReport(row.id, row.generation);
     return row;
   }
 
@@ -222,14 +228,20 @@ export class ReportsService {
 
   async voiceCorrect(reportId: string, body: unknown) {
     const input = parse(z.strictObject({ audioMediaId: z.uuid(), section: z.string().min(1).optional() }), body);
-    const row = await this.find(reportId);
-    if (row.status === "approved") throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report is already approved.");
-    this.requireReady(row);
+    const found = await this.find(reportId);
+    if (found.status === "approved") throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report is already approved.");
+    this.requireReady(found);
     await this.requireAudio(input.audioMediaId);
     this.requireAi();
-    const [updated] = await this.db.update(reports).set({ status: "generating", updatedAt: new Date() }).where(eq(reports.id, row.id)).returning();
-    void this.processing.voiceCorrection(row.id, input.audioMediaId, input.section ?? null);
-    return updated!;
+    const updated = await this.db.transaction(async (tx) => {
+      const row = await this.lockReport(tx, reportId);
+      if (row.status === "approved") throw new ProblemException(409, "REPORT_ALREADY_APPROVED", "The report is already approved.");
+      this.requireReady(row);
+      const [saved] = await tx.update(reports).set({ status: "generating", generation: row.generation + 1, updatedAt: new Date() }).where(eq(reports.id, row.id)).returning();
+      return saved!;
+    });
+    void this.processing.voiceCorrection(updated.id, updated.generation, input.audioMediaId, input.section ?? null);
+    return updated;
   }
 
   private async requireAudio(mediaId: string) {

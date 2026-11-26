@@ -7,7 +7,7 @@ import { AiClientService } from "../ai/ai-client.service.js";
 import { TranscriptionService } from "../ai/transcription.service.js";
 import { DB, type Database } from "../database/database.module.js";
 import { entries, equipment, media, questions, reports, services, sites } from "../database/schema.js";
-import { OpenItemsService } from "../open-items/open-items.service.js";
+import { OpenItemsService, type Tx } from "../open-items/open-items.service.js";
 import { dropDanglingLinks, editedKeys, keepEdited, mergeEdited } from "../reports/report-edits.js";
 import { StorageService } from "../storage/storage.service.js";
 
@@ -207,11 +207,22 @@ export class ProcessingService {
     return q(`Faltou informar: ${path}.`);
   }
 
-  async buildReport(reportId: string) {
+  private async lockGeneration(tx: Tx, reportId: string, generation: number) {
+    const [row] = await tx.select().from(reports).where(eq(reports.id, reportId)).for("update");
+    if (row?.status === "generating" && row.generation === generation) return row;
+    this.logger.warn(`Discarding the result of generation ${generation} of report ${reportId}: the report moved on.`);
+    return undefined;
+  }
+
+  private historyLine(description: string, actor: "agent" | "engineer" = "agent") {
+    return sql`${reports.history} || ${JSON.stringify([{ at: new Date().toISOString(), actor, description }])}::jsonb`;
+  }
+
+  async buildReport(reportId: string, generation: number) {
     let note = "Argos preencheu o RDO a partir dos registros do dia";
     try {
       const [row] = await this.db.select().from(reports).where(eq(reports.id, reportId));
-      if (!row) return;
+      if (row?.generation !== generation) return;
       const [site] = await this.db.select().from(sites).where(eq(sites.id, row.siteId));
       if (!site) return;
       for (let wait = 0; wait < 30; wait++) {
@@ -221,22 +232,20 @@ export class ProcessingService {
       }
       const dayEntries = await this.db.select().from(entries).where(and(eq(entries.siteId, row.siteId), eq(entries.localDate, row.localDate), eq(entries.status, "processed"))).orderBy(asc(entries.capturedAt));
       const spoken = dayEntries.filter((e) => e.transcript);
-      const base = row.content as unknown as Content;
-      let content = base;
-      let agentQuestions: AgentQuestion[] = [];
       const openRows = await this.openItemsService.openForSite(site.id, row.localDate);
       const citedIds = new Set(dayEntries.flatMap((e) => e.openItemIds));
       const openIds = new Set(openRows.map((o) => o.id));
       const openTitles = new Set(openRows.map((o) => o.title.trim().toLowerCase()));
+      const [serviceRows, equipmentRows] = await Promise.all([
+        this.db.select().from(services).where(eq(services.siteId, site.id)).orderBy(asc(services.code)),
+        this.db.select().from(equipment).where(eq(equipment.siteId, site.id)),
+      ]);
+      let result: Awaited<ReturnType<typeof assembleReport>> | null = null;
       if (spoken.length === 0) {
         note = "Nenhum registro pôde ser transcrito: preencha o RDO à mão";
       } else {
-        const [serviceRows, equipmentRows] = await Promise.all([
-          this.db.select().from(services).where(eq(services.siteId, site.id)).orderBy(asc(services.code)),
-          this.db.select().from(equipment).where(eq(equipment.siteId, site.id)),
-        ]);
-        const result = await assembleReport(this.model, {
-          siteType: (base.site as { type: "private" | "public" | "financed" }).type,
+        result = await assembleReport(this.model, {
+          siteType: ((row.content as unknown as Content).site as { type: "private" | "public" | "financed" }).type,
           localDate: row.localDate,
           timezone: dayEntries[0]?.timezone ?? "America/Sao_Paulo",
           entries: spoken.map((e) => ({ capturedAt: e.capturedAt.toISOString(), transcript: e.transcript ?? "" })),
@@ -244,16 +253,6 @@ export class ProcessingService {
           equipment: equipmentRows.map((e) => ({ equipmentId: e.id, name: e.name, identifier: e.identifier })),
           openItems: openRows.map((o) => ({ id: o.id, title: o.title, kind: o.kind, openedOn: o.openedOn, lastUpdate: o.lastUpdate ? `${o.lastUpdate.localDate}: ${o.lastUpdate.note}` : null, cited: citedIds.has(o.id) })),
         });
-        const filled = this.applyAi(base, result.fields, new Set(serviceRows.map((s) => s.id)), new Set(equipmentRows.map((e) => e.id)), openIds, openTitles);
-        let merged = dropDanglingLinks(keepEdited(filled, base, row.editedPaths));
-        const structural = this.check(merged).structuralErrors;
-        if (structural.length > 0) {
-          const bad = new Set(structural.map((e) => e.path.split(".")[0]));
-          this.logger.warn(`Dropping invalid AI fields: ${[...bad].join(", ")}`);
-          merged = { ...merged, ...Object.fromEntries([...bad].map((k) => [k as string, base[k as string]])) };
-        }
-        content = merged;
-        agentQuestions = result.questions;
       }
       const answeredRows = await this.db
         .select()
@@ -264,24 +263,39 @@ export class ProcessingService {
         const outcome = q.answer.optionId === "close" || q.answer.optionId === "keep" || q.answer.optionId === "update" ? q.answer.optionId : "update";
         return [{ openItemId: q.openItemId, outcome, note: q.answer.text }];
       });
-      if (answered.length > 0) {
-        const answeredIds = new Set(answered.map((a) => a.openItemId));
-        content = { ...content, openItemReviews: [...(content.openItemReviews as { openItemId: string }[]).filter((r) => !answeredIds.has(r.openItemId)), ...answered] };
-      }
-      const reviewedIds = new Set((content.openItemReviews as { openItemId: string }[]).map((r) => r.openItemId));
-      const openQuestions = openRows
-        .filter((o) => !reviewedIds.has(o.id) && !citedIds.has(o.id))
-        .map((o) => ({ kind: "open_item" as const, text: `Ficou em aberto: ${o.title}. Como está?`, field: null, options: this.closeOrKeep, openItemId: o.id }));
-      const missing = this.check(content).missingFields;
-      const pathsAsked = new Set(agentQuestions.map((q) => q.field));
-      for (const m of missing) {
-        if (pathsAsked.has(m.path)) continue;
-        const auto = this.autoQuestion(m.path, content);
-        if (auto) agentQuestions.push(auto);
-      }
-      const wanted = new Set(missing.map((m) => m.path));
-      const kept = agentQuestions.filter((q) => q.kind !== "open_item" && (q.field === null || wanted.has(q.field) || q.kind === "service_match"));
       await this.db.transaction(async (tx) => {
+        const latest = await this.lockGeneration(tx, reportId, generation);
+        if (!latest) return;
+        const base = latest.content as unknown as Content;
+        let content = base;
+        const agentQuestions: AgentQuestion[] = result ? [...result.questions] : [];
+        if (result) {
+          const filled = this.applyAi(base, result.fields, new Set(serviceRows.map((s) => s.id)), new Set(equipmentRows.map((e) => e.id)), openIds, openTitles);
+          content = dropDanglingLinks(keepEdited(filled, base, latest.editedPaths));
+          const structural = this.check(content).structuralErrors;
+          if (structural.length > 0) {
+            const bad = new Set(structural.map((e) => e.path.split(".")[0]));
+            this.logger.warn(`Dropping invalid AI fields: ${[...bad].join(", ")}`);
+            content = { ...content, ...Object.fromEntries([...bad].map((k) => [k as string, base[k as string]])) };
+          }
+        }
+        if (answered.length > 0) {
+          const answeredIds = new Set(answered.map((a) => a.openItemId));
+          content = { ...content, openItemReviews: [...(content.openItemReviews as { openItemId: string }[]).filter((r) => !answeredIds.has(r.openItemId)), ...answered] };
+        }
+        const reviewedIds = new Set((content.openItemReviews as { openItemId: string }[]).map((r) => r.openItemId));
+        const openQuestions = openRows
+          .filter((o) => !reviewedIds.has(o.id) && !citedIds.has(o.id))
+          .map((o) => ({ kind: "open_item" as const, text: `Ficou em aberto: ${o.title}. Como está?`, field: null, options: this.closeOrKeep, openItemId: o.id }));
+        const missing = this.check(content).missingFields;
+        const pathsAsked = new Set(agentQuestions.map((q) => q.field));
+        for (const m of missing) {
+          if (pathsAsked.has(m.path)) continue;
+          const auto = this.autoQuestion(m.path, content);
+          if (auto) agentQuestions.push(auto);
+        }
+        const wanted = new Set(missing.map((m) => m.path));
+        const kept = agentQuestions.filter((q) => q.kind !== "open_item" && (q.field === null || wanted.has(q.field) || q.kind === "service_match"));
         await tx.delete(questions).where(and(eq(questions.reportId, reportId), eq(questions.status, "open")));
         if (kept.length > 0) {
           await tx.insert(questions).values(kept.map((q) => ({ reportId, kind: q.kind, text: q.text, field: q.field, options: q.options })));
@@ -289,34 +303,33 @@ export class ProcessingService {
         if (openQuestions.length > 0) {
           await tx.insert(questions).values(openQuestions.map((q) => ({ reportId, kind: q.kind, text: q.text, field: q.field, openItemId: q.openItemId, options: q.options })));
         }
-        await tx
-          .update(reports)
-          .set({ content: content, status: "draft", history: sql`${reports.history} || ${JSON.stringify([{ at: new Date().toISOString(), actor: "agent", description: note }])}::jsonb`, updatedAt: new Date() })
-          .where(eq(reports.id, reportId));
+        await tx.update(reports).set({ content, status: "draft", history: this.historyLine(note), updatedAt: new Date() }).where(eq(reports.id, reportId));
       });
     } catch (error) {
       this.logger.error(`buildReport failed for ${reportId}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
-      await this.db
-        .update(reports)
-        .set({ status: "draft", history: sql`${reports.history} || ${JSON.stringify([{ at: new Date().toISOString(), actor: "agent", description: "Não deu pra preencher com a IA agora: preencha à mão ou gere de novo" }])}::jsonb`, updatedAt: new Date() })
-        .where(eq(reports.id, reportId));
+      await this.db.transaction(async (tx) => {
+        if (!(await this.lockGeneration(tx, reportId, generation))) return;
+        await tx
+          .update(reports)
+          .set({ status: "draft", history: this.historyLine("Não deu pra preencher com a IA agora: preencha à mão ou gere de novo"), updatedAt: new Date() })
+          .where(eq(reports.id, reportId));
+      });
     }
   }
 
-  async voiceCorrection(reportId: string, audioMediaId: string, section: string | null) {
+  async voiceCorrection(reportId: string, generation: number, audioMediaId: string, section: string | null) {
     let description = "Não deu pra aplicar a correção falada: tente de novo ou corrija à mão";
-    let content: Content | null = null;
-    let editedPaths: string[] | null = null;
+    let fields: Record<string, unknown> | null = null;
+    let summary = "";
     try {
       const [row] = await this.db.select().from(reports).where(eq(reports.id, reportId));
-      if (!row) return;
+      if (row?.generation !== generation) return;
       const serviceRows = await this.db.select().from(services).where(eq(services.siteId, row.siteId)).orderBy(asc(services.code));
       const instruction = await this.transcribeMedia(audioMediaId);
       if (instruction === "") {
         description = "A correção falada não tinha fala audível";
       } else {
-        const base = row.content as unknown as Content;
-        const current = Object.fromEntries(Object.entries(base).filter(([key]) => !["site", "localDate", "photos"].includes(key)));
+        const current = Object.fromEntries(Object.entries(row.content).filter(([key]) => !["site", "localDate", "photos"].includes(key)));
         const result = await correctReport(this.model, {
           current: current,
           instruction,
@@ -324,27 +337,40 @@ export class ProcessingService {
           services: serviceRows.map((s) => ({ id: s.id, code: s.code, description: s.description, unit: s.unit })),
         });
         const ids = new Set(serviceRows.map((s) => s.id));
-        const candidate: Content = { ...base, ...(result.fields as Record<string, unknown>) };
         const idOf = (x: { id?: string | null }) => (typeof x.id === "string" && x.id.length === 36 ? x.id : randomUUID());
-        const acts = candidate.activities as unknown as { id?: string; service?: { id: string } | null }[];
-        candidate.activities = acts.map((a) => ({ ...a, id: idOf(a), service: a.service && ids.has(a.service.id) ? a.service : null }));
-        candidate.occurrences = (candidate.occurrences as unknown as { id?: string }[]).map((o) => ({ ...o, id: idOf(o) })) as unknown as Content["occurrences"];
-        candidate.newOpenItems = (candidate.newOpenItems as unknown as { id?: string }[]).map((n) => ({ ...n, id: idOf(n) }));
-        if (this.check(candidate).structuralErrors.length === 0) {
-          content = candidate;
-          editedPaths = mergeEdited(row.editedPaths, editedKeys(base, candidate));
-          description = `Corrigiu por voz${section ? ` (${section})` : ""}: ${result.summary || instruction.slice(0, 120)}`;
-        } else {
-          description = "A correção falada gerou dados inválidos e não foi aplicada";
-        }
+        fields = { ...(result.fields as Record<string, unknown>) };
+        if (Array.isArray(fields.activities)) fields.activities = (fields.activities as { id?: string; service?: { id: string } | null }[]).map((a) => ({ ...a, id: idOf(a), service: a.service && ids.has(a.service.id) ? a.service : null }));
+        if (Array.isArray(fields.occurrences)) fields.occurrences = (fields.occurrences as { id?: string }[]).map((o) => ({ ...o, id: idOf(o) }));
+        if (Array.isArray(fields.newOpenItems)) fields.newOpenItems = (fields.newOpenItems as { id?: string }[]).map((n) => ({ ...n, id: idOf(n) }));
+        summary = result.summary || instruction.slice(0, 120);
       }
     } catch (error) {
       this.logger.error(`voiceCorrection failed for ${reportId}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
     }
-    await this.db
-      .update(reports)
-      .set({ ...(content ? { content: content } : {}), ...(editedPaths ? { editedPaths } : {}), status: "draft", history: sql`${reports.history} || ${JSON.stringify([{ at: new Date().toISOString(), actor: "engineer", description }])}::jsonb`, updatedAt: new Date() })
-      .where(eq(reports.id, reportId));
+    await this.db.transaction(async (tx) => {
+      const latest = await this.lockGeneration(tx, reportId, generation);
+      if (!latest) return;
+      const base = latest.content as unknown as Content;
+      let content: Content | null = null;
+      if (fields) {
+        const candidate = { ...base, ...fields } as Content;
+        if (this.check(candidate).structuralErrors.length === 0) {
+          content = candidate;
+          description = `Corrigiu por voz${section ? ` (${section})` : ""}: ${summary}`;
+        } else {
+          description = "A correção falada gerou dados inválidos e não foi aplicada";
+        }
+      }
+      await tx
+        .update(reports)
+        .set({
+          ...(content ? { content, editedPaths: mergeEdited(latest.editedPaths, editedKeys(base, content)) } : {}),
+          status: "draft",
+          history: this.historyLine(description, "engineer"),
+          updatedAt: new Date(),
+        })
+        .where(eq(reports.id, reportId));
+    });
   }
 
   isStale(updatedAt: Date) {

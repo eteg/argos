@@ -56,6 +56,10 @@ export function keepEdited<T extends Json>(fresh: T, old: Json, edited: readonly
   return out as T;
 }
 
+export function keepAll<T extends Json>(fresh: T, old: Json): T {
+  return keepEdited(fresh, old, ["workday", "weather", "equipment", "openItemReviews", ...WHOLE]);
+}
+
 export function keepPhotoEdits<T extends Json>(fresh: T, old: Json): T {
   return {
     ...fresh,

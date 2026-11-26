@@ -498,7 +498,7 @@ export interface paths {
         put?: never;
         /**
          * Monta ou remonta o rascunho do RDO do dia
-         * @description Chamar de novo remonta o rascunho com os registros novos. A API guarda quais campos o engenheiro corrigiu à mão (`updateReport`, resposta a pergunta ou correção falada): esses ficam como estão, e a IA recalcula todo o resto a partir de todos os registros do dia, inclusive listas inteiras (atividades, ocorrências, efetivo). Com IA ligada, responde 202 com `status` `generating`; a web consulta `getReport` até `draft`. Cada lacuna obrigatória vira pergunta (`RG05`).
+         * @description Chamar de novo remonta o rascunho com os registros novos. A API guarda quais campos o engenheiro corrigiu à mão (`updateReport`, resposta a pergunta ou correção falada): esses ficam como estão, e a IA recalcula todo o resto a partir de todos os registros do dia, inclusive listas inteiras (atividades, ocorrências, efetivo). Com IA ligada, responde 202 com `status` `generating`; a web consulta `getReport` até `draft`. Cada lacuna obrigatória vira pergunta (`RG05`). Enquanto a IA monta, o rascunho guarda o conteúdo anterior. Uma montagem presa há mais de 5 minutos pode ser substituída: gerar de novo, corrigir à mão ou aprovar encerra a montagem antiga, e o resultado dela é descartado.
          */
         post: operations["generateReport"];
         delete?: never;

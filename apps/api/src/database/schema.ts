@@ -112,6 +112,7 @@ export const reports = pgTable(
     approvalKey: uuid("approval_key"),
     history: jsonb("history").$type<{ at: string; actor: "agent" | "engineer"; description: string }[]>().notNull().default([]),
     editedPaths: jsonb("edited_paths").$type<string[]>().notNull().default([]),
+    generation: integer("generation").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
