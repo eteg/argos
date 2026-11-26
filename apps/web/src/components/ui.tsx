@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { errorMessage } from "@/lib/format";
 
 export const field =
   "h-11 w-full min-w-0 rounded-[10px] border-[1.5px] border-[#CDD1DD] bg-white px-3 text-[15px] text-[#2D2D2B]";
@@ -68,5 +69,16 @@ export function Sheet({ closeHref, children }: { closeHref: string; children: Re
         {children}
       </div>
     </main>
+  );
+}
+
+export function ErrorAlert({ error, withFields = false }: { error: { code: string; errors: { field: string }[] }; withFields?: boolean }) {
+  const pendingDay = error.code === "PREVIOUS_DAY_PENDING";
+  const fields = withFields && !pendingDay && error.errors.length > 0 ? ` (${error.errors.map((e) => e.field).join(", ")})` : "";
+  return (
+    <div role="alert" className="flex flex-col gap-2 rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">
+      <span>{errorMessage(error.code, error.errors)}{fields}</span>
+      {pendingDay && <Link href="/dias-anteriores" className="flex min-h-11 items-center self-start rounded-xl border-[1.5px] border-[#6B3A00] px-3 font-semibold">Ver dias anteriores</Link>}
+    </div>
   );
 }

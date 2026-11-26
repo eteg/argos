@@ -125,7 +125,7 @@ As listas de obras (`2.1`, `2.5`, `2.11`) trazem a obra resumida, mais:
 |---|---|---|
 | `distanceMeters` | inteiro ou `null` | Com `X-Device-Location`. A web monta "40 m · você está aqui" ([D16], sem tempo de carro). |
 | `today` | objeto | `localDate`, `state` (`dayState`), `entriesCount` e `reportId`. |
-| `pendingDays` | lista | Dias capturados sem internet que ainda não têm RDO aprovado: `localDate` e `entriesCount`, do mais antigo pro mais novo (`2.6`). |
+| `pendingDays` | lista | Dias anteriores a hoje com registro e sem RDO aprovado, capturados com ou sem internet: `localDate`, `entriesCount` e `offline`, do mais antigo pro mais novo (`2.6`). São os dias que bloqueiam o RDO dos dias seguintes ([D04]). |
 | `openItemsCount` | inteiro | |
 
 ### Obra na pasta

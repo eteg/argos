@@ -2,6 +2,7 @@
 
 ## 0.3.0, rascunho
 
+- `SiteSummary.pendingDays` e `SiteDetail.pendingDays` mudam de significado: passam a listar todo dia anterior a hoje com registro e sem RDO aprovado, capturado com ou sem internet (antes, só os capturados sem internet), igual a `listPendingDays` e aos dias que `generateReport` e `approveReport` cobram em `PREVIOUS_DAY_PENDING`. Cada dia ganha `offline`.
 - `answerQuestion` com `text` só converte o texto em número quando o campo da pergunta é numérico no schema do RDO (empresa "3" fica "3"). Resposta em texto a uma pergunta de campo estruturado (lista ou objeto, como `labor`, `activities`, `occurrences` e `weatherStoppage`) é guardada na pergunta e não muda o RDO; a web leva ao formulário do bloco em vez de oferecer caixa de texto.
 - `getReportPdf` mostra horários e datas no fuso dos registros do dia (`timezone` do primeiro registro), não mais sempre em `America/Sao_Paulo`.
 - `listReports` confere o conteúdo do `cursor` (data `YYYY-MM-DD` e `id` UUID) e responde 400 `VALIDATION` no campo `cursor` em vez de 500.

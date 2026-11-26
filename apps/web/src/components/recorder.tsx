@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api, timezoneParams } from "@/lib/api";
-import { clock, errorMessage } from "@/lib/format";
+import { clock } from "@/lib/format";
 import { getPosition, type Position } from "@/lib/geo";
 import { ApiError, unwrap, useLoad } from "@/lib/hooks";
 import { useOnline } from "@/lib/online";
 import { shrinkImage } from "@/lib/image";
 import { sendEntry, type CapturedFile } from "@/lib/send-entry";
+import { ErrorAlert } from "@/components/ui";
 import { Understood } from "@/components/understood";
 
 const BARS = [16, 34, 52, 28, 60, 22, 44, 64, 38, 20, 48, 30, 56, 18, 40, 26, 50, 24];
@@ -48,6 +49,7 @@ export function Recorder() {
   const [audio, setAudio] = useState<CapturedFile | null>(null);
   const [photos, setPhotos] = useState<(CapturedFile & { preview: string })[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<ApiError | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [queued, setQueued] = useState<"offline" | "failed" | null>(null);
@@ -109,18 +111,20 @@ export function Recorder() {
     if (!audio || !resolved) return;
     setSaving(true);
     setError(null);
+    setFailure(null);
+    const localDate = localDateNow(timezone);
     try {
       const result = await sendEntry({
-        id: entryId.current, siteId, siteName: resolved.siteName, capturedAt: startedAt.current, localDate: localDateNow(timezone), timezone, location: position,
+        id: entryId.current, siteId, siteName: resolved.siteName, capturedAt: startedAt.current, localDate, timezone, location: position,
         audio: { ...audio, durationSeconds: seconds }, photos,
       });
       if (result.kind === "sent" && closeDay) {
-        const report = await unwrap(api.POST("/v1/sites/{siteId}/days/{localDate}/report", { params: { path: { siteId, localDate: localDateNow(timezone) }, ...timezoneParams() } }));
+        const report = await unwrap(api.POST("/v1/sites/{siteId}/days/{localDate}/report", { params: { path: { siteId, localDate }, ...timezoneParams() } }));
         router.push(`/rdo?id=${report.id}`);
       } else if (result.kind === "sent") setSavedId(result.entry.id);
       else setQueued(result.reason);
     } catch (e) {
-      setError(errorMessage(e instanceof ApiError ? e.code : "UNAVAILABLE"));
+      setFailure(e instanceof ApiError ? e : new ApiError("UNAVAILABLE"));
       setSaving(false);
     }
   }
@@ -237,6 +241,7 @@ export function Recorder() {
           </div>
         </div>
         {error && <div role="alert" className="rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">{error}</div>}
+        {failure && <ErrorAlert error={failure} />}
       </div>
       <div className="flex items-center gap-2.5 px-4 pb-6 pt-3">
         <label aria-label="Tirar foto" className="flex size-[52px] flex-none cursor-pointer items-center justify-center rounded-2xl bg-[#3A3A37]">

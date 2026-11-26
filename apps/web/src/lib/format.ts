@@ -71,6 +71,13 @@ export const errorText: Record<string, string> = {
   REPORT_ALREADY_APPROVED: "O RDO de hoje já foi aprovado.",
   SITE_HAS_OPEN_REPORTS: "Falta finalizar RDO para concluir a obra.",
   AI_DISABLED: "A IA está desligada agora. Corrija os campos à mão ou responda digitando.",
+  PREVIOUS_DAY_PENDING: "Falta aprovar o RDO de um dia anterior antes deste dia.",
 };
 
-export const errorMessage = (code: string) => errorText[code] ?? "Não deu pra concluir agora. Tente de novo.";
+const joinWithAnd = (items: string[]) => (items.length <= 1 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} e ${items.at(-1)}`);
+
+export function errorMessage(code: string, errors: { field: string }[] = []) {
+  const days = code === "PREVIOUS_DAY_PENDING" ? errors.map((e) => e.field).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)) : [];
+  if (days.length > 0) return `Falta aprovar o RDO de ${joinWithAnd(days.map(shortDate))} antes deste dia.`;
+  return errorText[code] ?? "Não deu pra concluir agora. Tente de novo.";
+}

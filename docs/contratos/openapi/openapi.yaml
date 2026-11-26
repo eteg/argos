@@ -1209,10 +1209,12 @@ components:
         reportId: { type: [string, "null"] }
     PendingDay:
       type: object
-      required: [localDate, entriesCount]
+      description: Dia anterior a hoje com registro e sem RDO aprovado, capturado com ou sem internet. Bloqueia o RDO dos dias seguintes (D04).
+      required: [localDate, entriesCount, offline]
       properties:
         localDate: { type: string, format: date }
         entriesCount: { type: integer }
+        offline: { type: boolean, description: Algum registro do dia foi capturado sem internet. }
     PendingDayDetail:
       type: object
       required: [localDate, entriesCount, audiosCount, photosCount, offline, isNext]
@@ -1315,6 +1317,7 @@ components:
         today: { $ref: "#/components/schemas/DaySummary" }
         pendingDays:
           type: array
+          description: Todo dia anterior a hoje com registro e sem RDO aprovado, do mais antigo pro mais novo. São os dias que `generateReport` e `approveReport` cobram em `PREVIOUS_DAY_PENDING`.
           items: { $ref: "#/components/schemas/PendingDay" }
         openItemsCount: { type: integer }
     SiteDetail:

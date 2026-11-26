@@ -822,10 +822,13 @@ export interface components {
             entriesCount: number;
             reportId: string | null;
         };
+        /** @description Dia anterior a hoje com registro e sem RDO aprovado, capturado com ou sem internet. Bloqueia o RDO dos dias seguintes (D04). */
         PendingDay: {
             /** Format: date */
             localDate: string;
             entriesCount: number;
+            /** @description Algum registro do dia foi capturado sem internet. */
+            offline: boolean;
         };
         PendingDayDetail: {
             /** Format: date */
@@ -910,6 +913,7 @@ export interface components {
             /** @description Com `X-Device-Location`. */
             distanceMeters: number | null;
             today: components["schemas"]["DaySummary"];
+            /** @description Todo dia anterior a hoje com registro e sem RDO aprovado, do mais antigo pro mais novo. São os dias que `generateReport` e `approveReport` cobram em `PREVIOUS_DAY_PENDING`. */
             pendingDays: components["schemas"]["PendingDay"][];
             openItemsCount: number;
         };

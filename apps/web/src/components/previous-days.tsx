@@ -63,8 +63,7 @@ export function PreviousDays() {
       const report = await unwrap(api.POST("/v1/sites/{siteId}/days/{localDate}/report", { params: { path: { siteId, localDate }, ...tz } }));
       router.push(`/rdo?id=${report.id}`);
     } catch (e) {
-      const code = e instanceof ApiError ? e.code : "UNAVAILABLE";
-      setError(code === "PREVIOUS_DAY_PENDING" ? "Falta fechar um dia anterior desta obra antes deste." : errorMessage(code));
+      setError(e instanceof ApiError ? errorMessage(e.code, e.errors) : errorMessage("UNAVAILABLE"));
       setBusy(null);
     }
   }

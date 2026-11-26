@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, timezoneParams } from "@/lib/api";
-import { clock, errorMessage } from "@/lib/format";
+import { clock } from "@/lib/format";
 import { getPosition, type Position } from "@/lib/geo";
 import { useOnline } from "@/lib/online";
 import { ApiError, unwrap, useLoad } from "@/lib/hooks";
 import { MainNav } from "@/components/main-nav";
-import { Page, Status } from "@/components/ui";
+import { ErrorAlert, Page, Status } from "@/components/ui";
 
 const tz = timezoneParams();
 
@@ -33,7 +33,7 @@ export function DayView() {
   const params = useSearchParams();
   const siteId = params.get("id") ?? "";
   const [position, setPosition] = useState<Position | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => { void getPosition().then(setPosition); }, []);
   const [state, retry] = useLoad(async () => {
@@ -61,7 +61,7 @@ export function DayView() {
       const report = await unwrap(api.POST("/v1/sites/{siteId}/days/{localDate}/report", { params: { path: { siteId, localDate }, ...tz } }));
       router.push(`/rdo?id=${report.id}`);
     } catch (e) {
-      setError(errorMessage(e instanceof ApiError ? e.code : "UNAVAILABLE"));
+      setError(e instanceof ApiError ? e : new ApiError("UNAVAILABLE"));
       setBusy(false);
     }
   }
@@ -111,7 +111,7 @@ export function DayView() {
                 <span className="text-[13px] text-[#5B5F6B]">{approved ? "Abra para consultar." : `O Argos monta o RDO com os ${count} ${count === 1 ? "registro" : "registros"} para você revisar.`}</span></div>
               <span className="flex-none rounded-full bg-[#1563FF] px-3.5 py-2.5 text-[13px] font-semibold text-white">{busy ? "Montando…" : approved ? "Ver RDO" : day.report ? "Revisar RDO" : "Gerar RDO"}</span>
             </button>
-            {error && <div role="alert" className="rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">{error}</div>}
+            {error && <ErrorAlert error={error} />}
           </div>
         )}
         <section className="flex flex-col gap-2.5" aria-labelledby="linha">

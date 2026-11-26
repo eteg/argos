@@ -5,12 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { Schemas } from "@argos/contract";
 import { api, timezoneParams } from "@/lib/api";
-import { errorMessage, fullDate } from "@/lib/format";
+import { fullDate } from "@/lib/format";
 import { useOnline } from "@/lib/online";
 import { ApiError, unwrap, useLoad } from "@/lib/hooks";
 import { agePill, ageLabel, localToday } from "@/lib/open-items";
 import { uploadFile } from "@/lib/send-entry";
-import { Back, Page, Status, Title } from "@/components/ui";
+import { Back, ErrorAlert, Page, Status, Title } from "@/components/ui";
 
 type Report = Schemas["Report"];
 const tz = timezoneParams();
@@ -290,7 +290,7 @@ export function ReportReview() {
       <div className="flex flex-1 flex-col gap-3 px-4 pb-4 pt-1">
         {!online && <div role="status" className="rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">Sem internet: dá para ler o último RDO carregado, mas editar, corrigir falando e aprovar precisam de internet.</div>}
         {busyAi && <div role="status" className="rounded-xl bg-[#E3ECFF] p-3 text-sm text-[#0B3699]">O Argos está montando o RDO com o que você falou. Isso leva alguns segundos…</div>}
-        {error && <div role="alert" className="rounded-xl bg-[#FFE9C7] p-3 text-sm text-[#6B3A00]">{errorMessage(error.code)}{error.errors.length > 0 && ` (${error.errors.map((e) => e.field).join(", ")})`}</div>}
+        {error && <ErrorAlert error={error} withFields />}
         {!approved && (
           <div className="flex items-start gap-2.5 rounded-xl bg-[#EFE3FA] px-3.5 py-3">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5B2E86" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-px flex-none"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.1" /></svg>

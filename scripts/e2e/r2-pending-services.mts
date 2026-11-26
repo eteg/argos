@@ -24,6 +24,9 @@ console.log("     info: getSite.pendingDays =", JSON.stringify(summary.pendingDa
 const gen = await generate(s.id, today);
 check("hoje bloqueado por PREVIOUS_DAY_PENDING com os 2 dias", gen.status === 409 && gen.json.code === "PREVIOUS_DAY_PENDING" && gen.json.errors.map((e: any) => e.field).join() === `${daysAgo(3)},${daysAgo(1)}`, gen.json);
 check("getSite.pendingDays lista todo dia que bloqueia o de hoje (inclui d-1 online)", summary.pendingDays.some((p: any) => p.localDate === daysAgo(1)), summary.pendingDays);
+check("getSite.pendingDays traz offline por dia", JSON.stringify(summary.pendingDays) === JSON.stringify([{ localDate: daysAgo(3), entriesCount: 2, offline: true }, { localDate: daysAgo(1), entriesCount: 1, offline: false }]), summary.pendingDays);
+const listed = (await call("GET", "/v1/sites")).json.items.find((x: any) => x.id === s.id);
+check("listSites traz os mesmos dias pendentes", JSON.stringify(listed?.pendingDays) === JSON.stringify(summary.pendingDays), listed?.pendingDays);
 // obra pausada some da lista
 const paused = await site(`000 Pausada ${tag}`);
 await entry(paused.id, daysAgo(2), 0, { offline: true });

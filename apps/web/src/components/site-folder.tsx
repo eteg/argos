@@ -7,7 +7,7 @@ import { documentTypeLabel, siteTypeLabel, statusLabel } from "@/lib/format";
 import { unwrap, useLoad } from "@/lib/hooks";
 import { agePill, ageLabel, openItemKindLabel } from "@/lib/open-items";
 import { MainNav } from "@/components/main-nav";
-import { Page, Pill, Status } from "@/components/ui";
+import { Page, Status } from "@/components/ui";
 
 const Row = ({ k, children }: { k: string; children: React.ReactNode }) => (
   <div className="grid grid-cols-[112px_1fr] gap-2.5 border-b border-[#E3E5EE] py-2.5 text-[15px] last:border-b-0"><span className="text-[13px] text-[#5B5F6B]">{k}</span><span>{children}</span></div>
@@ -45,7 +45,12 @@ export function SiteFolder() {
             <span className="rounded-full bg-[#1563FF] px-3.5 py-2.5 text-[13px] font-semibold text-white">{s.today.state === "approved" ? "Ver" : s.today.entriesCount === 0 ? "Registrar" : "Continuar"}</span>
           </Link>
         )}
-        {s.pendingDays.length > 0 && <Pill tone="amber">{s.pendingDays.length} dia(s) capturado(s) sem internet</Pill>}
+        {s.pendingDays.length > 0 && (
+          <Link href="/dias-anteriores" className="flex min-h-11 items-center justify-between gap-3 rounded-2xl bg-[#FFE9C7] px-4 py-2.5 text-[13px] text-[#6B3A00]">
+            <span>{s.pendingDays.length} {s.pendingDays.length === 1 ? "dia anterior" : "dias anteriores"} sem RDO aprovado</span>
+            <span className="font-semibold">Finalizar</span>
+          </Link>
+        )}
         <section className="flex flex-col gap-2.5" aria-labelledby="s-aberto">
           <div className="flex items-baseline justify-between px-0.5"><h2 id="s-aberto" className="m-0 text-[15px] font-semibold">Em aberto nesta obra</h2><Link href="/pendencias" className="py-3 text-[13px] font-semibold text-[#1563FF]">Ver pendências</Link></div>
           <ul className={`m-0 list-none rounded-2xl bg-white px-3.5 py-0.5 ${s.openItems.length > 0 ? "border-[1.5px] border-[#CCA6ED]" : ""}`}>

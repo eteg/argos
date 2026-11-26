@@ -171,7 +171,7 @@ export function Home() {
             <div className="rounded-[18px] bg-white px-3.5 py-0.5 shadow-[0_8px_20px_-14px_rgba(45,45,43,0.35)]">
               {todo.flatMap((s) => [
                 ...(s.pendingDays.length > 0
-                  ? [{ key: `${s.id}-p`, title: `${s.name} · ${s.pendingDays.length} ${s.pendingDays.length === 1 ? "dia" : "dias"}`, sub: "Capturados sem internet, falta finalizar", dot: "bg-[#1563FF]", badge: "bg-[#1563FF] px-2.5 py-1 text-white", label: "Finalizar", href: "/dias-anteriores" }]
+                  ? [{ key: `${s.id}-p`, title: `${s.name} · ${s.pendingDays.length} ${s.pendingDays.length === 1 ? "dia" : "dias"}`, sub: s.pendingDays.every((d) => d.offline) ? "Capturados sem internet, falta finalizar" : "Dias anteriores sem RDO aprovado, falta finalizar", dot: "bg-[#1563FF]", badge: "bg-[#1563FF] px-2.5 py-1 text-white", label: "Finalizar", href: "/dias-anteriores" }]
                   : []),
                 ...(s.today.state !== "approved"
                   ? [{ key: s.id, title: s.name, sub: s.today.state === "no_entries" ? "RDO de hoje ainda não começou" : "RDO de hoje em andamento", dot: "bg-[#A673D6]", badge: "bg-[#EFE3FA] px-2 py-[3px] text-[#5B2E86]", label: "Hoje", href: `/obra?id=${s.id}` }]

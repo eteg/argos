@@ -33,4 +33,5 @@ E2E_AI=fake pnpm exec tsx scripts/e2e/<script>.mts    # API com AI_FAKE=true
 | `r3-answer-voice` | as duas | Respostas às perguntas e correção falada |
 | `r4-concorrencia`, `r4b-sonda-fotos` | desligada | Chamadas em paralelo, limite de fotos e ordem dos dias |
 | `r5-regras` | desligada | Códigos de erro das regras e troca do tipo da obra |
+| `web-datas` | sem API | Mensagens de erro da web, como a do dia anterior pendente |
 | `ia-falsa` | falsa | Registro, montagem e correção falada com `AI_FAKE` |

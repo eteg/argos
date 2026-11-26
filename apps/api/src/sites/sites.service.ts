@@ -133,9 +133,9 @@ export class SitesService {
       },
       pendingDays: stats.openRows
         .filter((r) => r.siteId === row.id)
-        .filter((r) => r.offline && r.localDate < stats.today)
+        .filter((r) => r.localDate < stats.today)
         .sort((a, b) => a.localDate.localeCompare(b.localDate))
-        .map((r) => ({ localDate: r.localDate, entriesCount: r.count })),
+        .map((r) => ({ localDate: r.localDate, entriesCount: r.count, offline: r.offline })),
       openItemsCount: stats.openItemCounts.get(row.id) ?? 0,
     };
   }
