@@ -1,4 +1,4 @@
-import { AI, approve, call, check, complete, daysAgo, db, done, entry, generate, media, randomUUID, site, today } from "./lib.mts";
+import { AI, approve, call, check, complete, daysAgo, db, done, entry, generateReady as generate, media, randomUUID, site, today } from "./lib.mts";
 
 const pg = await db();
 async function q(v: { report_id?: string; entry_id?: string; kind: string; text: string; field?: string | null; open_item_id?: string; options: unknown[] }) {

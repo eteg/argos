@@ -1,4 +1,4 @@
-import { AI, call, check, done, entry, generate, media, randomUUID, site, today } from "./lib.mts";
+import { AI, call, check, db, done, entry, generate, media, randomUUID, site, today } from "./lib.mts";
 
 // Roda com a API em AI_ENABLED=true e AI_FAKE=true (E2E_AI=fake).
 if (AI !== "fake") throw new Error("Rode com E2E_AI=fake e a API em AI_FAKE=true.");
@@ -26,6 +26,24 @@ const vc = await call("POST", `/v1/reports/${g.json.id}/voice-corrections`, { au
 check("correção falada 202", vc.status === 202, vc);
 const r2 = await wait(() => reportOf(g.json.id), (x) => x.status !== "generating");
 check("correção falada aplicada", r2.laborNotes === "faltou um servente" && r2.history.at(-1).description.startsWith("Corrigiu por voz"), [r2.laborNotes, r2.history.at(-1)]);
+
+// resposta falada segue o caminho da digitada (B15)
+const pg = await db();
+const ask = async (field: string, text: string) =>
+  (await pg.query("insert into questions (report_id, kind, text, field, options) values ($1, 'missing_field', $2, $3, '[]') returning id", [g.json.id, text, field])).rows[0].id as string;
+const qBreak = await ask("workday.breakMinutes", "Quantos minutos de intervalo?");
+const spoken = await call("POST", `/v1/questions/${qBreak}/answer`, { audioMediaId: await media("audio", "audio/webm", { text: "45" }) });
+check("resposta falada 202", spoken.status === 202 && spoken.json.answer.audioMediaId !== null, spoken.json);
+const applied = await wait(() => reportOf(g.json.id), (x) => x.workday.breakMinutes === 45);
+check("resposta falada aplicada no campo como a digitada", applied.workday.breakMinutes === 45 && applied.history.at(-1).description.startsWith("Respondeu"), [applied.workday, applied.history.at(-1)]);
+const answered = applied.questions.find((q: any) => q.id === qBreak);
+check("a transcrição fica na resposta", answered?.answer?.text === "45" && answered?.status === "answered", answered);
+const qLabor = await ask("labor", "Quantas pessoas trabalharam?");
+const before = await reportOf(g.json.id);
+await call("POST", `/v1/questions/${qLabor}/answer`, { audioMediaId: await media("audio", "audio/webm", { text: "dois serventes" }) });
+const kept = await wait(() => reportOf(g.json.id), (x) => x.questions.find((q: any) => q.id === qLabor)?.answer?.text !== null);
+check("resposta falada a campo estruturado fica só na pergunta", kept.questions.find((q: any) => q.id === qLabor)?.answer?.text === "dois serventes" && JSON.stringify(kept.labor) === JSON.stringify(before.labor), kept.labor);
+await pg.end();
 
 const diag = await call("POST", "/v1/diagnostics/ai");
 check("diagnóstico responde com o modelo falso", diag.status === 200 && diag.json.model === "fake", diag.json);

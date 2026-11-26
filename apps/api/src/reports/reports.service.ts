@@ -338,13 +338,32 @@ export class ReportsService {
     const updated = await this.db.transaction(async (tx) => {
       await this.applyAnswer(tx, row, input);
       const [q] = await tx.update(questions).set({ answer, status: "answered" }).where(eq(questions.id, row.id)).returning();
+      if (!q) throw new ProblemException(404, "NOT_FOUND", "Question not found.");
       return q;
     });
-    if (input.audioMediaId) void this.processing.answerSpoken(row.id, input.audioMediaId);
+    if (input.audioMediaId) void this.applySpoken(row.id, input.audioMediaId);
     return {
       spoken: input.audioMediaId !== undefined,
-      question: { id: updated!.id, kind: updated!.kind as Schemas["QuestionKind"], text: updated!.text, field: updated!.field, openItemId: updated!.openItemId, options: updated!.options, status: updated!.status as Schemas["QuestionStatus"], answer: updated!.answer },
+      question: { id: updated.id, kind: updated.kind as Schemas["QuestionKind"], text: updated.text, field: updated.field, openItemId: updated.openItemId, options: updated.options, status: updated.status as Schemas["QuestionStatus"], answer: updated.answer },
     };
+  }
+
+  private async applySpoken(questionId: string, mediaId: string) {
+    try {
+      const text = await this.processing.transcribeMedia(mediaId);
+      await this.db.transaction(async (tx) => {
+        const [q] = await tx.select().from(questions).where(eq(questions.id, questionId)).for("update");
+        if (q?.answer?.audioMediaId !== mediaId) return;
+        await tx.update(questions).set({ answer: { ...q.answer, text: text || null } }).where(eq(questions.id, questionId));
+        if (!text) return;
+        await this.applyAnswer(tx, q, { text }).catch((error: unknown) => {
+          if (!(error instanceof ProblemException)) throw error;
+          this.logger.warn(`Spoken answer to ${questionId} kept as text only: ${error.message}`);
+        });
+      });
+    } catch (error) {
+      this.logger.error(`applySpoken failed for ${questionId}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
+    }
   }
 
   async approve(reportId: string, key: string | undefined) {

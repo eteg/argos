@@ -2,6 +2,7 @@
 
 ## 0.3.0, rascunho
 
+- `answerQuestion` com `audioMediaId` deixa de só guardar a resposta: a API transcreve o áudio, grava a transcrição em `answer.text` e aplica a resposta pelo mesmo caminho do `text`, nos campos que aceitam texto. `answerQuestion` responde 404 se a pergunta deixou de existir no meio da resposta (a montagem do RDO troca as perguntas abertas).
 - Ao subir, a API retoma os registros que ficaram em `processing` (ou os marca `failed` com a IA desligada) e devolve a `draft` os RDOs que ficaram em `generating`, com uma linha no `history` explicando. Quando a montagem deixa de fora registros que não foram transcritos, o `history` diz quantos.
 - Montagem (`generateReport`) e correção falada (`correctReportByVoice`) atrasadas não gravam mais por cima de um RDO aprovado, gerado de novo ou corrigido à mão: cada montagem tem um número de geração e o resultado só entra se o RDO ainda está naquela geração em `generating`. `updateReport` num RDO preso em `generating` há mais de 5 minutos o devolve a `draft`. Enquanto a IA monta, o rascunho mantém o conteúdo anterior.
 - `generateReport` de novo recalcula com a IA tudo o que o engenheiro não corrigiu à mão, inclusive as listas inteiras: um registro novo com acidente entra nas ocorrências e gera a pergunta de segurança (`F1RN04`). O que foi corrigido por `updateReport`, por resposta a pergunta ou por `correctReportByVoice` fica como está. Antes, a IA só preenchia o que estava vazio.

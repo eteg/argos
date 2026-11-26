@@ -67,6 +67,17 @@ export async function entry(siteId: string, localDate: string, photos = 0, extra
 
 export const generate = (siteId: string, localDate: string) => call("POST", `/v1/sites/${siteId}/days/${localDate}/report`);
 
+// gera e espera a montagem da IA terminar (com a IA desligada já volta em draft)
+export async function generateReady(siteId: string, localDate: string) {
+  const g = await generate(siteId, localDate);
+  let json = g.json;
+  for (let i = 0; i < 100 && json?.status === "generating"; i++) {
+    await new Promise((r) => setTimeout(r, 300));
+    json = (await call("GET", `/v1/reports/${g.json.id}`)).json;
+  }
+  return { ...g, json };
+}
+
 export const complete = (serviceId = "s1") => ({
   workday: { startTime: "07:00", endTime: "17:00", breakMinutes: 60 },
   weather: [{ shift: "morning", weather: "good", condition: "workable" }, { shift: "afternoon", weather: "good", condition: "workable" }],

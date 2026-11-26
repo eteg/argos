@@ -468,7 +468,7 @@ export interface paths {
         put?: never;
         /**
          * Responde uma pergunta do agente
-         * @description Com `optionId` ou `text` responde 200. Com `audioMediaId` responde 202 e a IA interpreta a resposta. O `audioMediaId` precisa ser um áudio enviado por `uploadMedia` (senão 400 `VALIDATION` no campo `audioMediaId`).
+         * @description Com `optionId` ou `text` responde 200. Com `audioMediaId` responde 202: a API transcreve o áudio, guarda a transcrição em `answer.text` e aplica a resposta do mesmo jeito que a digitada, no campo da pergunta (`field`) quando ele aceita texto; em campo estruturado, ou se o texto não serve para o campo, a transcrição fica só na pergunta. O `audioMediaId` precisa ser um áudio enviado por `uploadMedia` (senão 400 `VALIDATION` no campo `audioMediaId`).
          */
         post: operations["answerQuestion"];
         delete?: never;
@@ -2213,7 +2213,7 @@ export interface operations {
                     "application/json": components["schemas"]["Question"];
                 };
             };
-            /** @description A resposta falada está sendo interpretada. */
+            /** @description A resposta falada está sendo transcrita; a web consulta o RDO para ver a resposta aplicada. */
             202: {
                 headers: {
                     "Retry-After"?: number;

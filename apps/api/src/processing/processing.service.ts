@@ -97,7 +97,7 @@ export class ProcessingService implements OnApplicationBootstrap {
     if (interrupted.length > 0) this.logger.warn(`Returned ${interrupted.length} report(s) left in generating to draft.`);
   }
 
-  private async transcribeMedia(mediaId: string): Promise<string> {
+  async transcribeMedia(mediaId: string): Promise<string> {
     const [row] = await this.db.select().from(media).where(eq(media.id, mediaId));
     if (!row) throw new Error("Media not found.");
     if (row.durationSeconds !== null && row.durationSeconds < 1) return "";
@@ -159,17 +159,6 @@ export class ProcessingService implements OnApplicationBootstrap {
       text: `Ficou em aberto desde ${day}/${month}: ${next.title}. Como está?`,
       options: this.closeOrKeep,
     });
-  }
-
-  async answerSpoken(questionId: string, mediaId: string) {
-    try {
-      const text = await this.transcribeMedia(mediaId);
-      const [row] = await this.db.select().from(questions).where(eq(questions.id, questionId));
-      if (!row?.answer) return;
-      await this.db.update(questions).set({ answer: { ...row.answer, text: text || null } }).where(eq(questions.id, questionId));
-    } catch (error) {
-      this.logger.error(`answerSpoken failed for ${questionId}: ${String(error)}`);
-    }
   }
 
   private applyAi(base: Content, fields: ReportFields, serviceIds: Set<string>, equipmentIds: Set<string>, openIds: Set<string>, openTitles: Set<string>): Content {

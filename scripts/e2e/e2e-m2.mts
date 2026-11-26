@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
-import { AI, B, DATABASE_URL, ROOT } from "./lib.mts";
+import { AI, B, DATABASE_URL, ROOT, generateReady } from "./lib.mts";
 const pg = createRequire(new URL("apps/api/package.json", ROOT))("pg");
 const db = new pg.Client({ connectionString: DATABASE_URL }); await db.connect(); const H = { "X-Api-Key": "dev-key", "X-Timezone": "America/Sao_Paulo" };
 let fails = 0; const check = (n: string, ok: boolean, x?: unknown) => { if (!ok) fails++; console.log(ok ? "ok  " : "FAIL", n, ok ? "" : JSON.stringify(x)); };
@@ -19,7 +19,7 @@ const e = (await call("POST", `/v1/sites/${s.id}/entries`, { id: randomUUID(), c
 const ge = await call("GET", `/v1/entries/${e.id}`);
 check("getEntry", ge.status === 200 && ge.json.id === e.id && ge.json.audio.id === mid, ge);
 check("getEntry 404", (await call("GET", `/v1/entries/${randomUUID()}`)).status === 404);
-const g = (await call("POST", `/v1/sites/${s.id}/days/${today}/report`)).json;
+const g = (await generateReady(s.id, today)).json;
 const qid = (await db.query("insert into questions (report_id, kind, text, options) values ($1,'missing_field','Como estava o tempo?', $2) returning id", [g.id, JSON.stringify([{ id: "good", label: "Bom" }])])).rows[0].id;
 check("answer opção 200", (await call("POST", `/v1/questions/${qid}/answer`, { optionId: "good" })).json?.status === "answered");
 check("answer opção inválida 400", (await call("POST", `/v1/questions/${qid}/answer`, { optionId: "zz" })).status === 400);
@@ -27,5 +27,5 @@ check("answer dois campos 400", (await call("POST", `/v1/questions/${qid}/answer
 const spoken = await call("POST", `/v1/questions/${qid}/answer`, { audioMediaId: mid });
 check(AI === "off" ? "answer áudio sem IA 409 AI_DISABLED" : "answer áudio 202", AI === "off" ? spoken.status === 409 && spoken.json?.code === "AI_DISABLED" : spoken.status === 202, spoken);
 check("answer 404", (await call("POST", `/v1/questions/${randomUUID()}/answer`, { text: "x" })).status === 404);
-check("report traz pergunta", (await call("GET", `/v1/reports/${g.id}`)).json.questions.length === 1);
+check("report traz pergunta", (await call("GET", `/v1/reports/${g.id}`)).json.questions.some((q: any) => q.id === qid));
 await db.end(); console.log(fails ? `${fails} FALHAS` : "TUDO OK");
