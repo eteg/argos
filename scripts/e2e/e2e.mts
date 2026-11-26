@@ -62,7 +62,7 @@ const d = await call("POST", `/v1/sites/${id}/documents`, doc);
 check("uploadSiteDocument", d.status === 201, d);
 const dl = await fetch(d.json.url);
 check("url assinada baixa", dl.status === 200 && (await dl.text()) === "%PDF-1.4");
-check("url adulterada 404", (await fetch(d.json.url.replace(/sig=./, "sig=0"))).status === 404);
+check("url adulterada 404", (await fetch(d.json.url.replace(/sig=(.)/, (_: string, c: string) => `sig=${c === "0" ? "1" : "0"}`))).status === 404);
 check("updateSiteDocument", (await call("PATCH", `/v1/sites/${id}/documents/${d.json.id}`, { type: "structural" })).json.type === "structural");
 
 async function media(kind: string, mime: string, mid = randomUUID(), size = 10) {
