@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
-import { reportContentSchema, validateReport } from "@argos/rdo-schema";
+import { fieldTypeAt, reportContentSchema, validateReport, type FieldType } from "@argos/rdo-schema";
 import { z } from "zod";
 import { parse } from "../common/validate.js";
 import type { Schemas } from "@argos/contract";
@@ -55,6 +55,17 @@ const NULLABLE_FIELDS = ["rainfallMm", "laborNotes", "weatherStoppage"];
 
 const MIN_PHOTOS = 3;
 const MAX_PHOTOS = 20;
+
+function textValue(text: string, path: string, type: FieldType | undefined): unknown {
+  const trimmed = text.trim();
+  if ((type === "number" || type === "integer") && /^-?\d+([.,]\d+)?$/.test(trimmed)) return Number(trimmed.replace(",", "."));
+  if (type === "boolean" && (trimmed === "true" || trimmed === "false")) return trimmed === "true";
+  if (type === "string" && /Time$/.test(path)) {
+    const m = /(\d{1,2})\s*(?:[:h]\s*(\d{2})?)/i.exec(trimmed);
+    return m ? `${m[1]!.padStart(2, "0")}:${m[2] ?? "00"}` : trimmed;
+  }
+  return text;
+}
 
 const checkReport = (content: unknown) => validateReport(content, { minPhotosPerReport: MIN_PHOTOS, maxPhotosPerReport: MAX_PHOTOS });
 
@@ -290,17 +301,16 @@ export class ReportsService {
       content.openItemReviews = reviews;
       description = `Respondeu sobre um item em aberto: ${q.text}`;
     } else if (q.reportId && q.field) {
+      const serviceId = q.field.endsWith(".service") ? input.optionId : undefined;
+      const type = fieldTypeAt(q.field);
+      if (serviceId === undefined && (type === "object" || type === "array")) return;
       let value: unknown = typed;
-      if (q.field.endsWith(".service") && input.optionId) {
-        const [svc] = uuid.safeParse(input.optionId).success ? await tx.select().from(services).where(eq(services.id, input.optionId)) : [];
+      if (serviceId !== undefined) {
+        const [svc] = uuid.safeParse(serviceId).success ? await tx.select().from(services).where(eq(services.id, serviceId)) : [];
         if (!svc) throw new ProblemException(400, "VALIDATION", "Unknown service.", [{ field: "optionId", code: "INVALID" }]);
         value = { id: svc.id, code: svc.code, description: svc.description, unit: svc.unit };
-      } else if (typeof typed === "string") {
-        if (/Time$/.test(q.field)) {
-          const m = /(\d{1,2})\s*(?:[:h]\s*(\d{2})?)/i.exec(typed);
-          value = m ? `${m[1]!.padStart(2, "0")}:${m[2] ?? "00"}` : typed;
-        } else if (/^-?\d+([.,]\d+)?$/.test(typed.trim())) value = Number(typed.trim().replace(",", "."));
-        else if (typed === "true" || typed === "false") value = typed === "true";
+      } else if (input.text !== undefined) {
+        value = textValue(input.text, q.field, type);
       }
       if (!setPath(content, q.field, value)) throw new ProblemException(400, "VALIDATION", "The answer does not fit the field.", [{ field: "optionId", code: "INVALID" }]);
       const check = checkReport(content);

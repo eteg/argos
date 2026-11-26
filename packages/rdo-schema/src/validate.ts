@@ -34,7 +34,7 @@ export interface ValidateOptions {
 }
 
 interface JsonNode {
-  type?: string;
+  type?: string | string[];
   level?: FieldLevel;
   conditional?: boolean;
   nonEmpty?: boolean;
@@ -212,4 +212,17 @@ export function validateReport(input: unknown, options: ValidateOptions): Valida
     ...collectConditionals(parsed.data, siteType, options),
   ];
   return { structuralErrors, missingFields };
+}
+
+export type FieldType = "string" | "number" | "integer" | "boolean" | "object" | "array";
+
+export function fieldTypeAt(path: string): FieldType | undefined {
+  let node: JsonNode | undefined = reportContentJsonSchema as JsonNode;
+  for (const key of path.split(".")) {
+    if (!node) return undefined;
+    const inner: JsonNode = unwrapNullable(node);
+    node = /^\d+$/.test(key) && inner.items ? inner.items : inner.properties?.[key];
+  }
+  const type = node ? (unwrapNullable(node).type as FieldType | FieldType[] | undefined) : undefined;
+  return Array.isArray(type) ? type.find((t) => (t as string) !== "null") : type;
 }

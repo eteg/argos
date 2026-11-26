@@ -307,7 +307,8 @@ export function ReportReview() {
                 <span className="text-[15px] leading-[1.4]">{q.text}</span>
                 <div className="flex flex-wrap gap-2">
                   {q.options.map((o) => <button key={o.id} type="button" className="min-h-11 rounded-full border border-[#DDE0EA] bg-[#F4F5F9] px-3.5 text-[13px] font-medium" onClick={() => void answerQuestion(q.id, { optionId: o.id })}>{o.label}</button>)}
-                  {q.options.length === 0 && q.kind !== "safety" && <QuestionText onSend={(text) => void answerQuestion(q.id, { text })} />}
+                  {q.options.length === 0 && q.kind !== "safety" && !isStructured(q.field) && <QuestionText onSend={(text) => void answerQuestion(q.id, { text })} />}
+                  {q.options.length === 0 && q.kind !== "safety" && isStructured(q.field) && <FieldShortcut field={q.field ?? ""} />}
                   {q.kind === "safety" && <Link href={`/rdo/seguranca?id=${id}`} className="min-h-11 rounded-full bg-[#E3ECFF] px-3.5 py-3 text-[13px] font-semibold text-[#0B3699]">Registrar segurança</Link>}
                 </div>
               </div>
@@ -559,7 +560,7 @@ function LaborAdd({ onAdd }: { onAdd: (l: Report["labor"][number]) => void }) {
   const [company, setCompany] = useState("");
   return (
     <div className="flex flex-col gap-2 border-t border-[#E3E5EE] pt-2">
-      <div className="grid grid-cols-[1fr_80px] gap-2"><input aria-label="Função" placeholder="Função" className={field} value={role} onChange={(e) => setRole(e.target.value)} />
+      <div className="grid grid-cols-[1fr_80px] gap-2"><input id="add-labor" aria-label="Função" placeholder="Função" className={field} value={role} onChange={(e) => setRole(e.target.value)} />
         <input aria-label="Quantidade" type="number" placeholder="Qtd" className={field} value={count} onChange={(e) => setCount(e.target.value)} /></div>
       <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={third} onChange={(e) => setThird(e.target.checked)} />Terceirizado</label>
       {third && <input aria-label="Empresa" placeholder="Empresa" className={field} value={company} onChange={(e) => setCompany(e.target.value)} />}
@@ -577,7 +578,7 @@ function ActivityAdd({ services, loadServices, onAdd }: { services: Schemas["Ser
   const service = services?.find((s) => s.id === serviceId) ?? null;
   return (
     <div className="flex flex-col gap-2 border-t border-[#E3E5EE] pt-2" onFocus={loadServices}>
-      <input aria-label="Descrição da atividade" placeholder="O que foi feito" className={field} value={description} onChange={(e) => setDescription(e.target.value)} />
+      <input id="add-activity" aria-label="Descrição da atividade" placeholder="O que foi feito" className={field} value={description} onChange={(e) => setDescription(e.target.value)} />
       <input aria-label="Local" placeholder="Local (ex.: Bloco B)" className={field} value={location} onChange={(e) => setLocation(e.target.value)} />
       <select aria-label="Serviço da planilha" className={field} value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
         <option value="">Serviço da planilha</option>{services?.map((s) => <option key={s.id} value={s.id}>{s.code} {s.description}</option>)}</select>
@@ -613,7 +614,7 @@ function OccurrenceAdd({ isPublic, services, loadServices, onAdd }: { isPublic: 
   const [document, setDocument] = useState("");
   return (
     <div className="flex flex-col gap-2 border-t border-[#E3E5EE] pt-2">
-      <select aria-label="Tipo da ocorrência" className={field} value={type} onChange={(e) => setType(e.target.value as typeof type)}>{Object.entries(occurrenceLabel).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+      <select id="add-occurrence" aria-label="Tipo da ocorrência" className={field} value={type} onChange={(e) => setType(e.target.value as typeof type)}>{Object.entries(occurrenceLabel).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
       <input aria-label="Descrição da ocorrência" placeholder="O que aconteceu" className={field} value={description} onChange={(e) => setDescription(e.target.value)} />
       <div className="grid grid-cols-2 gap-2"><input aria-label="Início" type="time" className={field} value={startTime} onChange={(e) => setStart(e.target.value)} /><input aria-label="Fim" type="time" className={field} value={endTime} onChange={(e) => setEnd(e.target.value)} /></div>
       {isPublic && (
@@ -627,6 +628,28 @@ function OccurrenceAdd({ isPublic, services, loadServices, onAdd }: { isPublic: 
         onClick={() => { onAdd({ id: crypto.randomUUID(), type, description, startTime, endTime: endTime || null, status: endTime ? "closed" : "open", affectedServiceIds: affected, source: origin ? { origin, document: document || null } : null, materials: null, safety: null }); setDescription(""); setStart(""); setEnd(""); setAffected([]); setOrigin(""); setDocument(""); }}>Adicionar ocorrência</button>
     </div>
   );
+}
+
+const shortcuts: Record<string, { label: string; target: string }> = {
+  labor: { label: "Adicionar ao efetivo", target: "add-labor" },
+  activities: { label: "Adicionar atividade", target: "add-activity" },
+  occurrences: { label: "Adicionar ocorrência", target: "add-occurrence" },
+  weatherStoppage: { label: "Preencher horas paradas", target: "horas-paradas" },
+  workday: { label: "Preencher a jornada", target: "entrada" },
+  weather: { label: "Preencher o clima", target: "tempo-morning" },
+  equipment: { label: "Preencher os equipamentos", target: "eq-0" },
+};
+
+const isStructured = (field: string | null) => field !== null && !field.includes(".");
+
+function FieldShortcut({ field }: { field: string }) {
+  const shortcut = shortcuts[field] ?? { label: "Preencher no formulário", target: "b-id" };
+  function go() {
+    const target = document.getElementById(shortcut.target);
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    target?.focus({ preventScroll: true });
+  }
+  return <button type="button" onClick={go} className="min-h-11 rounded-full bg-[#E3ECFF] px-3.5 text-[13px] font-semibold text-[#0B3699]">{shortcut.label}</button>;
 }
 
 function QuestionText({ onSend }: { onSend: (text: string) => void }) {

@@ -43,10 +43,13 @@ check("resposta em texto à pergunta de 'labor' (autoQuestion) é aceita", r4.st
 const qa = await q({ report_id: g.id, kind: "missing_field", text: "Quais atividades foram feitas hoje?", field: "activities", options: [] });
 const r5 = await answer(qa, { text: "Concretagem da laje" });
 check("resposta em texto à pergunta de 'activities' (autoQuestion) é aceita", r5.status === 200, r5);
+const afterStructured = await report(g.id);
+check("texto em campo estruturado fica na pergunta e não muda o RDO", r4.json?.answer?.text === "5 pedreiros próprios" && afterStructured.labor.length === 0 && afterStructured.activities.length === 0, [r4.json?.answer, afterStructured.labor, afterStructured.activities]);
 await call("PATCH", `/v1/reports/${g.id}`, { labor: [{ role: "Servente", count: 2, employment: "third_party", company: null, category: null }] });
 const qc = await q({ report_id: g.id, kind: "missing_field", text: "Qual é a empresa?", field: "labor.0.company", options: [] });
 const r6 = await answer(qc, { text: "3" });
 check("empresa chamada '3' aceita como texto", r6.status === 200, r6);
+check("empresa '3' gravada como texto", (await report(g.id)).labor[0]?.company === "3", (await report(g.id)).labor[0]);
 
 const au = await media("audio");
 const r7 = await answer(qt, { audioMediaId: au });

@@ -197,6 +197,7 @@ export class ProcessingService {
     if (head === "weather" && leaf === "condition") return q(`O tempo permitiu trabalhar ${periodName(i)}?`, conditionOptions);
     if (path === "labor") return q("Quantas pessoas trabalharam hoje e em quais funções?");
     if (path === "activities") return q("Quais atividades foram feitas hoje?");
+    if (path === "weatherStoppage") return q("Quantas horas a obra parou por causa do clima, e quais serviços foram afetados?");
     if (head === "labor" && leaf === "employment") {
       const l = content.labor[i] as { role?: string; count?: number } | undefined;
       return q(`${l?.count ?? ""} ${l?.role ?? "da equipe"}: são próprios ou terceirizados?`.trim(), [{ id: "own", label: "Próprios" }, { id: "third_party", label: "Terceirizados" }]);

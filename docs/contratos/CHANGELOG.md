@@ -2,6 +2,7 @@
 
 ## 0.3.0, rascunho
 
+- `answerQuestion` com `text` só converte o texto em número quando o campo da pergunta é numérico no schema do RDO (empresa "3" fica "3"). Resposta em texto a uma pergunta de campo estruturado (lista ou objeto, como `labor`, `activities`, `occurrences` e `weatherStoppage`) é guardada na pergunta e não muda o RDO; a web leva ao formulário do bloco em vez de oferecer caixa de texto.
 - `getReportPdf` mostra horários e datas no fuso dos registros do dia (`timezone` do primeiro registro), não mais sempre em `America/Sao_Paulo`.
 - `listReports` confere o conteúdo do `cursor` (data `YYYY-MM-DD` e `id` UUID) e responde 400 `VALIDATION` no campo `cursor` em vez de 500.
 - O RDO é validado pelo tipo da cópia da obra guardada nele (`site.type`), não pelo cadastro atual: trocar o tipo da obra com `updateSite` não quebra `getReport` nem o PDF dos RDOs já montados. O rascunho segue a cópia até `generateReport` ser chamado de novo, que refaz a cópia com o cadastro atual. `validateReport` do `@argos/rdo-schema` aceita `siteType` opcional e, sem ele, usa o `site.type` do RDO.
