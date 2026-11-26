@@ -215,7 +215,7 @@ Um por obra e por dia, montado a partir dos registros do dia.
 |---|---|---|---|
 | `id` | texto | | |
 | `siteId` | texto | | |
-| `number` | inteiro | RDO | Sequencial por obra, sem saltos ([D11]). "Nº 088". |
+| `number` | inteiro | RDO | Sequencial por obra, sem saltos, dado na aprovação ([D11]). Antes de aprovar, a API mostra o próximo número livre. "Nº 088". |
 | `localDate` | data | RDO | O dia da semana é calculado na web. |
 | `status` | `reportStatus` | RDO | |
 | `entriesCount` | inteiro | | "Montado a partir dos 4 registros de hoje". |
@@ -293,4 +293,4 @@ O que ficou pendente num RDO aprovado, por obra (`F1RN06`, `F1RN11`).
 [D09]: ../roadmap/ROADMAP.md#decisões-tomadas
 [D10]: ../roadmap/ROADMAP.md#decisões-tomadas
 [D16]: ../roadmap/ROADMAP.md#decisões-tomadas
-[D11]: ../roadmap/ROADMAP.md#decisões-em-aberto
+[D11]: ../roadmap/ROADMAP.md#decisões-tomadas

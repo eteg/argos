@@ -21,4 +21,4 @@ ADR aceito não se reescreve. Se a decisão mudar, um ADR novo substitui o antig
 | [0001](0001-stack-e-staging.md) | Stack, staging e fluxo de trabalho (D01) | aceita |
 | [0002](0002-chave-da-api-sem-login.md) | Chave da API sem login (D07) | aceita |
 | [0003](0003-codigo-da-ia-em-packages-agent.md) | Código da IA em `packages/agent` (D19) | aceita |
-| [0004](0004-transcricao-do-audio-com-gemini.md) | Transcrição do áudio com Gemini (D17) | proposta |
+| [0004](0004-transcricao-do-audio-com-gemini.md) | Transcrição do áudio com Gemini (D17) | aceita |
